@@ -46,6 +46,18 @@ export const createTenantSpecificConfig = (tenantId: string) => {
   };
 };
 
+// Helper function to get tenant-specific configuration
+export const getTenantSpecificConfig = (tenantId: string) => {
+  return {
+    auth: {
+      clientId: msalConfig.auth.clientId,
+      authority: `https://login.microsoftonline.com/${tenantId}`,
+      redirectUri: msalConfig.auth.redirectUri,
+      postLogoutRedirectUri: msalConfig.auth.postLogoutRedirectUri
+    }
+  };
+};
+
 // Create and export the MSAL instance
 export const msalInstance = new PublicClientApplication(msalConfig);
 

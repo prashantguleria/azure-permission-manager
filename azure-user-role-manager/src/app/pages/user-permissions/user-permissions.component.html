@@ -1,0 +1,298 @@
+<div class="user-permissions-container">
+  <!-- Header Section -->
+  <div class="header-section">
+    <div class="header-content">
+      <h2 class="page-title">
+        <span nz-icon nzType="safety-certificate" nzTheme="outline"></span>
+        User Permissions - {{ getUserDisplayName() }}
+      </h2>
+      <div class="header-actions">
+        <button 
+          nz-button 
+          nzType="default" 
+          (click)="refreshPermissions()" 
+          [nzLoading]="loading"
+          nzSize="small">
+          <span nz-icon nzType="reload" nzTheme="outline"></span>
+          Refresh
+        </button>
+        <button 
+          nz-button 
+          nzType="primary" 
+          (click)="exportPermissions()" 
+          [disabled]="!permissions || loading"
+          nzSize="small">
+          <span nz-icon nzType="download" nzTheme="outline"></span>
+          Export CSV
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-section" *ngIf="permissionSummary && !loading">
+    <div class="summary-cards">
+      <nz-card class="summary-card">
+        <nz-statistic 
+          nzTitle="Directory Roles" 
+          [nzValue]="permissionSummary.totalDirectoryRoles"
+          [nzValueStyle]="{ color: '#1890ff' }">
+          <ng-template #nzPrefix>
+            <span nz-icon nzType="team" nzTheme="outline"></span>
+          </ng-template>
+        </nz-statistic>
+      </nz-card>
+      
+      <nz-card class="summary-card">
+        <nz-statistic 
+          nzTitle="Application Roles" 
+          [nzValue]="permissionSummary.totalAppRoles"
+          [nzValueStyle]="{ color: '#52c41a' }">
+          <ng-template #nzPrefix>
+            <span nz-icon nzType="appstore" nzTheme="outline"></span>
+          </ng-template>
+        </nz-statistic>
+      </nz-card>
+      
+      <nz-card class="summary-card">
+        <nz-statistic 
+          nzTitle="RBAC Roles" 
+          [nzValue]="permissionSummary.totalRbacRoles"
+          [nzValueStyle]="{ color: '#fa8c16' }">
+          <ng-template #nzPrefix>
+            <span nz-icon nzType="cloud" nzTheme="outline"></span>
+          </ng-template>
+        </nz-statistic>
+      </nz-card>
+      
+      <nz-card class="summary-card">
+        <nz-statistic 
+          nzTitle="Subscriptions" 
+          [nzValue]="permissionSummary.totalSubscriptions"
+          [nzValueStyle]="{ color: '#722ed1' }">
+          <ng-template #nzPrefix>
+            <span nz-icon nzType="database" nzTheme="outline"></span>
+          </ng-template>
+        </nz-statistic>
+      </nz-card>
+    </div>
+
+    <!-- High Privilege Alert -->
+    <nz-alert 
+      *ngIf="permissionSummary.highPrivilegeRoles.length > 0"
+      nzType="warning"
+      nzShowIcon
+      [nzMessage]="'High Privilege Roles Detected'"
+      [nzDescription]="'This user has ' + permissionSummary.highPrivilegeRoles.length + ' high-privilege roles: ' + permissionSummary.highPrivilegeRoles.join(', ')"
+      class="privilege-alert">
+    </nz-alert>
+  </div>
+
+  <!-- Filters Section -->
+  <nz-card class="filters-card" *ngIf="!loading">
+    <div class="filters-content">
+      <div class="filter-row">
+        <div class="filter-item">
+          <label class="filter-label">Search:</label>
+          <nz-input-group nzSearch [nzAddOnAfter]="searchButton">
+            <input 
+              type="text" 
+              nz-input 
+              placeholder="Search roles, resources..." 
+              [(ngModel)]="searchQuery"
+              (keyup.enter)="onSearch()"/>
+          </nz-input-group>
+          <ng-template #searchButton>
+            <button nz-button nzType="primary" nzSearch (click)="onSearch()">
+              <span nz-icon nzType="search"></span>
+            </button>
+          </ng-template>
+        </div>
+
+        <div class="filter-item">
+          <label class="filter-label">Permission Type:</label>
+          <nz-select 
+            [(ngModel)]="selectedPermissionType" 
+            (ngModelChange)="onPermissionTypeChange()"
+            nzPlaceHolder="Select permission type"
+            class="filter-select">
+            <nz-option 
+              *ngFor="let option of permissionTypeOptions" 
+              [nzLabel]="option.label" 
+              [nzValue]="option.value">
+            </nz-option>
+          </nz-select>
+        </div>
+
+        <div class="filter-item" *ngIf="subscriptions.length > 0">
+          <label class="filter-label">Subscription:</label>
+          <nz-select 
+            [(ngModel)]="selectedSubscription" 
+            (ngModelChange)="onSubscriptionChange()"
+            nzPlaceHolder="All subscriptions"
+            nzAllowClear
+            class="filter-select">
+            <nz-option 
+              *ngFor="let sub of subscriptions" 
+              [nzLabel]="sub.name" 
+              [nzValue]="sub.id">
+            </nz-option>
+          </nz-select>
+        </div>
+
+        <div class="filter-actions">
+          <button 
+            nz-button 
+            nzType="default" 
+            (click)="clearFilters()" 
+            nzSize="small">
+            <span nz-icon nzType="close" nzTheme="outline"></span>
+            Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  </nz-card>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="loading">
+    <nz-spin nzSize="large" nzTip="Loading user permissions...">
+      <div class="loading-content"></div>
+    </nz-spin>
+  </div>
+
+  <!-- Error State -->
+  <nz-alert 
+    *ngIf="error && !loading"
+    nzType="error"
+    nzShowIcon
+    [nzMessage]="'Error Loading Permissions'"
+    [nzDescription]="error"
+    nzCloseable
+    (nzOnClose)="error = null"
+    class="error-alert">
+  </nz-alert>
+
+  <!-- Permissions Table -->
+  <nz-card class="table-card" *ngIf="!loading && !error">
+    <nz-table 
+      #permissionsTable
+      [nzData]="filteredPermissions"
+      [nzPageSize]="pageSize"
+      [nzPageIndex]="pageIndex"
+      [nzShowSizeChanger]="true"
+      [nzShowQuickJumper]="true"
+      [nzShowTotal]="totalTemplate"
+      nzSize="middle"
+      nzBordered
+
+      class="permissions-table">
+      
+      <thead>
+        <tr>
+          <th 
+            nzColumnKey="type" 
+            [nzSortFn]="true" 
+            nzWidth="120px">
+            Type
+          </th>
+          <th 
+            nzColumnKey="roleName" 
+            [nzSortFn]="true" 
+            nzWidth="200px">
+            Role Name
+          </th>
+          <th 
+            nzColumnKey="resourceName" 
+            [nzSortFn]="true" 
+            nzWidth="200px">
+            Resource
+          </th>
+          <th 
+            nzColumnKey="scope" 
+            [nzSortFn]="true" 
+            nzWidth="120px">
+            Scope
+          </th>
+          <th 
+            nzColumnKey="assignedDate" 
+            [nzSortFn]="true" 
+            nzWidth="140px">
+            Assigned Date
+          </th>
+          <th nzWidth="300px">Description</th>
+        </tr>
+      </thead>
+      
+      <tbody>
+        <tr *ngFor="let item of permissionsTable.data">
+          <td>
+            <nz-tag [nzColor]="getPermissionTypeColor(item.type)">
+              {{ item.type }}
+            </nz-tag>
+          </td>
+          <td>
+            <div class="role-name-cell">
+              <span class="role-name">{{ item.roleName }}</span>
+              <nz-tag 
+                *ngIf="item.isHighPrivilege" 
+                nzColor="red" 
+                class="privilege-tag">
+                <span nz-icon nzType="warning" nzTheme="fill"></span>
+                High Privilege
+              </nz-tag>
+            </div>
+          </td>
+          <td>
+            <span class="resource-name" [title]="item.resourceName">
+              {{ item.resourceName }}
+            </span>
+          </td>
+          <td>
+            <nz-tag [nzColor]="getScopeColor(item.scope)">
+              {{ item.scope }}
+            </nz-tag>
+          </td>
+          <td>
+            <span *ngIf="item.assignedDate; else noDateTemplate" class="assigned-date">
+              {{ item.assignedDate | date:'short' }}
+            </span>
+            <ng-template #noDateTemplate>
+              <span class="no-date">-</span>
+            </ng-template>
+          </td>
+          <td>
+            <div class="description-cell" [title]="item.description">
+              {{ item.description || '-' }}
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </nz-table>
+
+    <ng-template #totalTemplate let-total let-range="range">
+      Showing {{ range[0] }}-{{ range[1] }} of {{ total }} permissions
+    </ng-template>
+  </nz-card>
+
+  <!-- Empty State -->
+  <nz-card *ngIf="!loading && !error && filteredPermissions.length === 0" class="empty-state">
+    <div class="empty-content">
+      <span nz-icon nzType="inbox" nzTheme="outline" class="empty-icon"></span>
+      <h3>No Permissions Found</h3>
+      <p *ngIf="searchQuery || selectedPermissionType !== 'all' || selectedSubscription">
+        No permissions match your current filters. Try adjusting your search criteria.
+      </p>
+      <p *ngIf="!searchQuery && selectedPermissionType === 'all' && !selectedSubscription">
+        This user has no assigned permissions.
+      </p>
+      <button 
+        *ngIf="searchQuery || selectedPermissionType !== 'all' || selectedSubscription"
+        nz-button 
+        nzType="primary" 
+        (click)="clearFilters()">
+        Clear Filters
+      </button>
+    </div>
+  </nz-card>
+</div>

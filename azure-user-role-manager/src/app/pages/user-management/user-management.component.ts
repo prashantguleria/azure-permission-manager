@@ -208,6 +208,16 @@ export class UserManagementComponent implements OnInit, OnDestroy {
     this.router.navigate(['/user-detail', userId]);
   }
 
+  viewUserPermissions(user: User): void {
+    this.router.navigate(['/user-permissions'], {
+      queryParams: {
+        userId: user.id,
+        displayName: user.displayName,
+        email: user.email
+      }
+    });
+  }
+
   refreshUsers(): void {
     this.selectedUsers.clear();
     this.loadUsers(true);

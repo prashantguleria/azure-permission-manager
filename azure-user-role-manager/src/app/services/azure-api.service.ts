@@ -1,11 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, throwError, of } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { Observable, throwError, BehaviorSubject, of } from 'rxjs';
+import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
+import { PermissionsService } from './permissions.service';
 import { User, UserSearchResult, RoleAssignment, RoleRemovalRequest, RoleRemovalResult } from '../models/user.model';
 import { Tenant } from '../models/tenant.model';
-import { AuditLog, AuditLogFilter } from '../models/audit.model';
+import { AuditLog, AuditLogFilter } from '../models/audit-log.model';
+import { UserPermissions, PermissionSummary, PermissionFilter } from '../models/permissions.model';
 
 @Injectable({
   providedIn: 'root'
@@ -17,7 +19,8 @@ export class AzureApiService {
 
   constructor(
     private http: HttpClient,
-    private authService: AuthService
+    private authService: AuthService,
+    private permissionsService: PermissionsService
   ) {}
 
   private getAuthHeaders(): Observable<HttpHeaders> {
@@ -60,7 +63,14 @@ export class AzureApiService {
     }
     
     // Use auth service to switch tenant with re-authentication
-    return this.authService.switchTenant(tenantId);
+    return new Observable<boolean>(observer => {
+      this.authService.switchTenant(tenantId).then(() => {
+        observer.next(true);
+        observer.complete();
+      }).catch(error => {
+        observer.error(error);
+      });
+    });
   }
 
   getTenants(): Observable<Tenant[]> {
@@ -272,31 +282,65 @@ export class AzureApiService {
     );
   }
 
-  exportAuditLogs(filter?: AuditLogFilter): Observable<Blob> {
-    return this.getAuditLogs(filter).pipe(
-      map(logs => {
-        const csvContent = this.convertToCSV(logs);
-        return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      })
-    );
+  /**
+   * Get comprehensive permissions for a user
+   */
+  getUserPermissions(userId?: string): Promise<UserPermissions> {
+    return this.permissionsService.getUserPermissions(userId);
+  }
+
+  /**
+   * Get permission summary for dashboard
+   */
+  getPermissionSummary(userId?: string): Observable<PermissionSummary> {
+    return this.permissionsService.getPermissionSummary(userId);
+  }
+
+  /**
+   * Filter user permissions
+   */
+  filterPermissions(permissions: UserPermissions, filter: PermissionFilter): UserPermissions {
+    return this.permissionsService.filterPermissions(permissions, filter);
+  }
+
+  /**
+   * Export user permissions to CSV
+   */
+  exportUserPermissions(permissions: UserPermissions, userId: string, userDisplayName: string): Blob {
+    return this.permissionsService.exportPermissions(permissions, userId, userDisplayName);
+  }
+
+  /**
+   * Clear permissions cache
+   */
+  clearPermissionsCache(): void {
+    this.permissionsService.clearCache();
+  }
+
+  /**
+   * Export audit logs to CSV
+   */
+  exportAuditLogs(logs: AuditLog[]): Blob {
+    const csvContent = this.convertToCSV(logs);
+    return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   }
 
   private convertToCSV(logs: AuditLog[]): string {
-    const headers = ['Date', 'Activity', 'User', 'Target', 'Result', 'Service'];
-    const csvRows = [headers.join(',')];
+    const headers = ['Date', 'Activity', 'User', 'Target', 'Result', 'IP Address'];
+    const csvArray = [headers.join(',')];
 
     logs.forEach(log => {
       const row = [
-        log.activityDateTime?.toISOString() || '',
-        `"${log.activityDisplayName || ''}"`,
-        `"${log.initiatedBy?.user?.displayName || log.initiatedBy?.app?.displayName || 'System'}"`,
-        `"${log.targetResources?.map(t => t.displayName).join('; ') || ''}"`,
-        log.result || '',
-        log.loggedByService || ''
+        log.activityDateTime ? new Date(log.activityDateTime).toLocaleString() : '',
+        log.activityDisplayName,
+        log.initiatedBy?.user?.displayName || log.initiatedBy?.app?.displayName || 'Unknown',
+        log.targetResources?.[0]?.displayName || 'N/A',
+        log.result,
+        log.ipAddress || 'N/A'
       ];
-      csvRows.push(row.join(','));
+      csvArray.push(row.map(field => `"${field}"`).join(','));
     });
 
-    return csvRows.join('\n');
+    return csvArray.join('\n');
   }
 }

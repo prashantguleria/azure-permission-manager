@@ -4,6 +4,7 @@ import { MsalService, MsalBroadcastService } from '@azure/msal-angular';
 import { AccountInfo, AuthenticationResult, InteractionStatus, PopupRequest, RedirectRequest, SilentRequest } from '@azure/msal-browser';
 import { Observable, BehaviorSubject, filter, takeUntil, Subject } from 'rxjs';
 import { Tenant } from '../models/tenant.model';
+import { getTenantSpecificConfig } from '../msal.config';
 
 @Injectable({
   providedIn: 'root'
