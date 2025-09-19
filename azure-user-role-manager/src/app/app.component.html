@@ -1,0 +1,90 @@
+<!-- Main Layout for authenticated pages -->
+<div *ngIf="showMainLayout; else standaloneLayout">
+  <nz-layout class="app-layout">
+    <!-- Top Navbar -->
+    <div class="top-navbar">
+      <div class="navbar-content">
+        <!-- Left section: Burger menu and branding -->
+        <div class="navbar-left">
+          <span class="burger-menu" (click)="isCollapsed = !isCollapsed">
+            <span nz-icon [nzType]="isCollapsed ? 'menu-unfold' : 'menu-fold'"></span>
+          </span>
+          <div class="brand-section">
+            <span nz-icon nzType="safety-certificate" nzTheme="outline" class="brand-logo"></span>
+            <span class="brand-name">Azure User Role Manager</span>
+          </div>
+        </div>
+        
+        <!-- Right section: User info + Logout -->
+        <div class="navbar-right" *ngIf="currentUser">
+          <nz-avatar [nzText]="utilityService.getUserInitials(currentUser.name)" nzSize="small"></nz-avatar>
+          <span class="user-name">{{ currentUser.name || 'User' }}</span>
+          <button nz-button nzType="text" nzSize="small" (click)="logout()" class="logout-btn">
+            <span nz-icon nzType="logout" nzTheme="outline"></span>
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Content Area with Fixed Sidebar -->
+    <div class="main-content-wrapper">
+      <!-- Sidebar -->
+      <nz-sider class="menu-sidebar"
+        nzCollapsible
+        [nzWidth]="isCollapsed ? '80px' : '256px'"
+        nzBreakpoint="md"
+        [(nzCollapsed)]="isCollapsed"
+        [nzTrigger]="null">
+        <ul nz-menu nzTheme="dark" nzMode="inline" [nzInlineCollapsed]="isCollapsed">
+          <li nz-menu-item nzMatchRouter>
+            <a routerLink="/tenants">
+              <span nz-icon nzType="bank" nzTheme="outline"></span>
+              <span>Tenants</span>
+            </a>
+          </li>
+          <li nz-menu-item nzMatchRouter>
+            <a routerLink="/user-management">
+              <span nz-icon nzType="user" nzTheme="outline"></span>
+              <span>User Management</span>
+            </a>
+          </li>
+          <li nz-menu-item nzMatchRouter>
+            <a routerLink="/audit">
+              <span nz-icon nzType="file-text" nzTheme="outline"></span>
+              <span>Audit Logs</span>
+            </a>
+          </li>
+        </ul>
+      </nz-sider>
+      
+      <!-- Main Content -->
+      <nz-content class="main-content" [style.margin-left]="isCollapsed ? '80px' : '256px'">
+        <div class="inner-content">
+          <!-- Breadcrumbs moved here -->
+          <div class="breadcrumb-container" *ngIf="breadcrumbs.length > 0">
+            <nz-breadcrumb class="page-breadcrumb">
+              <nz-breadcrumb-item *ngFor="let crumb of breadcrumbs; let last = last">
+                <a *ngIf="!last && crumb.link" [routerLink]="crumb.link">
+                  <span nz-icon [nzType]="crumb.icon" nzTheme="outline" *ngIf="crumb.icon"></span>
+                  {{ crumb.label }}
+                </a>
+                <span *ngIf="last">
+                  <span nz-icon [nzType]="crumb.icon" nzTheme="outline" *ngIf="crumb.icon"></span>
+                  {{ crumb.label }}
+                </span>
+              </nz-breadcrumb-item>
+            </nz-breadcrumb>
+          </div>
+          
+          <router-outlet></router-outlet>
+        </div>
+      </nz-content>
+    </div>
+  </nz-layout>
+</div>
+
+<!-- Standalone Layout for login and tenant selection -->
+<ng-template #standaloneLayout>
+  <router-outlet></router-outlet>
+</ng-template>

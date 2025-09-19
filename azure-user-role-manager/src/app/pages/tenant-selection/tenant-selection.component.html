@@ -1,0 +1,95 @@
+<nz-layout class="tenant-layout">
+  <!-- Content -->
+  <nz-content class="content">
+    <div nz-row class="page-content" [nzGutter]="[16, 16]">
+      <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" [nzXl]="24">
+      <div class="page-header">
+        <h1 nz-typography class="page-title">Select Tenant</h1>
+        <p nz-typography nzType="secondary" class="page-description">
+          Choose the Azure Active Directory tenant you want to manage
+        </p>
+      </div>
+
+      <!-- Search Section -->
+      <div class="search-section">
+        <nz-input-group nzSize="large" [nzSuffix]="suffixIconSearch">
+          <input 
+            type="text" 
+            nz-input 
+            placeholder="Search tenants by name or domain..."
+            [(ngModel)]="searchTerm"
+            (input)="onSearch()"
+          />
+        </nz-input-group>
+        <ng-template #suffixIconSearch>
+          <span nz-icon nzType="search" nzTheme="outline"></span>
+        </ng-template>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="loading-container">
+        <nz-spin nzSize="large">
+          <div class="loading-content">
+            <p>Loading available tenants...</p>
+          </div>
+        </nz-spin>
+      </div>
+
+      <!-- Tenants Grid -->
+      <div *ngIf="!isLoading" class="tenants-grid">
+        <div *ngIf="filteredTenants.length === 0" class="empty-state">
+          <nz-empty 
+            nzNotFoundImage="simple" 
+            [nzNotFoundContent]="searchTerm ? 'No tenants found matching your search' : 'No tenants available'">
+          </nz-empty>
+        </div>
+
+        <nz-card 
+          *ngFor="let tenant of filteredTenants" 
+          class="tenant-card"
+          [class.current-tenant]="tenant.isDefault"
+          [nzHoverable]="true"
+          [nzActions]="[actionSelect]"
+          (click)="selectTenant(tenant)">
+          
+          <div class="tenant-info">
+            <div class="tenant-header">
+              <div class="tenant-avatar">
+                <span nz-icon nzType="bank" nzTheme="outline"></span>
+              </div>
+              <div class="tenant-details">
+                <h3 class="tenant-name">{{ tenant.displayName }}</h3>
+                <p class="tenant-domain">{{ tenant.defaultDomain }}</p>
+              </div>
+              <div class="tenant-badges">
+                <nz-tag *ngIf="tenant.isDefault" nzColor="green">
+                  <span nz-icon nzType="check-circle" nzTheme="outline"></span>
+                  Current
+                </nz-tag>
+                <nz-tag nzColor="default">{{ tenant.countryLetterCode }}</nz-tag>
+              </div>
+            </div>
+            
+            <div class="tenant-meta">
+              <div class="meta-item">
+                <span nz-icon nzType="global" nzTheme="outline"></span>
+                <span>{{ tenant.countryLetterCode }}</span>
+              </div>
+              <div class="meta-item">
+                <span nz-icon nzType="link" nzTheme="outline"></span>
+                <span>{{ tenant.defaultDomain }}</span>
+              </div>
+            </div>
+          </div>
+
+          <ng-template #actionSelect>
+            <span *ngIf="!tenant.isDefault" nz-icon nzType="swap" nzTheme="outline"></span>
+            <span *ngIf="tenant.isDefault" nz-icon nzType="arrow-right" nzTheme="outline"></span>
+            {{ tenant.isDefault ? 'Continue' : 'Switch Tenant' }}
+          </ng-template>
+        </nz-card>
+      </div>
+      </div>
+    </div>
+  </nz-content>
+</nz-layout>

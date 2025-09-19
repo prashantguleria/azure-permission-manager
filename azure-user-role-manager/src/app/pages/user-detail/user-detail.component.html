@@ -1,0 +1,184 @@
+<!-- Content -->
+<div nz-row class="page-content" [nzGutter]="[16, 16]">
+  <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" [nzXl]="24">
+      <!-- Breadcrumb -->
+      <nz-breadcrumb class="breadcrumb">
+        <nz-breadcrumb-item>
+          <a routerLink="/tenants">
+            <span nz-icon nzType="bank" nzTheme="outline"></span>
+            <span>Tenants</span>
+          </a>
+        </nz-breadcrumb-item>
+        <nz-breadcrumb-item>
+          <a routerLink="/user-management">
+            <span nz-icon nzType="team" nzTheme="outline"></span>
+            <span>User Management</span>
+          </a>
+        </nz-breadcrumb-item>
+        <nz-breadcrumb-item>
+          <span nz-icon nzType="user" nzTheme="outline"></span>
+          <span>User Details</span>
+        </nz-breadcrumb-item>
+      </nz-breadcrumb>
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="page-title-section">
+          <h2 class="page-title">
+            <span nz-icon nzType="user" style="margin-right: 8px;"></span>
+            User Details
+          </h2>
+          <p class="page-description">View and manage user information and role assignments</p>
+        </div>
+        <div class="page-actions">
+          <button 
+            nz-button 
+            nzType="default" 
+            routerLink="/user-management">
+            <span nz-icon nzType="arrow-left"></span>
+            Back to Users
+          </button>
+        </div>
+      </div>
+
+      <!-- User Information Card -->
+      <nz-card class="user-info-card" [nzLoading]="loading">
+        <div class="user-info-header">
+          <h3>
+            <span nz-icon nzType="idcard" style="margin-right: 8px;"></span>
+            User Information
+          </h3>
+        </div>
+        
+        <div *ngIf="user" class="user-info-content">
+          <div class="user-avatar-section">
+            <nz-avatar 
+              [nzText]="utilityService.getUserInitials(user)" 
+              nzSize="large"
+              style="background-color: #1890ff;">
+            </nz-avatar>
+            <div class="user-basic-info">
+              <h4 class="user-display-name">{{ user.displayName }}</h4>
+              <p class="user-email">{{ user.mail || user.userPrincipalName }}</p>
+            </div>
+          </div>
+          
+          <nz-divider></nz-divider>
+          
+          <nz-descriptions nzBordered [nzColumn]="2">
+            <nz-descriptions-item nzTitle="Display Name">
+              {{ user.displayName || 'N/A' }}
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="User Principal Name">
+              {{ user.userPrincipalName || 'N/A' }}
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="Email">
+              {{ user.mail || 'N/A' }}
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="Job Title">
+              {{ user.jobTitle || 'N/A' }}
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="Department">
+              {{ user.department || 'N/A' }}
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="Office Location">
+              {{ user.officeLocation || 'N/A' }}
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="Mobile Phone">
+              {{ user.mobilePhone || 'N/A' }}
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="Business Phone">
+              {{ user.businessPhones?.[0] || 'N/A' }}
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="Account Enabled">
+              <nz-tag [nzColor]="user.accountEnabled ? 'green' : 'red'">
+                {{ user.accountEnabled ? 'Enabled' : 'Disabled' }}
+              </nz-tag>
+            </nz-descriptions-item>
+            <nz-descriptions-item nzTitle="Created Date">
+              {{ utilityService.formatDate(user.createdDateTime || user.createdDate) }}
+            </nz-descriptions-item>
+          </nz-descriptions>
+        </div>
+        
+        <nz-empty *ngIf="!loading && !user" nzNotFoundContent="User not found"></nz-empty>
+      </nz-card>
+
+      <!-- Role Assignments Card -->
+      <nz-card class="role-assignments-card">
+        <div class="role-assignments-header">
+          <h3>
+            <span nz-icon nzType="safety-certificate" style="margin-right: 8px;"></span>
+            Role Assignments
+            <nz-tag *ngIf="roleAssignments.length > 0" [nzColor]="'blue'" style="margin-left: 8px;">
+              {{ roleAssignments.length }}
+            </nz-tag>
+          </h3>
+        </div>
+        
+        <nz-table 
+          #roleAssignmentsTable
+          [nzData]="roleAssignments"
+          [nzLoading]="roleAssignmentsLoading"
+          [nzShowPagination]="false"
+          [nzScroll]="{ x: '800px' }"
+          class="role-assignments-table">
+          <thead>
+            <tr>
+              <th>Role Name</th>
+              <th>Role Type</th>
+              <th>Scope</th>
+              <th>Assigned Date</th>
+              <th nzWidth="120px">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let assignment of roleAssignments; trackBy: utilityService.trackByRoleId">
+              <td>
+                <div class="role-info">
+                  <div class="role-name">{{ assignment.roleName }}</div>
+                  <div class="role-description" *ngIf="assignment.roleDescription">
+                    {{ assignment.roleDescription }}
+                  </div>
+                </div>
+              </td>
+              <td>
+                <nz-tag [nzColor]="utilityService.getRoleTypeColor(assignment.roleType)">
+                  {{ assignment.roleType || 'Unknown' }}
+                </nz-tag>
+              </td>
+              <td>
+                <div class="scope-info">
+                  <div class="scope-name">{{ assignment.scopeName || 'N/A' }}</div>
+                  <div class="scope-type" *ngIf="assignment.scopeType">
+                    {{ assignment.scopeType }}
+                  </div>
+                </div>
+              </td>
+              <td class="date">{{ utilityService.formatDate(assignment.assignedDate) }}</td>
+              <td>
+                <button 
+                  nz-button 
+                  nzType="text" 
+                  nzDanger
+                  nzSize="small"
+                  [nzLoading]="removingRoleId === assignment.id"
+                  nz-popconfirm
+                  nzPopconfirmTitle="Are you sure you want to remove this role assignment?"
+                  nzPopconfirmPlacement="topRight"
+                  (nzOnConfirm)="onRemoveRole(assignment)"
+                  nz-tooltip="Remove Role">
+                  <span nz-icon nzType="delete"></span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </nz-table>
+        
+        <nz-empty 
+          *ngIf="!roleAssignmentsLoading && roleAssignments.length === 0" 
+          nzNotFoundContent="No role assignments found">
+        </nz-empty>
+      </nz-card>
+  </div>
+</div>

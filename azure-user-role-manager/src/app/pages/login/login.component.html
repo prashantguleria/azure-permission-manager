@@ -1,0 +1,55 @@
+<div class="login-container">
+  <div class="login-card-wrapper">
+    <nz-card class="login-card" [nzBordered]="false">
+      <div class="login-header">
+        <div class="logo-section">
+          <span nz-icon nzType="safety-certificate" nzTheme="outline" class="logo-icon"></span>
+          <h1 nz-typography class="app-title">Azure User Role Manager</h1>
+        </div>
+        <p nz-typography nzType="secondary" class="app-description">
+          Manage user roles and permissions across your Azure Active Directory tenants
+        </p>
+      </div>
+
+      <nz-divider></nz-divider>
+
+      <div class="login-content">
+        <div class="login-info">
+          <h3 nz-typography>Sign in to continue</h3>
+          <p nz-typography nzType="secondary">
+            Use your Azure Active Directory credentials to access the role management portal
+          </p>
+        </div>
+
+        <div class="login-actions">
+          <button 
+            nz-button 
+            nzType="primary" 
+            nzSize="large"
+            nzBlock
+            [nzLoading]="isLoading"
+            (click)="login()"
+            class="login-button">
+            <span nz-icon nzType="microsoft" nzTheme="outline"></span>
+            Sign in with Microsoft
+          </button>
+        </div>
+
+        <div class="login-features">
+          <div class="feature-item">
+            <span nz-icon nzType="security-scan" nzTheme="outline"></span>
+            <span>Secure Azure AD Authentication</span>
+          </div>
+          <div class="feature-item">
+            <span nz-icon nzType="team" nzTheme="outline"></span>
+            <span>Multi-tenant Support</span>
+          </div>
+          <div class="feature-item">
+            <span nz-icon nzType="audit" nzTheme="outline"></span>
+            <span>Comprehensive Audit Logging</span>
+          </div>
+        </div>
+      </div>
+    </nz-card>
+  </div>
+</div>

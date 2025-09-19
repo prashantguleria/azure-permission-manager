@@ -1,0 +1,29 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* Ensure full width layout */
+html, body {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Override any NG-ZORRO container constraints */
+.ant-layout {
+  width: 100% !important;
+}
+
+.ant-row {
+  width: 100% !important;
+}
+
+/* Ensure app root takes full width */
+app-root {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+}

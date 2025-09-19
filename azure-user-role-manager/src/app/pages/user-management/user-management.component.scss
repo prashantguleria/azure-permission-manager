@@ -1,0 +1,339 @@
+.page-content {
+  height: 100%;
+  
+  // Remove default margins from grid
+  margin: 0 !important;
+}
+
+
+
+// Search Card Styles
+.search-card {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  
+  .search-form {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    padding: 24px;
+    
+    .search-field {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .search-actions {
+      display: flex;
+      gap: 8px;
+    }
+  }
+}
+
+// Table Card Styles
+.table-card {
+  border-radius: 8px;
+  overflow: hidden;
+  
+  .table-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    .table-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .table-actions {
+      display: flex;
+      gap: 8px;
+    }
+  }
+}
+
+// Table Styles
+.users-table {
+  width: 100%;
+  overflow-x: auto;
+  
+  ::ng-deep {
+    .ant-table {
+      border-radius: 8px;
+      min-width: 800px; // Ensure minimum width for proper column display
+      width: 100%;
+    }
+
+    .ant-table-container {
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    .ant-table-content {
+      overflow-x: auto;
+    }
+
+    .ant-table-thead > tr > th {
+      font-weight: 600;
+      white-space: nowrap; // Prevent header text wrapping
+    }
+
+    .ant-table-tbody > tr {
+      &:hover {
+      }
+    }
+
+    .ant-table-tbody > tr > td {
+      vertical-align: middle;
+      max-width: 200px; // Prevent cells from becoming too wide
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .user-info {
+    .user-name {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .user-details {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+
+      .job-title {
+        &::after {
+          content: '•';
+          margin-left: 8px;
+        }
+      }
+
+      .department {
+        // No additional styling needed
+      }
+    }
+  }
+
+  .email {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+  }
+
+  .username {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+  }
+
+  .date {
+    font-size: 13px;
+  }
+}
+
+// Loading and Empty States
+::ng-deep {
+  .ant-spin-container {
+    min-height: 200px;
+  }
+
+  .ant-empty {
+    padding: 40px 20px;
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .header {
+    .header-content {
+      padding: 0 16px;
+    }
+
+    .logo-section {
+      .app-title {
+        font-size: 16px;
+      }
+    }
+
+    .user-section {
+      .user-name {
+        display: none;
+      }
+    }
+  }
+
+  .content {
+    padding: 16px;
+    
+    .content-wrapper {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+    padding: 16px;
+
+    .page-actions {
+      justify-content: flex-end;
+    }
+  }
+
+  .search-card {
+    .search-section {
+      .search-input {
+        max-width: 100%;
+      }
+    }
+  }
+
+  .table-card {
+    overflow-x: auto;
+    
+    .ant-card-body {
+      padding: 12px;
+    }
+  }
+
+  .users-table {
+    ::ng-deep {
+      .ant-table {
+        font-size: 12px;
+        min-width: 600px; // Reduced minimum width for mobile
+      }
+
+      .ant-table-thead > tr > th,
+      .ant-table-tbody > tr > td {
+        padding: 8px 4px;
+        max-width: 150px; // Smaller max width on mobile
+      }
+    }
+
+    .user-info {
+      .user-details {
+        flex-direction: column;
+        gap: 2px;
+
+        .job-title {
+          &::after {
+            display: none;
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .users-table {
+    ::ng-deep {
+      .ant-table-thead > tr > th:nth-child(4),
+      .ant-table-tbody > tr > td:nth-child(4),
+      .ant-table-thead > tr > th:nth-child(5),
+      .ant-table-tbody > tr > td:nth-child(5) {
+        display: none;
+      }
+    }
+  }
+}
+
+// Animation
+.users-table {
+  ::ng-deep {
+    .ant-table-tbody > tr {
+      transition: all 0.2s ease;
+    }
+  }
+}
+
+// Custom scrollbar for table
+::ng-deep {
+  .ant-table-body {
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 3px;
+
+      &:hover {
+      }
+    }
+  }
+}
+
+// Additional Responsive Design
+@media (max-width: 992px) {
+  .content {
+    padding: 16px;
+    
+    .content-wrapper {
+      max-width: 100%;
+    }
+  }
+  
+  .search-card {
+    .search-form {
+      padding: 16px;
+      flex-direction: column;
+      align-items: stretch;
+      
+      .search-field {
+        min-width: auto;
+      }
+      
+      .search-actions {
+        justify-content: flex-end;
+      }
+    }
+  }
+  
+  .table-card {
+    .table-header {
+      padding: 16px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      
+      .table-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 12px;
+  }
+  
+  .search-card {
+    margin-bottom: 16px;
+    
+    .search-form {
+      padding: 12px;
+    }
+  }
+  
+  .table-card {
+    .table-header {
+      padding: 12px;
+      
+      .table-title {
+        font-size: 14px;
+      }
+    }
+  }
+}

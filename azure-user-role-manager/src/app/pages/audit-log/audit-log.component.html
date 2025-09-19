@@ -1,0 +1,204 @@
+<!-- Content -->
+<div nz-row class="page-content" [nzGutter]="[16, 16]">
+  <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" [nzXl]="24">
+      <!-- Breadcrumb -->
+      <nz-breadcrumb class="breadcrumb">
+        <nz-breadcrumb-item>
+          <a routerLink="/tenants">
+            <span nz-icon nzType="bank" nzTheme="outline"></span>
+            <span>Tenants</span>
+          </a>
+        </nz-breadcrumb-item>
+        <nz-breadcrumb-item>
+          <span nz-icon nzType="file-text" nzTheme="outline"></span>
+          <span>Audit Logs</span>
+        </nz-breadcrumb-item>
+      </nz-breadcrumb>
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="page-title-section">
+          <h2 nz-typography class="page-title">Audit Logs</h2>
+          <p nz-typography nzType="secondary" class="page-description">
+            View and export system activity logs with advanced filtering options
+          </p>
+        </div>
+        <div class="page-actions">
+          <button 
+            nz-button 
+            nzType="default" 
+            (click)="onRefresh()"
+            [nzLoading]="loading"
+            nz-tooltip="Refresh logs">
+            <span nz-icon nzType="reload" nzTheme="outline"></span>
+            Refresh
+          </button>
+          <button nz-button nzType="primary" nz-dropdown [nzDropdownMenu]="exportMenu" nzTrigger="click" [nzLoading]="exporting">
+            <span nz-icon nzType="download" nzTheme="outline"></span>
+            Export
+            <span nz-icon nzType="down" nzTheme="outline"></span>
+          </button>
+          <nz-dropdown-menu #exportMenu="nzDropdownMenu">
+            <ul nz-menu nzSelectable="false">
+              <li nz-menu-item (click)="onExportCSV()">
+                <span nz-icon nzType="file-text" nzTheme="outline"></span>
+                Export as CSV
+              </li>
+              <li nz-menu-item (click)="onExportJSON()">
+                <span nz-icon nzType="file" nzTheme="outline"></span>
+                Export as JSON
+              </li>
+            </ul>
+          </nz-dropdown-menu>
+        </div>
+      </div>
+
+      <!-- Filters Card -->
+      <nz-card class="filters-card" nzTitle="Filters">
+        <div class="filters-row">
+          <div class="filter-item">
+            <label class="filter-label">Search</label>
+            <nz-input-group nzSearch [nzAddOnAfter]="searchButton">
+              <input 
+                type="text" 
+                nz-input 
+                placeholder="Search by user, activity, or details..."
+                [(ngModel)]="searchTerm"
+                (input)="onSearch($event)"
+              />
+            </nz-input-group>
+            <ng-template #searchButton>
+              <button nz-button nzType="primary" nzSearch>
+                <span nz-icon nzType="search"></span>
+              </button>
+            </ng-template>
+          </div>
+
+          <div class="filter-item">
+            <label class="filter-label">Activity Type</label>
+            <nz-select 
+              [(ngModel)]="selectedActivity"
+              (ngModelChange)="onActivityChange($event)"
+              nzPlaceHolder="Select activity type"
+              nzAllowClear>
+              <nz-option 
+                *ngFor="let option of activityOptions" 
+                [nzLabel]="option.label" 
+                [nzValue]="option.value">
+              </nz-option>
+            </nz-select>
+          </div>
+
+          <div class="filter-item">
+            <label class="filter-label">Date Range</label>
+            <nz-range-picker 
+              [(ngModel)]="dateRange"
+              (ngModelChange)="applyFilters()"
+              nzFormat="yyyy-MM-dd"
+              nzPlaceHolder="['Start date', 'End date']">
+            </nz-range-picker>
+          </div>
+
+          <div class="filter-actions">
+            <button 
+                nz-button 
+                nzType="default" 
+                (click)="onClearFilters()"
+                nz-tooltip="Clear all filters">
+                <span nz-icon nzType="clear" nzTheme="outline"></span>
+                Clear
+                </button>
+          </div>
+        </div>
+      </nz-card>
+
+      <!-- Audit Logs Table -->
+      <nz-card class="table-card">
+        <nz-table 
+          #auditTable
+          [nzData]="filteredLogs"
+          [nzLoading]="loading"
+          [nzPageSize]="pageSize"
+          [nzShowPagination]="true"
+          [nzShowSizeChanger]="true"
+          [nzPageSizeOptions]="[10, 20, 50, 100]"
+          [nzTotal]="totalCount"
+          [nzPageIndex]="currentPage"
+          (nzPageIndexChange)="onPageChange($event)"
+          (nzPageSizeChange)="onPageSizeChange($event)">
+          
+          <thead>
+            <tr>
+              <th nzWidth="180px">Timestamp</th>
+              <th nzWidth="140px">Activity</th>
+              <th nzWidth="200px">User</th>
+              <th nzWidth="180px">Target Resource</th>
+              <th nzWidth="120px">Resource Type</th>
+              <th nzWidth="100px">Result</th>
+              <th nzWidth="300px">Details</th>
+              <th nzWidth="140px">IP Address</th>
+            </tr>
+          </thead>
+          
+          <tbody>
+            <tr *ngFor="let log of auditTable.data; trackBy: trackByLogId">
+              <td>
+                <span class="timestamp">{{ formatDate(log.timestamp) }}</span>
+              </td>
+              <td>
+                <nz-tag [nzColor]="getActivityColor(log.activity || '')">
+                  {{ log.activityDisplayName }}
+                </nz-tag>
+              </td>
+              <td>
+                <div class="user-info">
+                  <div class="user-name">{{ log.userDisplayName }}</div>
+                  <div class="user-email">{{ log.userPrincipalName }}</div>
+                </div>
+              </td>
+              <td>
+                <span class="resource-name">{{ log.targetResource }}</span>
+              </td>
+              <td>
+                <span class="resource-type">{{ log.resourceType }}</span>
+              </td>
+              <td>
+                <nz-tag [nzColor]="getResultColor(log.result || '')">
+                  {{ log.result }}
+                </nz-tag>
+              </td>
+              <td>
+                <span 
+                  class="details"
+                  [nz-tooltip]="log.details"
+                  nzTooltipPlacement="topLeft">
+                  {{ log.details }}
+                </span>
+              </td>
+              <td>
+                <span class="ip-address">{{ log.ipAddress }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </nz-table>
+
+        <ng-template #totalTemplate let-total let-range="range">
+          <span class="table-total">
+            {{ range[0] }}-{{ range[1] }} of {{ total }} items
+          </span>
+        </ng-template>
+
+        <!-- Empty State -->
+        <nz-empty 
+          *ngIf="!loading && filteredLogs.length === 0"
+          nzNotFoundImage="simple"
+          nzNotFoundContent="No audit logs found">
+          <div nz-empty-footer>
+            <button nz-button nzType="primary" (click)="onRefresh()">
+              Refresh
+            </button>
+          </div>
+        </nz-empty>
+      </nz-card>
+  </div>
+</div>
