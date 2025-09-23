@@ -59,12 +59,54 @@ export const authGuard: CanActivateFn = async (route, state) => {
 
   // Check if user has selected a tenant (except for tenant selection page)
   if (!state.url.includes('/tenants')) {
-    const selectedTenant = localStorage.getItem('selectedTenant');
-    if (!selectedTenant) {
-      console.log('No tenant selected, redirecting to tenant selection');
-      router.navigate(['/tenants']);
-      return false;
+    const selectedTenantStr = localStorage.getItem('selectedTenant');
+    const currentUser = authService.getCurrentUser();
+    
+
+    
+    // Parse and validate selected tenant
+    let selectedTenant = null;
+    if (selectedTenantStr) {
+      try {
+        selectedTenant = JSON.parse(selectedTenantStr);
+        
+      } catch (e) {
+        
+        localStorage.removeItem('selectedTenant'); // Remove invalid JSON
+      }
     }
+    
+    // If we have a valid selected tenant, we're good to go
+    if (selectedTenant && selectedTenant.id) {
+      
+      return true;
+    }
+    
+    // If no valid selected tenant but we have a current user with tenant ID, auto-select it
+    if ((!selectedTenant || !selectedTenant.id) && currentUser?.tenantId) {
+      console.log('Auto-selecting current tenant:', currentUser.tenantId);
+      const defaultTenant = {
+        id: currentUser.tenantId,
+        displayName: currentUser.tenantId,
+        defaultDomain: `${currentUser.tenantId}.onmicrosoft.com`,
+        countryLetterCode: 'US',
+        isDefault: true
+      };
+      localStorage.setItem('selectedTenant', JSON.stringify(defaultTenant));
+      return true;
+    }
+    
+    // If we're in the middle of a tenant switch, allow navigation
+    const targetTenantId = sessionStorage.getItem('targetTenantId');
+    if (targetTenantId) {
+      console.log('Auth guard - Tenant switch in progress, allowing navigation');
+      return true;
+    }
+    
+    // No tenant selected and no current user tenant, redirect to tenant selection
+    console.log('No tenant selected, redirecting to tenant selection');
+    router.navigate(['/tenants']);
+    return false;
   }
 
   console.log('Auth guard - Authentication check passed');

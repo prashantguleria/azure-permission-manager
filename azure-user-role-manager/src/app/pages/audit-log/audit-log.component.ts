@@ -153,8 +153,7 @@ export class AuditLogComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.azureApiService.getAuditLogs({
       pageSize: this.pageSize * 5, // Get more results for client-side pagination
-      activityType: this.selectedActivity,
-      user: this.selectedUser,
+      activityDisplayName: this.selectedActivity,
       startDate: this.dateRange[0],
       endDate: this.dateRange[1]
     })

@@ -14,11 +14,13 @@ export class AuthService {
   private _isAuthenticated = new BehaviorSubject<boolean>(false);
   private _currentUser = new BehaviorSubject<AccountInfo | null>(null);
   private _availableTenants = new BehaviorSubject<Tenant[]>([]);
+  private _tenantChanged = new Subject<string>();
   private _tenantTokenCache = new Map<string, { token: string; expiry: number; scopes: string[] }>();
 
   public isAuthenticated$ = this._isAuthenticated.asObservable();
   public currentUser$ = this._currentUser.asObservable();
   public availableTenants$ = this._availableTenants.asObservable();
+  public tenantChanged$ = this._tenantChanged.asObservable();
 
   constructor(
     private msalService: MsalService,
@@ -142,13 +144,14 @@ export class AuthService {
   private checkAndSetActiveAccount(): void {
     const activeAccount = this.msalService.instance.getActiveAccount();
     const allAccounts = this.msalService.instance.getAllAccounts();
+    const currentUser = this._currentUser.value;
     
     console.log('checkAndSetActiveAccount - Active account:', activeAccount?.username);
     console.log('checkAndSetActiveAccount - All accounts count:', allAccounts.length);
     
     // Check if we're targeting a specific tenant after switch
-    const targetTenantId = sessionStorage.getItem('targetTenantId');
-    
+    // Get target tenant ID at the beginning
+    const targetTenantId = sessionStorage.getItem('targetTenantId');    
     if (!activeAccount && allAccounts.length > 0) {
       console.log('No active account but accounts exist, selecting appropriate account');
       
@@ -166,11 +169,66 @@ export class AuthService {
       
       console.log('Setting active account:', accountToSet.username, 'Tenant:', accountToSet.tenantId);
       
+      // Check if tenant changed
+      const previousTenantId = currentUser?.tenantId;
+      
+      if ((previousTenantId && previousTenantId !== accountToSet.tenantId) || 
+          (targetTenantId && targetTenantId === accountToSet.tenantId)) {
+        console.log('Tenant changed from', previousTenantId, 'to', accountToSet.tenantId);
+        
+        // Update localStorage with new tenant information
+        const newTenant = {
+          id: accountToSet.tenantId,
+          displayName: accountToSet.tenantId,
+          defaultDomain: `${accountToSet.tenantId}.onmicrosoft.com`,
+          countryLetterCode: 'US',
+          isDefault: true
+        };
+        localStorage.setItem('selectedTenant', JSON.stringify(newTenant));
+        console.log('Updated selectedTenant in localStorage for new tenant:', accountToSet.tenantId);
+        
+        // Trigger tenant change notification
+        this._tenantChanged.next(accountToSet.tenantId);
+        
+        // Clear target tenant ID after successful switch
+        if (targetTenantId) {
+          sessionStorage.removeItem('targetTenantId');
+        }
+      }
+      
       this.msalService.instance.setActiveAccount(accountToSet);
       this._currentUser.next(accountToSet);
       this._isAuthenticated.next(true);
     } else if (activeAccount) {
       console.log('Active account found:', activeAccount.username, 'Tenant:', activeAccount.tenantId);
+      
+      // Check if tenant changed
+      const previousTenantId = currentUser?.tenantId;
+      
+      if ((previousTenantId && previousTenantId !== activeAccount.tenantId) || 
+          (targetTenantId && targetTenantId === activeAccount.tenantId)) {
+        console.log('Tenant changed from', previousTenantId, 'to', activeAccount.tenantId);
+        
+        // Update localStorage with new tenant information
+        const newTenant = {
+          id: activeAccount.tenantId,
+          displayName: activeAccount.tenantId,
+          defaultDomain: `${activeAccount.tenantId}.onmicrosoft.com`,
+          countryLetterCode: 'US',
+          isDefault: true
+        };
+        localStorage.setItem('selectedTenant', JSON.stringify(newTenant));
+        console.log('Updated selectedTenant in localStorage for new tenant:', activeAccount.tenantId);
+        
+        // Trigger tenant change notification
+        this._tenantChanged.next(activeAccount.tenantId);
+        
+        // Clear target tenant ID after successful switch
+        if (targetTenantId) {
+          sessionStorage.removeItem('targetTenantId');
+        }
+      }
+      
       this._currentUser.next(activeAccount);
       this._isAuthenticated.next(true);
       
@@ -272,7 +330,7 @@ export class AuthService {
       
       // Store the target tenant ID for account recovery
       sessionStorage.setItem('targetTenantId', tenantId);
-      sessionStorage.setItem('postTenantSwitchRedirect', 'true');
+      sessionStorage.setItem('postTenantSwitchRedirect', '/user-management');
       
       // Get current accounts before clearing cache
       const currentAccounts = this.msalService.instance.getAllAccounts();
@@ -304,7 +362,7 @@ export class AuthService {
       
       // Perform login redirect for the new tenant
       const loginRequest = {
-        scopes: ['https://management.azure.com/.default'],
+        scopes: ['user.read', 'Directory.Read.All', 'RoleManagement.ReadWrite.Directory'],
         authority: tenantConfig.auth.authority,
         redirectUri: tenantConfig.auth.redirectUri,
         prompt: 'select_account'

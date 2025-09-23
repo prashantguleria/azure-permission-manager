@@ -64,21 +64,46 @@ export class AppComponent implements OnInit, OnDestroy {
             // Add a small delay to ensure MSAL state is fully updated
             setTimeout(() => {
               // Check if user is authenticated and redirect appropriately
-              if (this.authService.isAuthenticated()) {
-                const currentRoute = this.router.url;
-                
-                // Check if this is a redirect after tenant switching
-                const postTenantSwitchRedirect = sessionStorage.getItem('postTenantSwitchRedirect');
-                if (postTenantSwitchRedirect) {
-                  console.log('Redirecting after tenant switch to:', postTenantSwitchRedirect);
-                  sessionStorage.removeItem('postTenantSwitchRedirect');
-                  this.router.navigate([postTenantSwitchRedirect]);
-                } else if (currentRoute === '/' || currentRoute === '/login') {
-                  this.router.navigate(['/tenants']);
+                if (this.authService.isAuthenticated()) {
+                  const currentRoute = this.router.url;
+                  
+                  // Check if this is a redirect after tenant switching
+                  const postTenantSwitchRedirect = sessionStorage.getItem('postTenantSwitchRedirect');
+                  if (postTenantSwitchRedirect) {
+                    console.log('Redirecting after tenant switch to:', postTenantSwitchRedirect);
+                    sessionStorage.removeItem('postTenantSwitchRedirect');
+                    this.router.navigate([postTenantSwitchRedirect]);
+                  } else if (currentRoute === '/' || currentRoute === '/login') {
+                    // Check if user has already selected a tenant
+                    const selectedTenant = localStorage.getItem('selectedTenant');
+                    const currentUser = this.authService.getCurrentUser();
+                    
+                    if (selectedTenant) {
+                      console.log('User has selected tenant, redirecting to user management');
+                      this.router.navigate(['/user-management']);
+                    } else if (currentUser?.tenantId) {
+                      // Auto-select current tenant if no tenant selected
+                      console.log('Auto-selecting current tenant:', currentUser.tenantId);
+                      const defaultTenant = {
+                        id: currentUser.tenantId,
+                        displayName: currentUser.tenantId,
+                        defaultDomain: `${currentUser.tenantId}.onmicrosoft.com`,
+                        countryLetterCode: 'US',
+                        isDefault: true
+                      };
+                      localStorage.setItem('selectedTenant', JSON.stringify(defaultTenant));
+                      this.router.navigate(['/user-management']);
+                    } else {
+                      this.router.navigate(['/tenants']);
+                    }
+                  }
+                } else {
+                  console.log('User not authenticated after initialization, redirecting to login');
+                  const currentRoute = this.router.url;
+                  if (currentRoute !== '/login') {
+                    this.router.navigate(['/login']);
+                  }
                 }
-              } else {
-                console.log('User not authenticated after initialization, staying on current route');
-              }
               
               // Set initial layout visibility
               this.updateLayoutVisibility(this.router.url);

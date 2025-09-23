@@ -16,6 +16,7 @@ import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { Subject, takeUntil, catchError, of, finalize } from 'rxjs';
 import { AzureApiService } from '../../services/azure-api.service';
+import { PermissionsService } from '../../services/permissions.service';
 import {
   UserPermissions,
   PermissionSummary,
@@ -93,6 +94,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
 
   constructor(
     private azureApiService: AzureApiService,
+    private permissionsService: PermissionsService,
     private message: NzMessageService,
     private route: ActivatedRoute,
     private router: Router
@@ -137,8 +139,8 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
       
       // Load permissions and summary in parallel
       const [permissions, summary] = await Promise.all([
-        this.azureApiService.getUserPermissions(targetUserId),
-        this.azureApiService.getPermissionSummary(targetUserId).toPromise()
+        this.permissionsService.getUserPermissions(targetUserId),
+        this.permissionsService.getPermissionSummary(targetUserId).toPromise()
       ]);
 
       this.permissions = permissions;
@@ -241,7 +243,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
       subscriptionId: this.selectedSubscription || undefined
     };
 
-    const filteredPermissions = this.azureApiService.filterPermissions(this.permissions, filter);
+    const filteredPermissions = this.permissionsService.filterPermissions(this.permissions, filter);
     this.filteredPermissions = this.convertToTableFormat(filteredPermissions);
   }
 
@@ -279,7 +281,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         return;
       }
       
-      const blob = this.azureApiService.exportUserPermissions(
+      const blob = this.permissionsService.exportPermissions(
         this.permissions,
         userId,
         displayName
@@ -300,7 +302,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
   }
 
   refreshPermissions(): void {
-    this.azureApiService.clearPermissionsCache();
+    this.permissionsService.clearCache();
     this.loadUserPermissions();
   }
 

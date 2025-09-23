@@ -61,62 +61,75 @@ export const getTenantSpecificConfig = (tenantId: string) => {
 // Create and export the MSAL instance
 export const msalInstance = new PublicClientApplication(msalConfig);
 
-// Enhanced redirect promise handling with better error recovery
-msalInstance.handleRedirectPromise().then((response) => {
-  console.log('Redirect promise handled');
-  if (response) {
-    console.log('Authentication successful:', response.account?.username);
-    console.log('Account tenant ID:', response.account?.tenantId);
+// Handle redirect promise after initialization
+let redirectHandled = false;
+
+const handleRedirectAfterInit = async () => {
+  if (redirectHandled) return;
+  redirectHandled = true;
+  
+  try {
+    console.log('Handling redirect promise after initialization...');
+    const response = await msalInstance.handleRedirectPromise();
     
-    // Ensure the account is set as active
-    if (response.account) {
-      msalInstance.setActiveAccount(response.account);
-      console.log('Active account set after redirect:', response.account.username);
-    }
-    
-    // Clear any redirect flags
-    sessionStorage.removeItem('postTenantSwitchRedirect');
-  } else {
-    // Check if we have cached accounts that might not have been detected
-    const allAccounts = msalInstance.getAllAccounts();
-    console.log('No redirect response, checking cached accounts:', allAccounts.length);
-    
-    if (allAccounts.length > 0 && !msalInstance.getActiveAccount()) {
-      // Try to recover from cached accounts
-      const targetTenantId = sessionStorage.getItem('targetTenantId');
-      let accountToSet = allAccounts[0];
+    console.log('Redirect promise handled');
+    if (response) {
+      console.log('Authentication successful:', response.account?.username);
+      console.log('Account tenant ID:', response.account?.tenantId);
       
-      if (targetTenantId) {
-        const tenantAccount = allAccounts.find(account => 
-          account.tenantId === targetTenantId || 
-          account.idTokenClaims?.tid === targetTenantId
-        );
-        if (tenantAccount) {
-          accountToSet = tenantAccount;
-          console.log('Recovered account for tenant:', targetTenantId);
-        }
+      // Ensure the account is set as active
+      if (response.account) {
+        msalInstance.setActiveAccount(response.account);
+        console.log('Active account set after redirect:', response.account.username);
       }
       
-      msalInstance.setActiveAccount(accountToSet);
-      console.log('Recovered active account:', accountToSet.username);
+      // Clear any redirect flags
+      sessionStorage.removeItem('postTenantSwitchRedirect');
+    } else {
+      // Check if we have cached accounts that might not have been detected
+      const allAccounts = msalInstance.getAllAccounts();
+      console.log('No redirect response, checking cached accounts:', allAccounts.length);
+      
+      if (allAccounts.length > 0 && !msalInstance.getActiveAccount()) {
+        // Try to recover from cached accounts
+        const targetTenantId = sessionStorage.getItem('targetTenantId');
+        let accountToSet = allAccounts[0];
+        
+        if (targetTenantId) {
+          const tenantAccount = allAccounts.find(account => 
+            account.tenantId === targetTenantId || 
+            account.idTokenClaims?.tid === targetTenantId
+          );
+          if (tenantAccount) {
+            accountToSet = tenantAccount;
+            console.log('Recovered account for tenant:', targetTenantId);
+          }
+        }
+        
+        msalInstance.setActiveAccount(accountToSet);
+        console.log('Recovered active account:', accountToSet.username);
+      }
+    }
+  } catch (error) {
+    console.error('Error handling redirect promise:', error);
+    
+    // Try to recover from error by checking cached accounts
+    const allAccounts = msalInstance.getAllAccounts();
+    if (allAccounts.length > 0) {
+      console.log('Attempting account recovery after redirect error');
+      msalInstance.setActiveAccount(allAccounts[0]);
     }
   }
-}).catch((error) => {
-  console.error('Error handling redirect promise:', error);
-  
-  // Try to recover from error by checking cached accounts
-  const allAccounts = msalInstance.getAllAccounts();
-  if (allAccounts.length > 0) {
-    console.log('Attempting account recovery after redirect error');
-    msalInstance.setActiveAccount(allAccounts[0]);
-  }
-});
+};
 
 // Initialize MSAL instance
 export const initializeMsal = async (): Promise<void> => {
   try {
     await msalInstance.initialize();
     console.log('MSAL initialized successfully');
+    
+    // Handle redirect promise after initialization
+    await handleRedirectAfterInit();
   } catch (error) {
     console.error('MSAL initialization failed:', error);
     throw error;

@@ -3,11 +3,9 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject, of } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
-import { PermissionsService } from './permissions.service';
 import { User, UserSearchResult, RoleAssignment, RoleRemovalRequest, RoleRemovalResult } from '../models/user.model';
 import { Tenant } from '../models/tenant.model';
 import { AuditLog, AuditLogFilter } from '../models/audit-log.model';
-import { UserPermissions, PermissionSummary, PermissionFilter } from '../models/permissions.model';
 
 @Injectable({
   providedIn: 'root'
@@ -19,8 +17,7 @@ export class AzureApiService {
 
   constructor(
     private http: HttpClient,
-    private authService: AuthService,
-    private permissionsService: PermissionsService
+    private authService: AuthService
   ) {}
 
   private getAuthHeaders(): Observable<HttpHeaders> {
@@ -35,6 +32,24 @@ export class AzureApiService {
           return throwError(() => error);
         })
       );
+  }
+
+  /**
+   * Remove storage account role assignment
+   */
+  removeStorageAccountRoleAssignment(assignmentId: string): Observable<any> {
+    return this.getManagementAuthHeaders().pipe(
+      switchMap(headers => 
+        this.http.delete(
+          `${this.managementApiUrl}/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleAssignments/${assignmentId}?api-version=2022-04-01`,
+          { headers }
+        )
+      ),
+      catchError(error => {
+        console.error('Failed to remove storage account role assignment:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   private getManagementAuthHeaders(): Observable<HttpHeaders> {
@@ -178,6 +193,123 @@ export class AzureApiService {
     );
   }
 
+  // Storage Account Role Assignment Operations
+  createStorageAccountRoleAssignment(request: {
+    storageAccountId: string;
+    principalId: string;
+    roleDefinitionId: string;
+    principalType?: string;
+  }): Observable<any> {
+    const assignmentId = this.generateGuid();
+    const assignmentBody = {
+      properties: {
+        roleDefinitionId: request.roleDefinitionId,
+        principalId: request.principalId,
+        principalType: request.principalType || 'User'
+      }
+    };
+
+    return this.getManagementAuthHeaders().pipe(
+      switchMap(headers => 
+        this.http.put(
+          `${this.managementApiUrl}${request.storageAccountId}/providers/Microsoft.Authorization/roleAssignments/${assignmentId}?api-version=2022-04-01`,
+          assignmentBody,
+          { headers }
+        )
+      ),
+      catchError(error => {
+        console.error('Failed to create storage account role assignment:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+
+
+  // Storage Account Lock Operations
+  getStorageAccountLocks(storageAccountId: string): Observable<any[]> {
+    const locksUrl = `${this.managementApiUrl}${storageAccountId}/providers/Microsoft.Authorization/locks?api-version=2020-05-01`;
+    console.log('📋 Azure API: Getting locks for storage account:', storageAccountId);
+    console.log('📋 Azure API: Locks URL:', locksUrl);
+    
+    return this.getManagementAuthHeaders().pipe(
+      switchMap(headers => {
+        console.log('📋 Azure API: Making GET request to:', locksUrl);
+        return this.http.get<{value: any[]}>(locksUrl, { headers }).pipe(
+          tap(response => {
+            console.log('📋 Azure API: Raw locks response:', response);
+            console.log('📋 Azure API: Locks array:', response.value);
+            if (response.value && response.value.length > 0) {
+              console.log('📋 Azure API: Sample lock structure:', response.value[0]);
+            }
+          })
+        );
+      }),
+      map(response => response.value || []),
+      catchError(error => {
+        console.error('❌ Azure API: Failed to get storage account locks:', error);
+        console.error('❌ Azure API: Storage Account ID was:', storageAccountId);
+        console.error('❌ Azure API: Locks URL was:', locksUrl);
+        return of([]);
+      })
+    );
+  }
+
+  deleteStorageAccountLock(lockId: string): Observable<any> {
+    // Azure lock IDs should be full resource paths starting with /subscriptions/
+    // If lockId doesn't start with /, it's likely just the lock name and we need the full path
+    const deleteUrl = `${this.managementApiUrl}${lockId}?api-version=2020-05-01`;
+    
+    console.log('🗑️ Azure API: Deleting lock with ID:', lockId);
+    console.log('🗑️ Azure API: Management API URL:', this.managementApiUrl);
+    console.log('🗑️ Azure API: Full delete URL:', deleteUrl);
+    console.log('🗑️ Azure API: Lock ID starts with /subscriptions:', lockId.startsWith('/subscriptions'));
+    
+    return this.getManagementAuthHeaders().pipe(
+      switchMap(headers => {
+        console.log('🗑️ Azure API: Making DELETE request to:', deleteUrl);
+        console.log('🗑️ Azure API: Request headers:', Object.keys(headers));
+        return this.http.delete(deleteUrl, { headers }).pipe(
+          tap(response => {
+            console.log('✅ Azure API: Lock deletion successful:', response);
+          })
+        );
+      }),
+      catchError(error => {
+        console.error('❌ Azure API: Failed to delete storage account lock:', error);
+        console.error('❌ Azure API: Lock ID was:', lockId);
+        console.error('❌ Azure API: Delete URL was:', deleteUrl);
+        console.error('❌ Azure API: Error status:', error.status);
+        console.error('❌ Azure API: Error message:', error.message);
+        console.error('❌ Azure API: Error body:', error.error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  createStorageAccountLock(storageAccountId: string, lockName: string, lockLevel: 'ReadOnly' | 'Delete', notes?: string): Observable<any> {
+    const lockBody = {
+      properties: {
+        level: lockLevel,
+        notes: notes || `Lock recreated by Azure Permission Manager`
+      }
+    };
+
+    return this.getManagementAuthHeaders().pipe(
+      switchMap(headers => 
+        this.http.put(
+          `${this.managementApiUrl}${storageAccountId}/providers/Microsoft.Authorization/locks/${lockName}?api-version=2020-05-01`,
+          lockBody,
+          { headers }
+        )
+      ),
+      catchError(error => {
+        console.error('Failed to create storage account lock:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
   // Role Operations
   getUserRoleAssignments(userId: string): Observable<RoleAssignment[]> {
     return this.getAuthHeaders().pipe(
@@ -282,40 +414,7 @@ export class AzureApiService {
     );
   }
 
-  /**
-   * Get comprehensive permissions for a user
-   */
-  getUserPermissions(userId?: string): Promise<UserPermissions> {
-    return this.permissionsService.getUserPermissions(userId);
-  }
 
-  /**
-   * Get permission summary for dashboard
-   */
-  getPermissionSummary(userId?: string): Observable<PermissionSummary> {
-    return this.permissionsService.getPermissionSummary(userId);
-  }
-
-  /**
-   * Filter user permissions
-   */
-  filterPermissions(permissions: UserPermissions, filter: PermissionFilter): UserPermissions {
-    return this.permissionsService.filterPermissions(permissions, filter);
-  }
-
-  /**
-   * Export user permissions to CSV
-   */
-  exportUserPermissions(permissions: UserPermissions, userId: string, userDisplayName: string): Blob {
-    return this.permissionsService.exportPermissions(permissions, userId, userDisplayName);
-  }
-
-  /**
-   * Clear permissions cache
-   */
-  clearPermissionsCache(): void {
-    this.permissionsService.clearCache();
-  }
 
   /**
    * Export audit logs to CSV
@@ -342,5 +441,13 @@ export class AzureApiService {
     });
 
     return csvArray.join('\n');
+  }
+
+  private generateGuid(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   }
 }

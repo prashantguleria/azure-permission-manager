@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { Subject, debounceTime, distinctUntilChanged, takeUntil, switchMap, catchError, of } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, takeUntil, switchMap, catchError, of, Subscription } from 'rxjs';
 
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
@@ -55,6 +55,7 @@ import { User, UserSearchResult } from '../../models/user.model';
 export class UserManagementComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private searchSubject = new Subject<string>();
+  private tenantChangeSubscription?: Subscription;
 
   // Data properties
   users: User[] = [];
@@ -84,11 +85,22 @@ export class UserManagementComponent implements OnInit, OnDestroy {
     this.currentUser = this.authService.getCurrentUser();
     this.setupSearch();
     this.loadUsers();
+    
+    // Subscribe to tenant changes
+    this.tenantChangeSubscription = this.authService.tenantChanged$.subscribe((newTenantId: string) => {
+      console.log('User management: Tenant changed to', newTenantId);
+      this.refreshUsers();
+    });
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    
+    // Unsubscribe from tenant changes
+    if (this.tenantChangeSubscription) {
+      this.tenantChangeSubscription.unsubscribe();
+    }
   }
 
   private setupSearch(): void {

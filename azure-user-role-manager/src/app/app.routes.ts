@@ -7,15 +7,17 @@ import { UserManagementComponent } from './pages/user-management/user-management
 import { UserDetailComponent } from './pages/user-detail/user-detail.component';
 import { UserPermissionsComponent } from './pages/user-permissions/user-permissions.component';
 import { AuditLogComponent } from './pages/audit-log/audit-log.component';
+import { StorageAccountsComponent } from './pages/storage-accounts/storage-accounts.component';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: '/tenants' },
+  { path: '', pathMatch: 'full', redirectTo: '/login' },
   { path: 'login', component: LoginComponent },
   { path: 'tenants', component: TenantSelectionComponent, canActivate: [authGuard] },
   { path: 'user-management', component: UserManagementComponent, canActivate: [authGuard, tenantGuard] },
   { path: 'users', redirectTo: '/user-management' },
   { path: 'user-detail/:id', component: UserDetailComponent, canActivate: [authGuard, tenantGuard] },
   { path: 'user-permissions', component: UserPermissionsComponent, canActivate: [authGuard, tenantGuard] },
+  { path: 'storage-accounts', component: StorageAccountsComponent, canActivate: [authGuard, tenantGuard] },
   { path: 'audit', component: AuditLogComponent, canActivate: [authGuard, tenantGuard] },
   { path: 'unauthorized', loadChildren: () => import('./pages/welcome/welcome.routes').then(m => m.WELCOME_ROUTES) },
   { path: '**', redirectTo: '/tenants' }

@@ -1,0 +1,441 @@
+<div class="storage-accounts-container">
+  <!-- Header -->
+  <div class="header">
+    <h1>Storage Accounts</h1>
+    <div class="header-actions">
+      <button nz-button nzType="primary" (click)="refreshData()" [nzLoading]="loading">
+        <i nz-icon nzType="reload"></i>
+        Refresh
+      </button>
+      <button nz-button (click)="exportData()" [disabled]="loading || filteredStorageAccounts.length === 0">
+        <i nz-icon nzType="download"></i>
+        Export CSV
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Subscription Selector -->
+  <div class="subscription-selector-container">
+    <app-subscription-selector 
+      [selectedSubscription]="selectedSubscription"
+      (subscriptionSelected)="onSubscriptionSelected($event)">
+    </app-subscription-selector>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-cards" *ngIf="!loading && !error">
+    <nz-card class="summary-card">
+      <div class="summary-content">
+        <i nz-icon nzType="hdd" class="summary-icon"></i>
+        <div class="summary-text">
+          <nz-statistic [nzValue]="totalStorageAccounts" nzTitle="Total Storage Accounts" [nzValueStyle]="{ color: '#1890ff' }"></nz-statistic>
+        </div>
+      </div>
+    </nz-card>
+
+    <nz-card class="summary-card">
+      <div class="summary-content">
+        <i nz-icon nzType="team" class="summary-icon"></i>
+        <div class="summary-text">
+          <nz-statistic [nzValue]="totalUsersWithAccess" nzTitle="Users with Access" [nzValueStyle]="{ color: '#1890ff' }"></nz-statistic>
+        </div>
+      </div>
+    </nz-card>
+
+    <nz-card class="summary-card">
+      <div class="summary-content">
+        <i nz-icon nzType="safety" class="summary-icon"></i>
+        <div class="summary-text">
+          <nz-statistic [nzValue]="highPrivilegeAssignments" nzTitle="High Privilege Assignments" [nzValueStyle]="{ color: '#f5222d' }"></nz-statistic>
+        </div>
+      </div>
+    </nz-card>
+
+    <nz-card class="summary-card">
+      <div class="summary-content">
+        <i nz-icon nzType="folder" class="summary-icon"></i>
+        <div class="summary-text">
+          <nz-statistic [nzValue]="resourceGroups.length" nzTitle="Resource Groups" [nzValueStyle]="{ color: '#52c41a' }"></nz-statistic>
+        </div>
+      </div>
+    </nz-card>
+  </div>
+
+  <!-- High Privilege Alert -->
+  <nz-alert 
+    *ngIf="highPrivilegeAssignments > 0"
+    nzType="warning"
+    nzShowIcon
+    [nzMessage]="'High Privilege Access Detected'"
+    [nzDescription]="highPrivilegeAssignments + ' high-privilege role assignments found across storage accounts'"
+    class="privilege-alert">
+  </nz-alert>
+
+  <!-- Filters Section -->
+  <nz-card class="filters-card" *ngIf="!loading">
+    <div class="filters-content">
+      <div class="filter-row">
+        <div class="filter-item">
+          <label class="filter-label">Search:</label>
+          <nz-input-group nzSearch [nzAddOnAfter]="searchButton">
+            <input 
+              type="text" 
+              nz-input 
+              placeholder="Search storage accounts, users, roles..." 
+              [(ngModel)]="searchTerm"
+              (input)="applyFilters()"/>
+          </nz-input-group>
+          <ng-template #searchButton>
+            <button nz-button nzType="primary" nzSearch (click)="applyFilters()">
+              <span nz-icon nzType="search"></span>
+            </button>
+          </ng-template>
+        </div>
+
+        <div class="filter-item" *ngIf="resourceGroups.length > 0">
+          <label class="filter-label">Resource Group:</label>
+          <nz-select 
+            [(ngModel)]="selectedResourceGroup" 
+            (ngModelChange)="applyFilters()"
+            nzPlaceHolder="All resource groups"
+            nzAllowClear
+            class="filter-select">
+            <nz-option 
+              *ngFor="let rg of resourceGroups" 
+              [nzLabel]="rg" 
+              [nzValue]="rg">
+            </nz-option>
+          </nz-select>
+        </div>
+
+        <div class="filter-item" *ngIf="locations.length > 0">
+          <label class="filter-label">Location:</label>
+          <nz-select 
+            [(ngModel)]="selectedLocation" 
+            (ngModelChange)="applyFilters()"
+            nzPlaceHolder="All locations"
+            nzAllowClear
+            class="filter-select">
+            <nz-option 
+              *ngFor="let location of locations" 
+              [nzLabel]="location" 
+              [nzValue]="location">
+            </nz-option>
+          </nz-select>
+        </div>
+
+        <div class="filter-item">
+          <label class="filter-label">Access Level:</label>
+          <nz-select 
+            [(ngModel)]="selectedAccessLevel" 
+            (ngModelChange)="applyFilters()"
+            nzPlaceHolder="All access levels"
+            nzAllowClear
+            class="filter-select">
+            <nz-option nzValue="Owner" nzLabel="Owner"></nz-option>
+            <nz-option nzValue="Contributor" nzLabel="Contributor"></nz-option>
+            <nz-option nzValue="Reader" nzLabel="Reader"></nz-option>
+            <nz-option nzValue="Storage Account Contributor" nzLabel="Storage Account Contributor"></nz-option>
+          </nz-select>
+        </div>
+
+        <div class="filter-actions">
+          <button 
+            nz-button 
+            nzType="default" 
+            (click)="clearFilters()" 
+            nzSize="small">
+            <span nz-icon nzType="close" nzTheme="outline"></span>
+            Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  </nz-card>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="loading">
+    <nz-spin nzSize="large">
+      <p>Loading storage accounts...</p>
+    </nz-spin>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-container" *ngIf="error && !loading">
+    <nz-alert nzType="error" nzShowIcon [nzMessage]="'Error Loading Storage Accounts'" [nzDescription]="error">
+      <button nz-button nzType="primary" (click)="refreshData()">
+        <i nz-icon nzType="reload"></i>
+        Try Again
+      </button>
+    </nz-alert>
+  </div>
+
+  <!-- Bulk Actions -->
+  <div class="bulk-actions-container" *ngIf="!loading && !error && filteredStorageAccounts.length > 0">
+    <nz-card class="bulk-actions-card">
+      <div class="bulk-actions-content">
+        <div class="selection-info">
+          <span class="selected-count">{{ getSelectedAccountsCount() }} of {{ filteredStorageAccounts.length }} selected</span>
+          <button nz-button nzType="link" nzSize="small" (click)="selectAllAccounts()" *ngIf="getSelectedAccountsCount() < filteredStorageAccounts.length">
+            Select All
+          </button>
+          <button nz-button nzType="link" nzSize="small" (click)="clearSelection()" *ngIf="getSelectedAccountsCount() > 0">
+            Clear Selection
+          </button>
+        </div>
+        <div class="bulk-actions" *ngIf="getSelectedAccountsCount() > 0">
+          <button nz-button nzType="primary" (click)="bulkAddPermissions()" [disabled]="getSelectedAccountsCount() === 0">
+            <i nz-icon nzType="plus"></i>
+            Add Permissions
+          </button>
+          <button nz-button nzType="default" nzDanger (click)="bulkRemovePermissions()" [disabled]="getSelectedAccountsCount() === 0">
+            <i nz-icon nzType="delete"></i>
+            Remove Permissions
+          </button>
+        </div>
+      </div>
+    </nz-card>
+  </div>
+
+  <!-- Storage Accounts Table -->
+  <div class="table-container" *ngIf="!loading && !error && filteredStorageAccounts.length > 0">
+    <nz-table 
+      #storageAccountsTable 
+      [nzData]="filteredStorageAccounts" 
+      [nzShowPagination]="true" 
+      [nzPageSize]="pageSize" 
+      [nzPageIndex]="pageIndex"
+      [nzTotal]="filteredStorageAccounts.length"
+      [nzPageSizeOptions]="[10, 20, 50, 100]"
+      [nzShowSizeChanger]="true"
+      [nzShowQuickJumper]="true"
+      (nzPageIndexChange)="onPageIndexChange($event)"
+      (nzPageSizeChange)="onPageSizeChange($event)">
+      <thead>
+        <tr>
+          <th nzWidth="50px">
+            <label nz-checkbox [(ngModel)]="allSelected" [nzIndeterminate]="indeterminate" (ngModelChange)="onAllChecked($event)"></label>
+          </th>
+          <th nzWidth="50px"></th>
+          <th>Storage Account</th>
+          <th>Resource Group</th>
+          <th>Location</th>
+          <th>SKU</th>
+          <th>Users with Access</th>
+          <th nzWidth="120px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let account of storageAccountsTable.data">
+          <!-- Main row -->
+          <tr>
+            <td>
+              <label nz-checkbox [(ngModel)]="account.selected" (ngModelChange)="onItemChecked(account, $event)"></label>
+            </td>
+            <td>
+              <button nz-button nzType="link" nzSize="small" (click)="toggleExpand(account)">
+                  <i nz-icon [nzType]="account.expanded ? 'minus' : 'plus'"></i>
+              </button>
+            </td>
+            <td>
+              <div class="account-info">
+                <div class="account-name">{{ account.name }}</div>
+                <div class="account-id">{{ account.id }}</div>
+              </div>
+            </td>
+            <td>{{ account.resourceGroup }}</td>
+            <td>{{ account.location }}</td>
+            <td>
+              <nz-tag>{{ account.sku || 'N/A' }}</nz-tag>
+            </td>
+            <td>
+                <nz-tag [nzColor]="getUsersCountColor(account.permissions.length || 0)">
+                  {{ account.permissions.length || 0 }}
+                </nz-tag>
+              </td>
+            <td>
+              <button nz-button nzType="text" (click)="viewAccountDetails(account)" nz-tooltip="View Details">
+                <i nz-icon nzType="eye"></i>
+              </button>
+              <button nz-button nzType="text" (click)="managePermissions(account)" nz-tooltip="Manage Permissions">
+                <i nz-icon nzType="team"></i>
+              </button>
+              <button nz-button nzType="text" (click)="toggleLocks(account)" nz-tooltip="View Locks">
+                <i nz-icon nzType="lock" [nzSpin]="account.locksLoading"></i>
+              </button>
+              <button nz-button nzType="text" (click)="exportAccountData(account)" nz-tooltip="Export Data">
+                <i nz-icon nzType="download"></i>
+              </button>
+            </td>
+          </tr>
+          
+          <!-- Expanded row -->
+          <tr *ngIf="account.expanded" [nzExpand]="true">
+            <td colspan="8">
+              <div class="expanded-content">
+                <div *ngIf="account.loadingPermissions" class="loading-permissions">
+                  <nz-spin nzSize="small">
+                    <p>Loading permissions...</p>
+                  </nz-spin>
+                </div>
+                
+                <div *ngIf="!account.loadingPermissions">
+                  <!-- Locks Section -->
+                  <div class="locks-section" *ngIf="account.locks && account.locks.length > 0">
+                    <div class="section-header">
+                      <h4><i nz-icon nzType="lock" style="color: #ff4d4f; margin-right: 8px;"></i>Resource Locks</h4>
+                      <nz-tag nzColor="orange">{{ account.locks.length }} lock(s)</nz-tag>
+                    </div>
+                    <nz-alert 
+                      nzType="warning" 
+                      nzMessage="Locks prevent permission modifications" 
+                      nzDescription="Delete locks will be temporarily removed during permission operations and recreated afterward."
+                      nzShowIcon
+                      style="margin-bottom: 12px;">
+                    </nz-alert>
+                    <div class="locks-list">
+                      <div class="lock-item" *ngFor="let lock of account.locks">
+                        <div class="lock-info">
+                          <strong>{{ lock.name }}</strong>
+                          <span class="lock-type" [ngClass]="{'delete-lock': lock.properties?.level === 'CanNotDelete', 'readonly-lock': lock.properties?.level === 'ReadOnly'}">
+                            {{ lock.properties?.level }}
+                          </span>
+                        </div>
+                        <div class="lock-description" *ngIf="lock.properties?.notes">
+                          {{ lock.properties.notes }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="permissions-section">
+                    <div class="section-header">
+                      <h4>Users with Access ({{ (account.permissions && account.permissions.length) || 0 }})</h4>
+                      <div class="section-actions">
+                        <button nz-button nzType="primary" nzSize="small" (click)="addPermission(account)">
+                          <i nz-icon nzType="plus"></i>
+                          Add Permission
+                        </button>
+                      </div>
+                    </div>
+                  
+                    <div *ngIf="account.permissions && account.permissions.length > 0; else noPermissions">
+                    <nz-table #usersTable [nzData]="account.permissions" [nzShowPagination]="false" nzSize="small">
+                      <thead>
+                        <tr>
+                          <th>User/Principal</th>
+                          <th>Role</th>
+                          <th>Type</th>
+                          <th>Assigned Date</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let permission of usersTable.data">
+                          <td>
+                            <div class="user-info">
+                              <div class="user-name">
+                                <strong>{{ permission.properties.principalDisplayName || 'Unknown Principal' }}</strong>
+                              </div>
+                              <div class="user-email" *ngIf="permission.properties.principalEmail">
+                                {{ permission.properties.principalEmail }}
+                              </div>
+                              <div class="user-id">ID: {{ permission.properties.principalId }}</div>
+                            </div>
+                          </td>
+                          <td>
+                            <nz-tag [nzColor]="getRoleColor(permission.properties.roleDefinitionName)">
+                              {{ permission.properties.roleDefinitionName }}
+                            </nz-tag>
+                          </td>
+                          <td>
+                            <nz-tag [nzColor]="getPrincipalTypeColor(permission.properties.principalType)">
+                              {{ permission.properties.principalType }}
+                            </nz-tag>
+                          </td>
+                          <td>{{ permission.properties.createdOn | date:'short' }}</td>
+                          <td>
+                            <button nz-button nzType="text" nzSize="small" (click)="viewPermissionDetails(permission)" nz-tooltip="View Details">
+                              <i nz-icon nzType="eye"></i>
+                            </button>
+                            <button nz-button nzType="text" nzSize="small" (click)="removePermission(account, permission)" nz-tooltip="Remove Access" nzDanger>
+                              <i nz-icon nzType="delete"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </nz-table>
+                    </div>
+                  
+                    <ng-template #noPermissions>
+                    <nz-empty nzNotFoundImage="simple">
+                      <div nz-empty-default>
+                        <p>No role assignments found for this storage account</p>
+                        <button nz-button nzType="primary" (click)="addPermission(account)">
+                          <i nz-icon nzType="plus"></i>
+                          Add Permission
+                        </button>
+                      </div>
+                    </nz-empty>
+                    </ng-template>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </nz-table>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!loading && !error && filteredStorageAccounts.length === 0">
+    <nz-empty [nzNotFoundImage]="'simple'" [nzNotFoundContent]="emptyTemplate">
+      <ng-template #emptyTemplate>
+        <div class="empty-content">
+          <i nz-icon nzType="hdd" class="empty-icon"></i>
+          <h3>No Storage Accounts Found</h3>
+          <p *ngIf="searchTerm || selectedResourceGroup || selectedLocation || selectedAccessLevel; else noDataTemplate">
+            No storage accounts match your current filters. Try adjusting your search criteria.
+          </p>
+          <ng-template #noDataTemplate>
+            <p>No storage accounts found in the selected subscription.</p>
+          </ng-template>
+          <div class="empty-actions">
+            <button nz-button nzType="primary" (click)="clearFilters()" *ngIf="searchTerm || selectedResourceGroup || selectedLocation || selectedAccessLevel">
+              <i nz-icon nzType="clear"></i>
+              Clear Filters
+            </button>
+            <button nz-button (click)="refreshData()">
+              <i nz-icon nzType="reload"></i>
+              Refresh
+            </button>
+          </div>
+        </div>
+      </ng-template>
+    </nz-empty>
+  </div>
+</div>
+
+<!-- Bulk Permission Modal -->
+<app-bulk-permission-modal
+  *ngIf="showBulkPermissionModal"
+  [visible]="showBulkPermissionModal"
+  [selectedAccounts]="selectedStorageAccounts"
+  [subscriptionId]="selectedSubscription?.subscriptionId || ''"
+  [loading]="bulkModalLoading"
+  (permissionRequest)="onBulkPermissionRequest($event)"
+  (cancel)="showBulkPermissionModal = false">
+</app-bulk-permission-modal>
+
+<!-- Bulk Remove Modal -->
+<app-bulk-remove-modal
+  *ngIf="showBulkRemoveModal"
+  [visible]="showBulkRemoveModal"
+  [selectedAccounts]="selectedStorageAccounts"
+  [roleAssignments]="roleAssignmentsForRemoval"
+  [loading]="bulkModalLoading"
+  (visibleChange)="showBulkRemoveModal = $event"
+  (removeRequest)="onBulkRemoveRequest($event)">
+</app-bulk-remove-modal>

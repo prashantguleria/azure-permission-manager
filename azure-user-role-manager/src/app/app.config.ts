@@ -10,6 +10,8 @@ import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
 import { FormsModule } from '@angular/forms';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzMessageModule } from 'ng-zorro-antd/message';
 
 // MSAL imports
 import { MsalModule, MsalService, MsalGuard, MsalInterceptor, MsalBroadcastService, MsalRedirectComponent } from '@azure/msal-angular';
@@ -25,6 +27,8 @@ export const appConfig: ApplicationConfig = {
     provideNzIcons(),
     provideNzI18n(en_US),
     importProvidersFrom(FormsModule),
+    importProvidersFrom(NzModalModule),
+    importProvidersFrom(NzMessageModule),
     provideAnimationsAsync(),
     provideHttpClient(withInterceptorsFromDi()),
     importProvidersFrom(MsalModule.forRoot(msalInstance, {
