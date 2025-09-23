@@ -168,6 +168,104 @@ export class AzureApiService {
     );
   }
 
+  // Service Principal Operations
+  searchServicePrincipals(query: string, top: number = 25, skip: number = 0): Observable<UserSearchResult> {
+    let params = new HttpParams()
+      .set('$top', top.toString());
+    
+    // Use $filter with supported operators for service principals
+    if (query) {
+      const filterQuery = `startsWith(displayName,'${query}')`;
+      params = params.set('$filter', filterQuery);
+    } else {
+      params = params.set('$orderby', 'displayName');
+    }
+
+    return this.getAuthHeaders().pipe(
+      switchMap(headers => 
+        this.http.get<any>(`${this.graphApiUrl}/servicePrincipals`, { 
+          headers, 
+          params 
+        })
+      ),
+      map(response => ({
+        users: response.value.map((sp: any) => ({
+          id: sp.id,
+          displayName: sp.displayName,
+          email: sp.appId, // Use appId as email for service principals
+          userPrincipalName: sp.appId,
+          isEnabled: sp.accountEnabled,
+          createdDate: new Date(sp.createdDateTime),
+          principalType: 'ServicePrincipal',
+          servicePrincipalType: sp.servicePrincipalType,
+          appDisplayName: sp.appDisplayName
+        })),
+        totalCount: response['@odata.count'] || response.value.length,
+        hasMore: !!response['@odata.nextLink']
+      })),
+      catchError(error => {
+        console.error('Failed to search service principals:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // Group Operations
+  searchGroups(query: string, top: number = 25, skip: number = 0): Observable<UserSearchResult> {
+    let params = new HttpParams()
+      .set('$top', top.toString())
+      .set('$select', 'id,displayName,mail,description,createdDateTime');
+    
+    // Use $filter with supported operators for groups
+    if (query) {
+      const filterQuery = `startswith(displayName,'${query}') or startswith(mail,'${query}')`;
+      params = params.set('$filter', filterQuery);
+    } else {
+      params = params.set('$orderby', 'displayName');
+    }
+
+    return this.getAuthHeaders().pipe(
+      switchMap(headers => 
+        this.http.get<any>(`${this.graphApiUrl}/groups`, { 
+          headers, 
+          params 
+        })
+      ),
+      map(response => ({
+        users: response.value.map((group: any) => ({
+          id: group.id,
+          displayName: group.displayName,
+          email: group.mail || group.displayName,
+          userPrincipalName: group.displayName,
+          isEnabled: true, // Groups are always considered enabled
+          createdDate: new Date(group.createdDateTime),
+          principalType: 'Group',
+          description: group.description
+        })),
+        totalCount: response['@odata.count'] || response.value.length,
+        hasMore: !!response['@odata.nextLink']
+      })),
+      catchError(error => {
+        console.error('Failed to search groups:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // Generic principal search method
+  searchPrincipals(query: string, principalType: string, top: number = 25, skip: number = 0): Observable<UserSearchResult> {
+    switch (principalType) {
+      case 'User':
+        return this.searchUsers(query, top, skip);
+      case 'ServicePrincipal':
+        return this.searchServicePrincipals(query, top, skip);
+      case 'Group':
+        return this.searchGroups(query, top, skip);
+      default:
+        return this.searchUsers(query, top, skip);
+    }
+  }
+
   getUserById(userId: string): Observable<User> {
     return this.getAuthHeaders().pipe(
       switchMap(headers => 

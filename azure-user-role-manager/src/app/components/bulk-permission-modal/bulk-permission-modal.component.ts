@@ -52,11 +52,22 @@ export interface BulkPermissionRequest {
           
           <form nz-form [formGroup]="permissionForm" [nzLayout]="'vertical'">
             <nz-form-item>
-              <nz-form-label nzRequired>Users</nz-form-label>
-              <nz-form-control nzErrorTip="Please select at least one user">
+              <nz-form-label nzRequired>Principal Type</nz-form-label>
+              <nz-form-control nzErrorTip="Please select a principal type">
+                <nz-select formControlName="principalType" nzPlaceHolder="Select principal type...">
+                  <nz-option nzValue="User" nzLabel="User"></nz-option>
+                  <nz-option nzValue="ServicePrincipal" nzLabel="Service Principal"></nz-option>
+                  <nz-option nzValue="Group" nzLabel="Group"></nz-option>
+                </nz-select>
+              </nz-form-control>
+            </nz-form-item>
+            
+            <nz-form-item>
+              <nz-form-label nzRequired>{{ getPrincipalLabel() }}</nz-form-label>
+              <nz-form-control [nzErrorTip]="'Please select at least one ' + getPrincipalLabel().toLowerCase()">
                 <nz-select 
                   formControlName="principalIds" 
-                  nzPlaceHolder="Search and select users..."
+                  [nzPlaceHolder]="'Search and select ' + getPrincipalLabel().toLowerCase() + '...'"
                   nzMode="multiple"
                   nzShowSearch
                   nzServerSearch
@@ -66,10 +77,11 @@ export interface BulkPermissionRequest {
                   <nz-option 
                     *ngFor="let user of searchedUsers" 
                     [nzValue]="user.id" 
-                    [nzLabel]="user.displayName + ' (' + user.email + ')'">
+                    [nzLabel]="getPrincipalDisplayLabel(user)">
                     <div class="user-option">
                       <div class="user-name">{{ user.displayName }}</div>
-                      <div class="user-email">{{ user.email }}</div>
+                      <div class="user-email">{{ getPrincipalDisplayInfo(user) }}</div>
+                      <div class="user-type" *ngIf="user.principalType">{{ user.principalType }}</div>
                     </div>
                   </nz-option>
                 </nz-select>
@@ -88,17 +100,6 @@ export interface BulkPermissionRequest {
                     [nzValue]="role.value" 
                     [nzLabel]="role.label">
                   </nz-option>
-                </nz-select>
-              </nz-form-control>
-            </nz-form-item>
-            
-            <nz-form-item>
-              <nz-form-label nzRequired>Principal Type</nz-form-label>
-              <nz-form-control nzErrorTip="Please select a principal type">
-                <nz-select formControlName="principalType" nzPlaceHolder="Select principal type...">
-                  <nz-option nzValue="User" nzLabel="User"></nz-option>
-                  <nz-option nzValue="ServicePrincipal" nzLabel="Service Principal"></nz-option>
-                  <nz-option nzValue="Group" nzLabel="Group"></nz-option>
                 </nz-select>
               </nz-form-control>
             </nz-form-item>
@@ -134,6 +135,12 @@ export interface BulkPermissionRequest {
     .user-email {
       font-size: 12px;
       color: #8c8c8c;
+      margin-top: 2px;
+    }
+    .user-type {
+      font-size: 10px;
+      color: #1890ff;
+      font-weight: 500;
       margin-top: 2px;
     }
   `]
@@ -190,7 +197,7 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
     // Update role definitions with subscription ID
     this.updateRoleDefinitions();
     
-    // Setup user search with debouncing
+    // Setup principal search with debouncing
     this.userSearchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged(),
@@ -199,7 +206,8 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
           return of({ users: [], totalCount: 0, hasMore: false } as UserSearchResult);
         }
         this.searchingUsers = true;
-        return this.azureApiService.searchUsers(query, 10).pipe(
+        const principalType = this.permissionForm.get('principalType')?.value || 'User';
+        return this.azureApiService.searchPrincipals(query, principalType, 10).pipe(
           takeUntil(this.destroy$)
         );
       }),
@@ -210,10 +218,10 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
         this.searchingUsers = false;
       },
       error: (error) => {
-        console.error('User search error:', error);
+        console.error('Principal search error:', error);
         this.searchedUsers = [];
         this.searchingUsers = false;
-        this.message.error('Failed to search users');
+        this.message.error('Failed to search principals');
       }
     });
   }
@@ -226,6 +234,49 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
   onUserSearch(query: string): void {
     this.userSearchSubject.next(query);
   }
+
+  getPrincipalLabel(): string {
+    const principalType = this.permissionForm.get('principalType')?.value || 'User';
+    switch (principalType) {
+      case 'ServicePrincipal':
+        return 'Service Principals';
+      case 'Group':
+        return 'Groups';
+      default:
+        return 'Users';
+    }
+  }
+
+  getPrincipalDisplayLabel(user: User): string {
+    const principalType = this.permissionForm.get('principalType')?.value || 'User';
+    switch (principalType) {
+      case 'ServicePrincipal':
+        return `${user.displayName} (${user.userPrincipalName || user.email}) [Service Principal]`;
+      case 'Group':
+        return `${user.displayName} (${user.email || user.displayName}) [Group]`;
+      default:
+        return `${user.displayName} (${user.email})`;
+    }
+  }
+
+  getPrincipalDisplayInfo(user: any): string {
+    const principalType = this.permissionForm.get('principalType')?.value;
+    switch (principalType) {
+      case 'User':
+        return user.email || user.userPrincipalName || '';
+      case 'ServicePrincipal':
+        const spInfo = [];
+        if (user.appId) spInfo.push(`App ID: ${user.appId}`);
+        if (user.servicePrincipalType) spInfo.push(`Type: ${user.servicePrincipalType}`);
+        return spInfo.join(' | ') || user.userPrincipalName || '';
+      case 'Group':
+        return user.description || user.mail || '';
+      default:
+        return user.email || user.userPrincipalName || '';
+    }
+  }
+
+
 
   private updateRoleDefinitions(): void {
     // Update role definition IDs with actual subscription ID

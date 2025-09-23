@@ -14,6 +14,10 @@ export interface User {
   lastSignInDate?: Date;
   jobTitle?: string;
   department?: string;
+  principalType?: string; // Added to support service principals and groups
+  appId?: string; // For service principals
+  servicePrincipalType?: string; // For service principals
+  description?: string; // For groups
 }
 
 export interface UserSearchResult {
