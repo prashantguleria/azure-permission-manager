@@ -61,7 +61,7 @@ export class AppComponent implements OnInit, OnDestroy {
           if (result) {
             console.log('Authentication initialized successfully');
             
-            // Add a small delay to ensure MSAL state is fully updated
+            // Optimize by reducing delay and checking auth state immediately
             setTimeout(() => {
               // Check if user is authenticated and redirect appropriately
                 if (this.authService.isAuthenticated()) {
@@ -107,7 +107,7 @@ export class AppComponent implements OnInit, OnDestroy {
               
               // Set initial layout visibility
               this.updateLayoutVisibility(this.router.url);
-            }, 100); // Small delay to ensure state consistency
+            }, 50); // Reduced delay for faster startup
           } else {
             console.log('Authentication initialization returned false');
             // Set initial layout visibility even if auth failed

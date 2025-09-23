@@ -122,14 +122,16 @@ const handleRedirectAfterInit = async () => {
   }
 };
 
-// Initialize MSAL instance
+// Initialize MSAL instance with optimized non-blocking approach
 export const initializeMsal = async (): Promise<void> => {
   try {
     await msalInstance.initialize();
     console.log('MSAL initialized successfully');
     
-    // Handle redirect promise after initialization
-    await handleRedirectAfterInit();
+    // Handle redirect promise in background to avoid blocking app startup
+    handleRedirectAfterInit().catch(error => {
+      console.error('Background redirect handling failed:', error);
+    });
   } catch (error) {
     console.error('MSAL initialization failed:', error);
     throw error;

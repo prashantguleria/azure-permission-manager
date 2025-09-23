@@ -2,6 +2,9 @@
   padding: 24px;
   background-color: #f5f5f5;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Header Section */
@@ -493,6 +496,74 @@
   line-height: 1.5;
 }
 
+/* Table Container with Overflow Handling */
+.ant-card {
+  width: 100%;
+  overflow: hidden;
+}
+
+.ant-card .ant-card-body {
+  padding: 0;
+  overflow-x: auto;
+}
+
+/* Table Responsive Wrapper */
+.ant-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ant-table {
+  min-width: 800px; /* Minimum width to maintain table structure */
+  width: 100%;
+}
+
+/* Table Cell Adjustments */
+.ant-table-tbody > tr > td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+/* Specific column width adjustments */
+.ant-table-thead > tr > th:first-child,
+.ant-table-tbody > tr > td:first-child {
+  width: 50px; /* Checkbox column */
+  min-width: 50px;
+}
+
+.ant-table-thead > tr > th:nth-child(2),
+.ant-table-tbody > tr > td:nth-child(2) {
+  width: 200px; /* Name column */
+  min-width: 150px;
+}
+
+.ant-table-thead > tr > th:nth-child(3),
+.ant-table-tbody > tr > td:nth-child(3) {
+  width: 150px; /* Resource Group column */
+  min-width: 120px;
+}
+
+.ant-table-thead > tr > th:nth-child(4),
+.ant-table-tbody > tr > td:nth-child(4) {
+  width: 120px; /* Location column */
+  min-width: 100px;
+}
+
+.ant-table-thead > tr > th:nth-child(5),
+.ant-table-tbody > tr > td:nth-child(5) {
+  width: 100px; /* Status column */
+  min-width: 80px;
+}
+
+.ant-table-thead > tr > th:last-child,
+.ant-table-tbody > tr > td:last-child {
+  width: 120px; /* Actions column */
+  min-width: 100px;
+  text-align: center;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .storage-accounts-container {
@@ -514,6 +585,18 @@
     gap: 12px;
   }
   
+  .summary-card {
+    padding: 12px;
+  }
+  
+  .summary-card .card-value {
+    font-size: 20px;
+  }
+  
+  .summary-card .card-label {
+    font-size: 12px;
+  }
+  
   .filter-row {
     flex-direction: column;
     align-items: stretch;
@@ -526,6 +609,16 @@
   .filter-actions {
     justify-content: center;
     align-items: center;
+  }
+  
+  /* Mobile table adjustments */
+  .ant-table {
+    min-width: 600px; /* Reduced minimum width for mobile */
+  }
+  
+  .ant-table-tbody > tr > td {
+    max-width: 150px; /* Smaller max width for mobile */
+    font-size: 12px;
   }
 }
 
@@ -579,4 +672,53 @@
 
 .permissions-table .ant-table-body::-webkit-scrollbar-thumb:hover {
   background: #8c8c8c;
+}
+
+/* User State Styles */
+.user-info .deleted-user {
+  color: #ff4d4f;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.user-info .error-user {
+  color: #fa8c16;
+  font-style: italic;
+}
+
+.user-warning {
+  margin-top: 4px;
+  color: #ff4d4f;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+}
+
+.user-warning i {
+  margin-right: 4px;
+}
+
+/* Enhanced user info display */
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.user-email {
+  font-size: 12px;
+  color: #666;
+}
+
+.user-id {
+  font-size: 11px;
+  color: #999;
+  font-family: monospace;
 }

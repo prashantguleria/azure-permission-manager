@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError, forkJoin, of, BehaviorSubject, combineLatest, Subject, from, timer, firstValueFrom } from 'rxjs';
-import { catchError, map, switchMap, tap, shareReplay, finalize, concatMap, scan, takeLast, share } from 'rxjs/operators';
+import { catchError, map, switchMap, tap, shareReplay, finalize, concatMap, scan, takeLast, share, timeout } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { AzureApiService } from './azure-api.service';
 import { LockManagementService } from './lock-management.service';
@@ -324,22 +324,52 @@ export class PermissionsService {
   private getGraphHeaders(): Observable<HttpHeaders> {
     return this.authService.getAccessToken(['https://graph.microsoft.com/.default'])
       .pipe(
+        timeout(10000), // 10 second timeout for token acquisition
         map(token => new HttpHeaders({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         })),
-        catchError(error => throwError(() => this.handleError(error)))
+        catchError(error => {
+          console.error('🔐 Failed to get Graph API access token:', error);
+          // Check if user is authenticated
+          if (!this.authService.isAuthenticated()) {
+            console.error('🔐 User is not authenticated - redirecting to login');
+            // Trigger re-authentication
+            this.authService.login();
+            return throwError(() => new PermissionError(
+              'Authentication required. Please log in again.',
+              'AUTHENTICATION_REQUIRED',
+              401
+            ));
+          }
+          return throwError(() => this.handleError(error));
+        })
       );
   }
 
   private getManagementHeaders(): Observable<HttpHeaders> {
     return this.authService.getAccessToken(['https://management.azure.com/.default'])
       .pipe(
+        timeout(10000), // 10 second timeout for token acquisition
         map(token => new HttpHeaders({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         })),
-        catchError(error => throwError(() => this.handleError(error)))
+        catchError(error => {
+          console.error('🔐 Failed to get Management API access token:', error);
+          // Check if user is authenticated
+          if (!this.authService.isAuthenticated()) {
+            console.error('🔐 User is not authenticated - redirecting to login');
+            // Trigger re-authentication
+            this.authService.login();
+            return throwError(() => new PermissionError(
+              'Authentication required. Please log in again.',
+              'AUTHENTICATION_REQUIRED',
+              401
+            ));
+          }
+          return throwError(() => this.handleError(error));
+        })
       );
   }
 
@@ -535,6 +565,27 @@ export class PermissionsService {
   }
 
   private handleError(error: any): PermissionError {
+    console.error('🚨 PermissionsService error:', error);
+    
+    // Handle timeout errors
+    if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
+      return new PermissionError(
+        'Request timed out. Please check your connection and try again.',
+        'TIMEOUT_ERROR',
+        408
+      );
+    }
+    
+    // Handle authentication errors
+    if (error.status === 401 || error.code === 'AUTHENTICATION_REQUIRED') {
+      return new PermissionError(
+        'Authentication required. Please log in again.',
+        'AUTHENTICATION_REQUIRED',
+        401
+      );
+    }
+    
+    // Handle permission errors
     if (error.status === 403) {
       return new PermissionError(
         'Insufficient permissions to access this resource',
@@ -543,18 +594,29 @@ export class PermissionsService {
       );
     }
     
-    if (error.status === 401) {
+    // Handle network errors
+    if (error.status === 0 || !error.status) {
       return new PermissionError(
-        'Authentication required',
-        'AUTHENTICATION_REQUIRED',
-        401
+        'Network error. Please check your connection and try again.',
+        'NETWORK_ERROR',
+        0
       );
     }
     
+    // Handle rate limiting
+    if (error.status === 429) {
+      return new PermissionError(
+        'Too many requests. Please wait a moment and try again.',
+        'RATE_LIMITED',
+        429
+      );
+    }
+    
+    // Default error
     return new PermissionError(
-      'Failed to fetch permissions',
+      error.message || 'Failed to fetch permissions',
       'API_ERROR',
-      error.status
+      error.status || 500
     );
   }
 
@@ -742,7 +804,9 @@ export class PermissionsService {
         const url = `${this.managementApiUrl}${storageAccountId}/providers/Microsoft.Authorization/roleAssignments`;
         const params = new HttpParams().set('api-version', '2022-04-01');
         
-        return this.http.get<{value: any[]}>(url, { headers, params });
+        return this.http.get<{value: any[]}>(url, { headers, params }).pipe(
+          timeout(15000) // 15 second timeout for management API requests
+        );
       }),
       switchMap(response => {
         const assignments = response.value || [];
@@ -870,6 +934,7 @@ export class PermissionsService {
           ? of(cachedRoleDef)
           : this.http.get<RoleDefinition>(`${this.managementApiUrl}${assignment.properties.roleDefinitionId}?api-version=2022-04-01`, { headers })
               .pipe(
+                timeout(10000), // 10 second timeout for role definition requests
                 tap(roleDef => this.setCache(roleDefCacheKey, roleDef)),
                 catchError((error) => {
                   console.warn(`Failed to get role definition ${assignment.properties.roleDefinitionId}:`, error.status);
@@ -981,6 +1046,7 @@ export class PermissionsService {
     return this.makeGraphRequest(`users/${principalId}`, headers, 'id,displayName,mail,userPrincipalName').pipe(
       map(result => {
         result.principalType = 'User';
+        result.isDeleted = false;
         this.setCache(cacheKey, result);
         return result;
       }),
@@ -990,6 +1056,7 @@ export class PermissionsService {
           return this.makeGraphRequest(`servicePrincipals/${principalId}`, headers, 'id,displayName,appDisplayName').pipe(
             map(result => {
               result.principalType = 'ServicePrincipal';
+              result.isDeleted = false;
               this.setCache(cacheKey, result);
               return result;
             }),
@@ -999,6 +1066,7 @@ export class PermissionsService {
                 return this.makeGraphRequest(`groups/${principalId}`, headers, 'id,displayName,mail').pipe(
                   map(result => {
                     result.principalType = 'Group';
+                    result.isDeleted = false;
                     this.setCache(cacheKey, result);
                     return result;
                   }),
@@ -1026,11 +1094,17 @@ export class PermissionsService {
       headers,
       params: new HttpParams().set('$select', selectFields)
     }).pipe(
+      timeout(10000), // 10 second timeout to prevent hanging requests
       catchError((error) => {
         // Suppress 404 console errors for expected failures
         if (error.status === 404) {
           // Don't log 404s as they are expected when principals don't exist
           return throwError(() => error);
+        }
+        // Handle timeout errors
+        if (error.name === 'TimeoutError') {
+          console.warn(`Graph API request timed out for ${endpoint}`);
+          return throwError(() => new Error('Request timed out'));
         }
         // Log other errors as they might indicate real issues
         console.warn(`Graph API request failed for ${endpoint}:`, error.status, error.message);
@@ -1049,8 +1123,9 @@ export class PermissionsService {
     this.setCache(failureCacheKey, true, 300000); // Cache failure for 5 minutes
     const fallbackPrincipal = {
       id: principalId,
-      displayName: `Unknown Principal (${principalId.substring(0, 8)}...)`,
-      principalType: 'Unknown'
+      displayName: `Deleted Principal (${principalId.substring(0, 8)}...)`,
+      principalType: 'Unknown',
+      isDeleted: true
     };
     this.setCache(cacheKey, fallbackPrincipal);
     return of(fallbackPrincipal);
@@ -1061,7 +1136,9 @@ export class PermissionsService {
     const fallbackPrincipal = {
       id: principalId,
       displayName: `Error Loading Principal (${principalId.substring(0, 8)}...)`,
-      principalType: 'Unknown'
+      principalType: 'Unknown',
+      isDeleted: false,
+      hasError: true
     };
     this.setCache(cacheKey, fallbackPrincipal);
     return of(fallbackPrincipal);
@@ -1251,6 +1328,7 @@ export class PermissionsService {
     const removeOperations = locks.map(lock => {
       const url = `${this.managementApiUrl}${lock.id}?api-version=2020-05-01`;
       return this.http.delete(url, { headers }).pipe(
+        timeout(10000), // 10 second timeout for lock operations
         catchError(error => {
           console.warn(`Failed to remove lock ${lock.name}:`, error);
           return of(null);
@@ -1275,6 +1353,7 @@ export class PermissionsService {
       };
       
       return this.http.put(url, body, { headers }).pipe(
+        timeout(10000), // 10 second timeout for lock operations
         catchError(error => {
           console.warn(`Failed to recreate lock ${lock.name}:`, error);
           return of(null);
@@ -1292,6 +1371,7 @@ export class PermissionsService {
     const url = `${this.managementApiUrl}${assignmentId}?api-version=2022-04-01`;
     
     return this.http.delete(url, { headers }).pipe(
+      timeout(15000), // 15 second timeout for delete operations
       catchError(error => {
         console.error('Failed to remove role assignment:', error);
         return throwError(() => this.handleError(error));
@@ -1320,6 +1400,7 @@ export class PermissionsService {
         console.log('🗑️ Making DELETE request to:', url);
         
         return this.http.delete(url, { headers }).pipe(
+          timeout(15000), // 15 second timeout for delete operations
           tap(() => {
             console.log('✅ Role assignment deleted successfully');
             // Clear cache for storage account permissions

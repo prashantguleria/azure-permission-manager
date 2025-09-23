@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -25,9 +26,10 @@ import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 import { SubscriptionSelectorComponent } from '../../components/subscription-selector/subscription-selector.component';
-import { Subject, takeUntil, finalize, Subscription as RxSubscription, Observable, throwError, combineLatest } from 'rxjs';
-import { catchError, of, tap, map } from 'rxjs';
+import { Subject, takeUntil, finalize, Subscription as RxSubscription, Observable, throwError, combineLatest, firstValueFrom } from 'rxjs';
+import { catchError, of, tap, map, timeout } from 'rxjs';
 import { PermissionsService } from '../../services/permissions.service';
 import { AuthService } from '../../services/auth.service';
 import { LockManagementService } from '../../services/lock-management.service';
@@ -35,6 +37,7 @@ import { StorageAccount, StorageAccountPermission, StorageAccountRoleAssignment,
 import { Subscription } from '../../models/permissions.model';
 import { BulkPermissionModalComponent } from '../../components/bulk-permission-modal/bulk-permission-modal.component';
 import { BulkRemoveModalComponent } from '../../components/bulk-remove-modal/bulk-remove-modal.component';
+import { SkeletonLoaderComponent } from '../../components/skeleton-loader/skeleton-loader.component';
 import { UtilityService } from '../../services/utility.service';
 
 // Interfaces for modal components
@@ -65,11 +68,14 @@ interface StorageAccountTableItem {
   locksLoading?: boolean;
   users?: any[];
   accessLevel?: string;
+  hasError?: boolean;
+  errorMessage?: string;
 }
 
 @Component({
   selector: 'app-storage-accounts',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -89,12 +95,14 @@ interface StorageAccountTableItem {
     NzDropDownModule,
     NzMenuModule,
     NzCheckboxModule,
+    NzSkeletonModule,
     NzEmptyModule,
     NzMessageModule,
     NzModalModule,
     SubscriptionSelectorComponent,
     BulkPermissionModalComponent,
-    BulkRemoveModalComponent
+    BulkRemoveModalComponent,
+    SkeletonLoaderComponent
   ],
   templateUrl: './storage-accounts.component.html',
   styleUrls: ['./storage-accounts.component.css']
@@ -102,6 +110,7 @@ interface StorageAccountTableItem {
 export class StorageAccountsComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private tenantChangeSubscription?: RxSubscription;
+  private searchTimeout: any;
   
   // Debouncing for toggle expand to prevent rapid API calls
 
@@ -157,7 +166,8 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     private message: NzMessageService,
     private modal: NzModalService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -222,6 +232,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         }),
         finalize(() => {
           this.loading = false;
+          this.cdr.markForCheck();
         })
       ).subscribe({
         next: (storageAccounts) => {
@@ -237,6 +248,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
           this.applyFilters();
 
           this.message.success(`Loaded ${storageAccounts.length} storage accounts`);
+          this.cdr.markForCheck();
         },
         error: (error) => {
           console.error('Failed to load storage accounts:', error);
@@ -365,10 +377,15 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     }
 
     this.filteredStorageAccounts = filtered;
+    this.cdr.markForCheck();
   }
 
   onSearch(): void {
-    this.applyFilters();
+    // Debounce search to avoid excessive filtering
+    clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(() => {
+      this.applyFilters();
+    }, 300);
   }
 
   onResourceGroupChange(): void {
@@ -385,17 +402,20 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     this.selectedResourceGroup = '';
     this.selectedLocation = '';
     this.selectedAccessLevel = '';
-    this.pageIndex = 1; // Reset to first page when clearing filters
+    this.pageIndex = 1;
     this.applyFilters();
+    this.cdr.markForCheck();
   }
 
   onPageIndexChange(pageIndex: number): void {
     this.pageIndex = pageIndex;
+    this.cdr.markForCheck();
   }
 
   onPageSizeChange(pageSize: number): void {
     this.pageSize = pageSize;
-    this.pageIndex = 1; // Reset to first page when changing page size
+    this.pageIndex = 1;
+    this.cdr.markForCheck();
   }
 
   toggleExpand(item: StorageAccountTableItem): void {
@@ -406,6 +426,8 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     if (item.expanded && (!item.permissions || item.permissions.length === 0) && !item.loadingPermissions) {
       this.loadPermissionsForAccount(item);
     }
+    
+    this.cdr.markForCheck();
   }
 
   private loadPermissionsForAccount(item: StorageAccountTableItem): void {
@@ -426,6 +448,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         }),
         finalize(() => {
           item.loadingPermissions = false;
+          this.cdr.markForCheck();
         })
       )
       .subscribe({
@@ -437,6 +460,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
           
           // Update statistics
           this.updateStatisticsForLoadedAccount(item);
+          this.cdr.markForCheck();
         },
         error: (error) => {
           console.error(`Error loading permissions for ${item.name}:`, error);
@@ -553,6 +577,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     this.totalUsersWithAccess = 0;
     this.highPrivilegeAssignments = 0;
     this.error = null;
+    this.cdr.markForCheck();
   }
 
   exportStorageAccounts(): void {
@@ -966,15 +991,27 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
       nzOkType: 'primary',
       nzOkDanger: true,
       nzOnOk: () => {
+        console.log('🗑️ Starting individual permission removal for:', principalDisplayName);
         this.loading = true;
         const assignmentId = assignment.id;
         const storageAccountId = storageAccount.id;
+        
+        console.log('🗑️ Assignment ID:', assignmentId, 'Storage Account ID:', storageAccountId);
+        
+        // Add timeout to prevent hanging indefinitely
+        const timeoutId = setTimeout(() => {
+          console.error('⏰ Individual remove operation timed out after 30 seconds');
+          this.loading = false;
+          this.message.error('Permission removal timed out. Please try again.');
+        }, 30000); // 30 second timeout for individual operations
 
         this.permissionsService.removeStorageAccountPermissionWithLockHandling(
           assignmentId,
           storageAccountId
         ).subscribe({
           next: (result) => {
+            console.log('✅ Permission removed successfully for:', principalDisplayName);
+            clearTimeout(timeoutId);
             this.message.success(`Permission removed successfully for ${principalDisplayName} (locks handled automatically)`);
             // Refresh the expanded account view
             this.refreshExpandedAccount(storageAccount);
@@ -983,11 +1020,19 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
               this.loadStorageAccountLocks(storageAccount);
             }
             this.loading = false;
+            console.log('🗑️ Individual permission removal completed successfully');
           },
           error: (error) => {
-            console.error('Failed to remove permission:', error);
-            this.message.error(`Failed to remove permission: ${error.error?.message || error.message || 'Unknown error'}`);
+            console.error('❌ Failed to remove permission for:', principalDisplayName, 'Error:', error);
+            clearTimeout(timeoutId);
+            
+            // Ensure loading state is reset
             this.loading = false;
+            
+            // Provide detailed error message
+            const errorMessage = error?.error?.message || error?.message || 'Unknown error occurred';
+            console.error('🗑️ Error details:', errorMessage);
+            this.message.error(`Failed to remove permission: ${errorMessage}`);
           }
         });
       }
@@ -1076,53 +1121,160 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   
   // Fetch permissions for selected accounts before showing removal modal
   fetchPermissionsForSelectedAccounts(): void {
+    console.log('🔍 Starting fetchPermissionsForSelectedAccounts for', this.selectedStorageAccounts.length, 'accounts');
+    console.log('🔍 Selected accounts:', this.selectedStorageAccounts.map(a => ({ name: a.name, id: a.id })));
     this.loading = true;
     const loadingMessage = this.message.loading('Fetching permissions for selected storage accounts...', { nzDuration: 0 });
+    console.log('🔍 Loading message created, proceeding with permission fetching...');
+    
+    // Add overall timeout for the entire operation
+    const overallTimeout = setTimeout(() => {
+      console.error('⏰ fetchPermissionsForSelectedAccounts timed out after 30 seconds');
+      this.message.remove(loadingMessage.messageId);
+      this.loading = false;
+      this.cdr.markForCheck();
+      this.message.error('Permission fetching timed out. This may be due to authentication issues. Please try refreshing the page.');
+    }, 30000);
     
     const permissionPromises = this.selectedStorageAccounts.map(account => {
+      console.log('📋 Processing account:', account.name, 'ID:', account.id);
       // If permissions are already loaded, use them
       if (account.permissions && account.permissions.length > 0) {
+        console.log('✅ Using cached permissions for:', account.name);
         return Promise.resolve(account);
       }
       
-      // Otherwise, fetch permissions for this account
-      return this.permissionsService.getStorageAccountRoleAssignments(account.id)
-        .toPromise()
-        .then((roleAssignments: StorageAccountRoleAssignment[] | undefined) => {
-          const permissions = roleAssignments || [];
-          account.permissions = permissions;
-          account.users = this.extractUsersFromRoleAssignments(permissions);
-          account.accessLevel = this.calculateAccessLevel(permissions);
-          return account;
-        })
-        .catch((error) => {
-          console.error(`Failed to fetch permissions for ${account.name}:`, error);
+      // Create a promise that ALWAYS resolves, never rejects
+      return new Promise<StorageAccountTableItem>((resolve) => {
+        console.log('🔄 Fetching permissions for:', account.name);
+        
+        // Set up a timeout for this individual request
+        const requestTimeout = setTimeout(() => {
+          console.error(`⏰ Request timeout for ${account.name} after 15 seconds`);
           account.permissions = [];
           account.users = [];
           account.accessLevel = 'None';
-          return account;
+          account.hasError = true;
+          account.errorMessage = 'Request timed out';
+          resolve(account);
+        }, 15000);
+        
+        // Make the API call
+        this.permissionsService.getStorageAccountRoleAssignments(account.id).pipe(
+          timeout(14000), // Slightly less than the manual timeout
+          catchError(error => {
+            console.error(`❌ Service error for ${account.name}:`, error);
+            // Always return empty array on any error
+            return of([]);
+          }),
+          takeUntil(this.destroy$)
+        ).subscribe({
+          next: (roleAssignments) => {
+            clearTimeout(requestTimeout);
+            console.log('✅ Successfully fetched permissions for:', account.name, 'Count:', roleAssignments?.length || 0);
+            const permissions = roleAssignments || [];
+            account.permissions = permissions;
+            account.users = this.extractUsersFromRoleAssignments(permissions);
+            account.accessLevel = this.calculateAccessLevel(permissions);
+            account.hasError = false;
+            account.errorMessage = undefined;
+            resolve(account);
+          },
+          error: (error) => {
+            clearTimeout(requestTimeout);
+            console.error(`❌ Observable error for ${account.name}:`, error);
+            account.permissions = [];
+            account.users = [];
+            account.accessLevel = 'None';
+            account.hasError = true;
+            account.errorMessage = `Failed to load permissions: ${error.message || 'Unknown error'}`;
+            resolve(account);
+          }
         });
+      });
     });
     
-    Promise.all(permissionPromises)
-      .then(() => {
+    // Use Promise.allSettled to handle partial failures gracefully
+    console.log('⏳ Waiting for', permissionPromises.length, 'permission requests...');
+    console.log('⏳ About to call Promise.allSettled...');
+    
+    const startTime = Date.now();
+    Promise.allSettled(permissionPromises)
+      .then((results) => {
+        // Clear the overall timeout since we got results
+        clearTimeout(overallTimeout);
+        
+        const endTime = Date.now();
+        console.log('🎯 Promise.allSettled resolved with', results.length, 'results in', endTime - startTime, 'ms');
+        console.log('🎯 About to remove loading message and reset loading state...');
+        
+        // Always reset loading state in a finally-like manner
         this.message.remove(loadingMessage.messageId);
         this.loading = false;
+        this.cdr.markForCheck();
+        console.log('🎯 Loading state reset, processing results...');
+        
+        // Count successful and failed requests
+        const successful = results.filter(result => result.status === 'fulfilled').length;
+        const failed = results.filter(result => result.status === 'rejected').length;
+        console.log('📊 Results: successful =', successful, ', failed =', failed);
+        
+        // Log failed requests for debugging (should be rare with our new approach)
+        const rejectedResults = results.filter(result => result.status === 'rejected') as PromiseRejectedResult[];
+        if (rejectedResults.length > 0) {
+          console.warn('Some permission requests failed:', rejectedResults.map(r => r.reason));
+        }
+        
+        // Always try to show the modal with whatever data we have
+        console.log('🎯 Calling loadRoleAssignmentsForRemoval with available data...');
+        
+        if (failed === 0) {
+          console.log('🎯 All requests succeeded');
+        } else if (successful > 0) {
+          console.log('🎯 Partial success, showing available permissions');
+          this.message.warning(`Loaded permissions for ${successful} account(s), ${failed} failed. Showing available permissions.`);
+        } else {
+          console.log('🎯 All requests failed, checking for any available permissions');
+          this.message.warning('Failed to fetch fresh permissions. Showing any available cached permissions.');
+        }
+        
         this.loadRoleAssignmentsForRemoval();
+        console.log('🎯 fetchPermissionsForSelectedAccounts completed');
       })
       .catch((error) => {
+        // This should never happen with Promise.allSettled, but keeping as fallback
+        console.error('❌ Unexpected error in fetchPermissionsForSelectedAccounts:', error);
+        clearTimeout(overallTimeout);
         this.message.remove(loadingMessage.messageId);
         this.loading = false;
-        console.error('Failed to fetch permissions for selected accounts:', error);
-        this.message.error('Failed to fetch permissions for some storage accounts');
+        this.cdr.markForCheck();
+        this.message.error('An unexpected error occurred while fetching permissions. Please try again.');
+      })
+      .finally(() => {
+        // Extra safety net to ensure loading state is always reset
+        if (this.loading) {
+          console.log('🔧 Final safety: resetting loading state');
+          this.loading = false;
+          this.cdr.markForCheck();
+        }
       });
   }
 
   // Load role assignments for removal modal
   loadRoleAssignmentsForRemoval(): void {
+    console.log('📋 Starting loadRoleAssignmentsForRemoval...');
     const allPermissions: any[] = [];
+    const accountsWithErrors: string[] = [];
+    const accountsWithPermissions: string[] = [];
+    console.log('📋 Processing', this.selectedStorageAccounts.length, 'selected accounts...');
+    
     this.selectedStorageAccounts.forEach(account => {
-      if (account.permissions) {
+      if (account.hasError) {
+        // Track accounts that failed to load permissions
+        accountsWithErrors.push(account.name);
+      } else if (account.permissions && account.permissions.length > 0) {
+        // Process accounts with successfully loaded permissions
+        accountsWithPermissions.push(account.name);
         account.permissions.forEach((permission: any) => {
           allPermissions.push({
             ...permission,
@@ -1138,55 +1290,114 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
       }
     });
     
+    // Provide detailed feedback about the loading results
     if (allPermissions.length === 0) {
-      this.message.warning('No permissions found on selected storage accounts');
+      if (accountsWithErrors.length > 0) {
+        this.message.warning(`No permissions available. Failed to load permissions for: ${accountsWithErrors.join(', ')}`);
+      } else {
+        this.message.warning('No permissions found on selected storage accounts');
+      }
       return;
     }
     
+    // Show informational message if some accounts had errors but we still have permissions to show
+    if (accountsWithErrors.length > 0) {
+      this.message.info(`Showing permissions from ${accountsWithPermissions.length} account(s). Could not load permissions for: ${accountsWithErrors.join(', ')}`);
+    }
+    
+    console.log('📋 Setting roleAssignmentsForRemoval with', allPermissions.length, 'permissions');
     this.roleAssignmentsForRemoval = allPermissions;
+    console.log('📋 About to show bulk remove modal...');
     this.showBulkRemoveModal = true;
+    console.log('📋 Bulk remove modal should now be visible');
+    console.log('📋 loadRoleAssignmentsForRemoval completed successfully');
   }
   
   // Handler for bulk remove modal
   onBulkRemoveRequest(request: RemovePermissionRequest): void {
+    console.log('🗑️ Starting bulk remove request for', request.roleAssignmentIds.length, 'permissions');
+    
+    // Validate request
+    if (!request || !request.roleAssignmentIds || request.roleAssignmentIds.length === 0) {
+      console.error('❌ Invalid remove request:', request);
+      this.message.error('Invalid permission removal request');
+      return;
+    }
+    
+    // Set loading state
     this.bulkModalLoading = true;
+    console.log('🗑️ Bulk modal loading state set to true');
     
     const assignments = request.roleAssignmentIds.map(id => {
       const permission = this.roleAssignmentsForRemoval.find(p => p.id === id);
+      if (!permission) {
+        console.warn('⚠️ Permission not found for ID:', id);
+      }
       return {
         assignmentId: id,
         storageAccountId: permission?.accountId
       };
     });
     
+    console.log('🗑️ Mapped assignments:', assignments.length);
     const loadingMessage = this.message.loading(`Removing ${assignments.length} permission(s)...`, { nzDuration: 0 });
     
-    this.addToQueue(() => {
-      return this.permissionsService.bulkRemoveStorageAccountPermissions(assignments);
-    }).then((results) => {
+    // Add timeout to prevent hanging indefinitely
+    const timeoutId = setTimeout(() => {
+      console.error('⏰ Bulk remove operation timed out after 60 seconds');
       this.message.remove(loadingMessage.messageId);
       this.bulkModalLoading = false;
+      this.message.error('Permission removal timed out. Please try again.');
+    }, 60000); // 60 second timeout
+    
+    this.addToQueue(() => {
+      console.log('🗑️ Adding bulk remove operation to queue...');
+      return this.permissionsService.bulkRemoveStorageAccountPermissions(assignments);
+    }).then((results) => {
+      console.log('🗑️ Bulk remove operation completed with results:', results);
+      clearTimeout(timeoutId);
+      this.message.remove(loadingMessage.messageId);
+      this.bulkModalLoading = false;
+      console.log('🗑️ Loading states reset after successful completion');
       
       const successful = results.filter((result: any) => !result.error).length;
       const failed = results.filter((result: any) => result.error).length;
+      console.log('🗑️ Results summary: successful =', successful, ', failed =', failed);
       
       if (failed === 0) {
         this.message.success(`Successfully removed ${successful} permission(s)`);
       } else {
         this.message.warning(`Removed ${successful} permission(s), ${failed} failed`);
+        // Log failed operations for debugging
+        const failedResults = results.filter((result: any) => result.error);
+        console.error('🗑️ Failed operations:', failedResults);
       }
       
       this.showBulkRemoveModal = false;
+      console.log('🗑️ Bulk remove modal closed');
       
       // Refresh expanded accounts
+      console.log('🗑️ Refreshing expanded accounts...');
       this.selectedStorageAccounts.forEach((account: StorageAccountTableItem) => {
         this.refreshExpandedAccount(account);
       });
+      console.log('🗑️ Bulk remove request completed successfully');
     }).catch((error) => {
+      console.error('❌ Bulk remove operation failed:', error);
+      clearTimeout(timeoutId);
+      
+      // Ensure loading states are reset even on error
       this.message.remove(loadingMessage.messageId);
       this.bulkModalLoading = false;
-      console.error('Failed to remove bulk permissions:', error);
-      this.message.error('Failed to remove permissions');
+      console.log('🗑️ Loading states reset after error');
+      
+      // Provide detailed error message
+      const errorMessage = error?.message || error?.error?.message || 'Unknown error occurred';
+      console.error('🗑️ Error details:', errorMessage);
+      this.message.error(`Failed to remove permissions: ${errorMessage}`);
+      
+      // Don't close modal on error so user can retry
+      console.log('🗑️ Keeping modal open for retry after error');
     });
   }
 

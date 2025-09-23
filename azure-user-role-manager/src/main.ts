@@ -3,11 +3,30 @@ import { appConfig } from './app/app.config';
 import { AppComponent } from './app/app.component';
 import { initializeMsal } from './app/msal.config';
 
-// Initialize MSAL before bootstrapping the application
-initializeMsal().then(() => {
-  return bootstrapApplication(AppComponent, appConfig);
+// Register service worker for caching
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('/sw.js')
+    .then((registration) => {
+      console.log('Service Worker registered successfully:', registration.scope);
+    })
+    .catch((error) => {
+      console.log('Service Worker registration failed:', error);
+    });
+}
+
+// Optimize app startup by bootstrapping immediately and initializing MSAL in parallel
+Promise.all([
+  bootstrapApplication(AppComponent, appConfig),
+  initializeMsal().catch((err) => {
+    console.error('MSAL initialization failed:', err);
+    return null; // Continue without MSAL if it fails
+  })
+]).then(([app]) => {
+  console.log('Application bootstrapped successfully');
 }).catch((err) => {
-  console.error('MSAL initialization failed:', err);
-  // Still try to bootstrap the app even if MSAL fails
-  return bootstrapApplication(AppComponent, appConfig);
-}).catch((err) => console.error('Application bootstrap failed:', err));
+  console.error('Application bootstrap failed:', err);
+  // Fallback: try to bootstrap without MSAL
+  bootstrapApplication(AppComponent, appConfig).catch(fallbackErr => {
+    console.error('Fallback bootstrap failed:', fallbackErr);
+  });
+});

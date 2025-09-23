@@ -156,9 +156,7 @@
 
   <!-- Loading State -->
   <div class="loading-container" *ngIf="loading">
-    <nz-spin nzSize="large">
-      <p>Loading storage accounts...</p>
-    </nz-spin>
+    <app-skeleton-loader type="table" [rows]="8"></app-skeleton-loader>
   </div>
 
   <!-- Error State -->
@@ -203,15 +201,15 @@
     <nz-table 
       #storageAccountsTable 
       [nzData]="filteredStorageAccounts" 
-      [nzShowPagination]="true" 
-      [nzPageSize]="pageSize" 
+      [nzPageSize]="pageSize"
       [nzPageIndex]="pageIndex"
       [nzTotal]="filteredStorageAccounts.length"
-      [nzPageSizeOptions]="[10, 20, 50, 100]"
       [nzShowSizeChanger]="true"
-      [nzShowQuickJumper]="true"
+      [nzPageSizeOptions]="[10, 20, 50, 100]"
       (nzPageIndexChange)="onPageIndexChange($event)"
-      (nzPageSizeChange)="onPageSizeChange($event)">
+      (nzPageSizeChange)="onPageSizeChange($event)"
+      nzSize="middle"
+      class="storage-accounts-table">
       <thead>
         <tr>
           <th nzWidth="50px">
@@ -336,12 +334,34 @@
                           <td>
                             <div class="user-info">
                               <div class="user-name">
-                                <strong>{{ permission.properties.principalDisplayName || 'Unknown Principal' }}</strong>
+                                <strong 
+                                  [ngClass]="{
+                                    'deleted-user': !permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal',
+                                    'error-user': permission.properties.principalDisplayName === 'Error loading user'
+                                  }">
+                                  {{ permission.properties.principalDisplayName || 'Unknown Principal' }}
+                                </strong>
+                                <nz-tag 
+                                  *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'" 
+                                  nzColor="red" 
+                                  nz-tooltip="This user may have been deleted from Azure AD">
+                                  Deleted
+                                </nz-tag>
+                                <nz-tag 
+                                  *ngIf="permission.properties.principalDisplayName === 'Error loading user'" 
+                                  nzColor="orange" 
+                                  nz-tooltip="Error loading user details">
+                                  Error
+                                </nz-tag>
                               </div>
                               <div class="user-email" *ngIf="permission.properties.principalEmail">
                                 {{ permission.properties.principalEmail }}
                               </div>
                               <div class="user-id">ID: {{ permission.properties.principalId }}</div>
+                              <div class="user-warning" *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'">
+                                <i nz-icon nzType="exclamation-circle" nzTheme="fill" style="color: #ff4d4f; margin-right: 4px;"></i>
+                                <small>User no longer exists in Azure AD</small>
+                              </div>
                             </div>
                           </td>
                           <td>
@@ -420,18 +440,16 @@
 
 <!-- Bulk Permission Modal -->
 <app-bulk-permission-modal
-  *ngIf="showBulkPermissionModal"
   [visible]="showBulkPermissionModal"
   [selectedAccounts]="selectedStorageAccounts"
   [subscriptionId]="selectedSubscription?.subscriptionId || ''"
   [loading]="bulkModalLoading"
   (permissionRequest)="onBulkPermissionRequest($event)"
-  (cancel)="showBulkPermissionModal = false">
+  (visibleChange)="showBulkPermissionModal = $event">
 </app-bulk-permission-modal>
 
 <!-- Bulk Remove Modal -->
 <app-bulk-remove-modal
-  *ngIf="showBulkRemoveModal"
   [visible]="showBulkRemoveModal"
   [selectedAccounts]="selectedStorageAccounts"
   [roleAssignments]="roleAssignmentsForRemoval"

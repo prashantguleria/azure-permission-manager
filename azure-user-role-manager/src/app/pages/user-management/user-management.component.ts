@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -29,6 +29,7 @@ import { User, UserSearchResult } from '../../models/user.model';
 @Component({
   selector: 'app-user-management',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -78,7 +79,8 @@ export class UserManagementComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private router: Router,
     private message: NzMessageService,
-    public utilityService: UtilityService
+    public utilityService: UtilityService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -90,6 +92,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
     this.tenantChangeSubscription = this.authService.tenantChanged$.subscribe((newTenantId: string) => {
       console.log('User management: Tenant changed to', newTenantId);
       this.refreshUsers();
+      this.cdr.markForCheck();
     });
   }
 
@@ -129,6 +132,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
         this.paginateUsers();
         this.loading = false;
         this.updateCheckboxState();
+        this.cdr.markForCheck();
       });
   }
 
@@ -156,6 +160,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
         this.paginateUsers();
         this.loading = false;
         this.updateCheckboxState();
+        this.cdr.markForCheck();
       });
   }
 
@@ -172,12 +177,14 @@ export class UserManagementComponent implements OnInit, OnDestroy {
   onPageChange(pageIndex: number): void {
     this.pageIndex = pageIndex;
     this.paginateUsers();
+    this.cdr.markForCheck();
   }
 
   onPageSizeChange(pageSize: number): void {
     this.pageSize = pageSize;
     this.pageIndex = 1;
     this.paginateUsers();
+    this.cdr.markForCheck();
   }
 
   private paginateUsers(): void {
@@ -196,6 +203,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
       }
     });
     this.updateCheckboxState();
+    this.cdr.markForCheck();
   }
 
   onItemChecked(userId: string, checked: boolean): void {
@@ -205,6 +213,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
       this.selectedUsers.delete(userId);
     }
     this.updateCheckboxState();
+    this.cdr.markForCheck();
   }
 
   private updateCheckboxState(): void {
