@@ -5,7 +5,7 @@ import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { User, UserSearchResult, RoleAssignment, RoleRemovalRequest, RoleRemovalResult } from '../models/user.model';
 import { Tenant } from '../models/tenant.model';
-import { AuditLog, AuditLogFilter } from '../models/audit-log.model';
+
 
 @Injectable({
   providedIn: 'root'
@@ -459,87 +459,7 @@ export class AzureApiService {
     );
   }
 
-  // Audit Operations
-  getAuditLogs(filter?: AuditLogFilter): Observable<AuditLog[]> {
-    let params = new HttpParams()
-      .set('$top', (filter?.pageSize || 50).toString())
-      .set('$orderby', 'activityDateTime desc');
 
-    if (filter?.startDate) {
-      params = params.set('$filter', `activityDateTime ge ${filter.startDate.toISOString()}`);
-    }
-
-    if (filter?.endDate) {
-      const existingFilter = params.get('$filter');
-      const dateFilter = `activityDateTime le ${filter.endDate.toISOString()}`;
-      params = params.set('$filter', existingFilter ? `${existingFilter} and ${dateFilter}` : dateFilter);
-    }
-
-    return this.getAuthHeaders().pipe(
-      switchMap(headers => 
-        this.http.get<any>(`${this.graphApiUrl}/auditLogs/directoryAudits`, { headers, params })
-      ),
-      map(response => {
-        return response.value.map((log: any) => ({
-          id: log.id,
-          activityDisplayName: log.activityDisplayName,
-          activityDateTime: new Date(log.activityDateTime),
-          loggedByService: log.loggedByService,
-          operationType: log.operationType,
-          initiatedBy: {
-            user: log.initiatedBy?.user ? {
-              displayName: log.initiatedBy.user.displayName,
-              userPrincipalName: log.initiatedBy.user.userPrincipalName
-            } : undefined,
-            app: log.initiatedBy?.app ? {
-              displayName: log.initiatedBy.app.displayName,
-              appId: log.initiatedBy.app.appId
-            } : undefined
-          },
-          targetResources: log.targetResources?.map((target: any) => ({
-            displayName: target.displayName,
-            type: target.type,
-            userPrincipalName: target.userPrincipalName
-          })) || [],
-          result: log.result,
-          resultReason: log.resultReason
-        }));
-      }),
-      catchError(error => {
-        console.error('Failed to get audit logs:', error);
-        return throwError(() => error);
-      })
-    );
-  }
-
-
-
-  /**
-   * Export audit logs to CSV
-   */
-  exportAuditLogs(logs: AuditLog[]): Blob {
-    const csvContent = this.convertToCSV(logs);
-    return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  }
-
-  private convertToCSV(logs: AuditLog[]): string {
-    const headers = ['Date', 'Activity', 'User', 'Target', 'Result', 'IP Address'];
-    const csvArray = [headers.join(',')];
-
-    logs.forEach(log => {
-      const row = [
-        log.activityDateTime ? new Date(log.activityDateTime).toLocaleString() : '',
-        log.activityDisplayName,
-        log.initiatedBy?.user?.displayName || log.initiatedBy?.app?.displayName || 'Unknown',
-        log.targetResources?.[0]?.displayName || 'N/A',
-        log.result,
-        log.ipAddress || 'N/A'
-      ];
-      csvArray.push(row.map(field => `"${field}"`).join(','));
-    });
-
-    return csvArray.join('\n');
-  }
 
   private generateGuid(): string {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {

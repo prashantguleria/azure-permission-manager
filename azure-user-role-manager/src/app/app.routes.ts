@@ -35,10 +35,11 @@ export const routes: Routes = [
     canActivate: [authGuard, tenantGuard] 
   },
   { 
-    path: 'audit', 
-    loadComponent: () => import('./pages/audit-log/audit-log.component').then(m => m.AuditLogComponent),
+    path: 'audit-logs', 
+    loadComponent: () => import('./pages/audit-logs/audit-logs.component').then(m => m.AuditLogsComponent),
     canActivate: [authGuard, tenantGuard] 
   },
+
   { path: 'unauthorized', loadChildren: () => import('./pages/welcome/welcome.routes').then(m => m.WELCOME_ROUTES) },
   { path: '**', redirectTo: '/tenants' }
 ];

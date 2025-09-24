@@ -220,7 +220,6 @@
           <th>Resource Group</th>
           <th>Location</th>
           <th>SKU</th>
-          <th>Users with Access</th>
           <th nzWidth="120px">Actions</th>
         </tr>
       </thead>
@@ -247,11 +246,7 @@
             <td>
               <nz-tag>{{ account.sku || 'N/A' }}</nz-tag>
             </td>
-            <td>
-                <nz-tag [nzColor]="getUsersCountColor(account.permissions.length || 0)">
-                  {{ account.permissions.length || 0 }}
-                </nz-tag>
-              </td>
+
             <td>
               <button nz-button nzType="text" (click)="viewAccountDetails(account)" nz-tooltip="View Details">
                 <i nz-icon nzType="eye"></i>
@@ -270,7 +265,7 @@
           
           <!-- Expanded row -->
           <tr *ngIf="account.expanded" [nzExpand]="true">
-            <td colspan="8">
+            <td colspan="7">
               <div class="expanded-content">
                 <div *ngIf="account.loadingPermissions" class="loading-permissions">
                   <nz-spin nzSize="small">
@@ -319,7 +314,7 @@
                     </div>
                   
                     <div *ngIf="account.permissions && account.permissions.length > 0; else noPermissions">
-                    <nz-table #usersTable [nzData]="account.permissions" [nzShowPagination]="false" nzSize="small">
+                    <nz-table #usersTable [nzData]="account.permissions" [nzShowPagination]="false" [nzPageSize]="1000" nzSize="small">
                       <thead>
                         <tr>
                           <th>User/Principal</th>

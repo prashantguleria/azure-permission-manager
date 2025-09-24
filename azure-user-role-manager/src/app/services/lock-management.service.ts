@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
 import { Observable, throwError, of, forkJoin, firstValueFrom } from 'rxjs';
-import { switchMap, map, catchError } from 'rxjs/operators';
+import { switchMap, map, catchError, tap } from 'rxjs/operators';
 import { AzureApiService } from './azure-api.service';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { LockConfirmationModalComponent, LockConfirmationData } from '../components/lock-confirmation-modal/lock-confirmation-modal.component';
+import { AppAuditService } from './app-audit.service';
 
 export interface LockInfo {
   id: string;
@@ -26,7 +27,8 @@ export class LockManagementService {
   constructor(
     private azureApiService: AzureApiService,
     private modal: NzModalService,
-    private message: NzMessageService
+    private message: NzMessageService,
+    private appAuditService: AppAuditService
   ) {}
 
  /**
@@ -427,10 +429,25 @@ export class LockManagementService {
       // /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Storage/storageAccounts/{accountName}/providers/Microsoft.Authorization/locks/{lockName}
       // The deleteStorageAccountLock method expects this full path
       return this.azureApiService.deleteStorageAccountLock(lock.id).pipe(
-        map(result => {
+        tap(result => {
           console.log('✅ Lock Management: Successfully deleted lock:', lock.id, result);
-          return result;
+          
+          // Log successful lock removal
+          this.appAuditService.logAction(
+            'lock_removed',
+            'storage_account',
+            this.extractResourceIdFromLockId(lock.id),
+            `Lock: ${lock.name}`,
+            {
+              lockId: lock.id,
+              lockName: lock.name,
+              lockLevel: lock.level === 'CanNotDelete' ? 'Delete' : lock.level as 'ReadOnly' | 'Delete',
+              lockNotes: lock.notes
+            },
+            true
+          );
         }),
+        map(result => result),
         catchError(error => {
           console.error('❌ Lock Management: Failed to delete lock:', lock.id, error);
           console.error('❌ Lock Management: Error details:', {
@@ -460,6 +477,22 @@ export class LockManagementService {
         lock.level as 'ReadOnly' | 'Delete', 
         lock.notes || 'Recreated by Azure Permission Manager'
       ).pipe(
+        tap(result => {
+          // Log successful lock recreation
+          this.appAuditService.logAction(
+            'lock_added',
+            'storage_account',
+            resourceId,
+            `Lock: ${lock.name}`,
+            {
+              lockName: lock.name,
+              lockLevel: lock.level === 'CanNotDelete' ? 'Delete' : lock.level as 'ReadOnly' | 'Delete',
+              lockNotes: lock.notes || 'Recreated by Azure Permission Manager',
+              originalLockId: lock.id
+            },
+            true
+          );
+        }),
         catchError(error => {
           console.warn(`Failed to recreate lock ${lock.name}:`, error);
           return of(null);
@@ -468,5 +501,14 @@ export class LockManagementService {
     );
     
     return forkJoin(createOperations);
+  }
+
+  /**
+   * Extract resource ID from lock ID
+   */
+  private extractResourceIdFromLockId(lockId: string): string {
+    // Lock ID format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts/{name}/providers/Microsoft.Authorization/locks/{lockName}
+    const parts = lockId.split('/providers/Microsoft.Authorization/locks/');
+    return parts.length > 0 ? parts[0] : lockId;
   }
 }

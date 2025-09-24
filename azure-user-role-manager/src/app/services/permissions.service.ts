@@ -5,6 +5,7 @@ import { catchError, map, switchMap, tap, shareReplay, finalize, concatMap, scan
 import { AuthService } from './auth.service';
 import { AzureApiService } from './azure-api.service';
 import { LockManagementService } from './lock-management.service';
+import { AppAuditService } from './app-audit.service';
 import {
   UserPermissions,
   DirectoryRole,
@@ -51,7 +52,8 @@ export class PermissionsService {
     private http: HttpClient,
     private authService: AuthService,
     private azureApiService: AzureApiService,
-    private lockManagementService: LockManagementService
+    private lockManagementService: LockManagementService,
+    private appAuditService: AppAuditService
   ) {}
 
   /**
@@ -1211,6 +1213,23 @@ export class PermissionsService {
         };
         
         return this.http.put(url, body, { headers }).pipe(
+          tap(result => {
+            // Log successful permission assignment
+            this.appAuditService.logAction(
+              'permission_added',
+              'storage_account',
+              request.storageAccountId,
+              `Storage Account Permission`,
+              {
+                principalId: request.principalId,
+                principalType: request.principalType,
+                roleDefinitionId: request.roleDefinitionId,
+                assignmentId: assignmentId,
+                assignmentUrl: url
+              },
+              true
+            );
+          }),
           catchError(error => {
             console.error('Failed to assign storage account permission:', error);
             return throwError(() => this.handleError(error));
@@ -1261,7 +1280,30 @@ export class PermissionsService {
         )
       );
       
-      return forkJoin(operations);
+      return forkJoin(operations).pipe(
+        tap(results => {
+          const successful = results.filter(r => r.success).length;
+          const failed = results.filter(r => !r.success).length;
+          
+          // Log bulk permission removal
+          this.appAuditService.logAction(
+            'bulk_permissions_removed',
+            'storage_account',
+            'multiple',
+            `Bulk Permission Removal (${assignments.length} items)`,
+            {
+              totalRequests: assignments.length,
+              successful,
+              failed,
+              assignments: assignments.map(a => ({
+                assignmentId: a.assignmentId,
+                storageAccountId: a.storageAccountId
+              }))
+            },
+            false
+          );
+        })
+      );
     });
   }
 
@@ -1391,6 +1433,15 @@ export class PermissionsService {
   }
 
   /**
+   * Extract storage account ID from assignment ID
+   */
+  private extractStorageAccountIdFromAssignmentId(assignmentId: string): string {
+    // Assignment ID format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts/{name}/providers/Microsoft.Authorization/roleAssignments/{guid}
+    const parts = assignmentId.split('/providers/Microsoft.Authorization/roleAssignments/');
+    return parts.length > 0 ? parts[0] : assignmentId;
+  }
+
+  /**
    * Remove a storage account role assignment
    */
   private removeStorageAccountRoleAssignment(assignmentId: string): Observable<any> {
@@ -1405,6 +1456,19 @@ export class PermissionsService {
             console.log('✅ Role assignment deleted successfully');
             // Clear cache for storage account permissions
             this.clearStorageAccountCache(assignmentId);
+            
+            // Log successful permission removal
+            this.appAuditService.logAction(
+              'permission_removed',
+              'storage_account',
+              this.extractStorageAccountIdFromAssignmentId(assignmentId),
+              'Storage Account Permission',
+              {
+                assignmentId: assignmentId,
+                assignmentUrl: url
+              },
+              true
+            );
           }),
           catchError(error => {
             console.error('❌ Failed to remove storage account role assignment:', error);

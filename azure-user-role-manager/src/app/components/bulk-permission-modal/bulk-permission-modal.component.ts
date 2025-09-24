@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { NzModalModule } from 'ng-zorro-antd/modal';
@@ -184,7 +184,8 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
   constructor(
     private fb: FormBuilder,
     private message: NzMessageService,
-    private azureApiService: AzureApiService
+    private azureApiService: AzureApiService,
+    private cdr: ChangeDetectorRef
   ) {
     this.permissionForm = this.fb.group({
       principalIds: [[], [Validators.required]],
@@ -206,6 +207,7 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
           return of({ users: [], totalCount: 0, hasMore: false } as UserSearchResult);
         }
         this.searchingUsers = true;
+        this.cdr.markForCheck();
         const principalType = this.permissionForm.get('principalType')?.value || 'User';
         return this.azureApiService.searchPrincipals(query, principalType, 10).pipe(
           takeUntil(this.destroy$)
@@ -216,11 +218,13 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
       next: (result: UserSearchResult) => {
         this.searchedUsers = result.users || [];
         this.searchingUsers = false;
+        this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Principal search error:', error);
         this.searchedUsers = [];
         this.searchingUsers = false;
+        this.cdr.markForCheck();
         this.message.error('Failed to search principals');
       }
     });
