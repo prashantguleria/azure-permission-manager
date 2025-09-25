@@ -1,0 +1,57 @@
+.resource-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .resource-name {
+    font-weight: 500;
+    color: #262626;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .resource-details {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .resource-type-tag {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .resource-group-info {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #8c8c8c;
+      
+      span[nz-icon] {
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+// Ensure proper table cell spacing
+td {
+  .resource-info {
+    min-height: 40px;
+    justify-content: center;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .resource-info {
+    .resource-details {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+  }
+}

@@ -4,6 +4,29 @@
   min-height: 100vh;
 }
 
+/* Breadcrumb Navigation */
+.breadcrumb-nav {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.breadcrumb-nav a {
+  color: #1890ff;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.breadcrumb-nav a:hover {
+  color: #40a9ff;
+}
+
+.breadcrumb-nav span[nz-icon] {
+  margin-right: 4px;
+}
+
 /* Header Section */
 .header-section {
   margin-bottom: 24px;
@@ -187,10 +210,45 @@
   line-height: 1.4;
 }
 
+/* Bulk Actions */
+.bulk-actions-card {
+  margin-bottom: 16px;
+}
+
+.bulk-actions-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.bulk-selection {
+  display: flex;
+  align-items: center;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .bulk-actions-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .bulk-actions {
+    justify-content: center;
+  }
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;
-  padding: 60px 24px;
+  padding: 48px 24px;
 }
 
 .empty-content {
@@ -199,20 +257,112 @@
 }
 
 .empty-icon {
-  font-size: 64px;
+  font-size: 48px;
   color: #d9d9d9;
   margin-bottom: 16px;
 }
 
 .empty-content h3 {
-  color: #595959;
+  color: #262626;
   margin-bottom: 8px;
 }
 
 .empty-content p {
   color: #8c8c8c;
+  margin-bottom: 16px;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Add Permission Modal */
+.add-permission-form {
+  padding: 16px 0;
+}
+
+.form-section {
   margin-bottom: 24px;
-  line-height: 1.6;
+}
+
+.form-section h4 {
+  margin-bottom: 12px;
+  color: #262626;
+  font-weight: 600;
+}
+
+.resource-option {
+  padding: 8px 0;
+}
+
+.resource-name {
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 4px;
+}
+
+.resource-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.resource-group {
+  font-style: italic;
+}
+
+.selected-resource-card {
+  margin-top: 12px;
+}
+
+.selected-resource {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.resource-info h5 {
+  margin: 0 0 8px 0;
+  color: #262626;
+  font-weight: 600;
+}
+
+.resource-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.role-select {
+  width: 100%;
+}
+
+.role-option {
+  padding: 8px 0;
+}
+
+.role-name {
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 4px;
+}
+
+.role-description {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.role-type-tag {
+  font-size: 10px;
 }
 
 /* Tag Colors */

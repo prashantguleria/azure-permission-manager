@@ -1,4 +1,23 @@
 <div class="user-permissions-container">
+  <!-- Breadcrumb Navigation -->
+  <nz-breadcrumb class="breadcrumb-nav">
+    <nz-breadcrumb-item>
+      <a (click)="navigateToUsers()">
+        <span nz-icon nzType="team" nzTheme="outline"></span>
+        Users
+      </a>
+    </nz-breadcrumb-item>
+    <nz-breadcrumb-item>
+      <a (click)="navigateToUserDetails()">
+        {{ getUserDisplayName() }}
+      </a>
+    </nz-breadcrumb-item>
+    <nz-breadcrumb-item>
+      <span nz-icon nzType="safety-certificate" nzTheme="outline"></span>
+      Permissions
+    </nz-breadcrumb-item>
+  </nz-breadcrumb>
+
   <!-- Header Section -->
   <div class="header-section">
     <div class="header-content">
@@ -173,6 +192,44 @@
     class="error-alert">
   </nz-alert>
 
+  <!-- Bulk Actions Section -->
+  <nz-card class="bulk-actions-card" *ngIf="!loading && !error && filteredPermissions.length > 0">
+    <div class="bulk-actions-content">
+      <div class="bulk-selection">
+        <label nz-checkbox 
+          [(ngModel)]="allSelected" 
+          [nzIndeterminate]="indeterminate"
+          (ngModelChange)="onAllChecked($event)">
+          Select All ({{ getSelectedCount() }} selected)
+        </label>
+      </div>
+      <div class="bulk-actions">
+        <button 
+          nz-button 
+          nzType="primary" 
+          (click)="openAddPermissionModal()"
+          nzSize="small">
+          <span nz-icon nzType="plus" nzTheme="outline"></span>
+          Add Permission
+        </button>
+        <button 
+          nz-button 
+          nzType="primary" 
+          nzDanger
+          [disabled]="getSelectedCount() === 0"
+          [nzLoading]="bulkOperationLoading"
+          nz-popconfirm
+          nzPopconfirmTitle="Are you sure you want to remove the selected permissions?"
+          nzPopconfirmPlacement="topRight"
+          (nzOnConfirm)="bulkRemovePermissions()"
+          nzSize="small">
+          <span nz-icon nzType="delete" nzTheme="outline"></span>
+          Remove Selected ({{ getSelectedCount() }})
+        </button>
+      </div>
+    </div>
+  </nz-card>
+
   <!-- Permissions Table -->
   <nz-card class="table-card" *ngIf="!loading && !error">
     <nz-table 
@@ -185,11 +242,17 @@
       [nzShowTotal]="totalTemplate"
       nzSize="middle"
       nzBordered
-
       class="permissions-table">
       
       <thead>
         <tr>
+          <th nzWidth="50px">
+            <label nz-checkbox 
+              [(ngModel)]="allSelected" 
+              [nzIndeterminate]="indeterminate"
+              (ngModelChange)="onAllChecked($event)">
+            </label>
+          </th>
           <th 
             nzColumnKey="type" 
             [nzSortFn]="true" 
@@ -227,6 +290,12 @@
       <tbody>
         <tr *ngFor="let item of permissionsTable.data">
           <td>
+            <label nz-checkbox 
+              [ngModel]="selectedPermissions.has(item.id)"
+              (ngModelChange)="onItemChecked(item.id, $event)">
+            </label>
+          </td>
+          <td>
             <nz-tag [nzColor]="getPermissionTypeColor(item.type)">
               {{ item.type }}
             </nz-tag>
@@ -244,9 +313,20 @@
             </div>
           </td>
           <td>
-            <span class="resource-name" [title]="item.resourceName">
-              {{ item.resourceName }}
-            </span>
+            <div class="resource-info">
+              <div class="resource-name" [title]="item.resourceName">
+                {{ item.resourceName }}
+              </div>
+              <div class="resource-details" *ngIf="item.resourceGroup || item.resourceType">
+                <nz-tag *ngIf="item.resourceType" [nzColor]="'blue'" class="resource-type-tag">
+                  {{ item.resourceType }}
+                </nz-tag>
+                <span *ngIf="item.resourceGroup" class="resource-group-info">
+                  <span nz-icon nzType="folder" nzTheme="outline"></span>
+                  {{ item.resourceGroup }}
+                </span>
+              </div>
+            </div>
           </td>
           <td>
             <nz-tag [nzColor]="getScopeColor(item.scope)">
@@ -286,13 +366,150 @@
       <p *ngIf="!searchQuery && selectedPermissionType === 'all' && !selectedSubscription">
         This user has no assigned permissions.
       </p>
-      <button 
-        *ngIf="searchQuery || selectedPermissionType !== 'all' || selectedSubscription"
-        nz-button 
-        nzType="primary" 
-        (click)="clearFilters()">
-        Clear Filters
-      </button>
+      <div class="empty-actions">
+        <button 
+          *ngIf="searchQuery || selectedPermissionType !== 'all' || selectedSubscription"
+          nz-button 
+          nzType="primary" 
+          (click)="clearFilters()">
+          Clear Filters
+        </button>
+        <button 
+          nz-button 
+          nzType="primary" 
+          (click)="openAddPermissionModal()">
+          <span nz-icon nzType="plus" nzTheme="outline"></span>
+          Add Permission
+        </button>
+      </div>
     </div>
   </nz-card>
+
+  <!-- Add Permission Modal -->
+  <nz-modal 
+    [(nzVisible)]="showAddPermissionModal"
+    nzTitle="Add Permission"
+    [nzOkText]="'Add Permission'"
+    [nzCancelText]="'Cancel'"
+    [nzOkLoading]="addPermissionLoading"
+    [nzOkDisabled]="!selectedResource || !selectedRole"
+    (nzOnOk)="addPermission()"
+    (nzOnCancel)="closeAddPermissionModal()"
+    nzWidth="600px">
+    
+    <ng-container *nzModalContent>
+      <div class="add-permission-form">
+        <!-- Resource Search -->
+        <div class="form-section">
+          <h4>Search Azure Resource</h4>
+          <nz-input-group nzSearch [nzAddOnAfter]="searchResourceButton">
+            <input 
+              type="text" 
+              nz-input 
+              placeholder="Search for storage accounts, resource groups, subscriptions..." 
+              [(ngModel)]="resourceSearchQuery"
+              (keyup.enter)="searchResources()"/>
+          </nz-input-group>
+          <ng-template #searchResourceButton>
+            <button 
+              nz-button 
+              nzType="primary" 
+              nzSearch 
+              [nzLoading]="resourceSearchLoading"
+              (click)="searchResources()">
+              <span nz-icon nzType="search"></span>
+            </button>
+          </ng-template>
+          
+          <!-- Search Results -->
+          <div *ngIf="searchedResources.length > 0" class="resource-search-results">
+            <nz-list nzSize="small">
+              <nz-list-item 
+                *ngFor="let resource of searchedResources" 
+                class="resource-option"
+                (click)="selectResource(resource)">
+                <div class="resource-name">{{ resource.name }}</div>
+                <div class="resource-details">
+                  <nz-tag [nzColor]="'blue'">{{ resource.type }}</nz-tag>
+                  <span *ngIf="resource.resourceGroup" class="resource-group">
+                    {{ resource.resourceGroup }}
+                  </span>
+                </div>
+              </nz-list-item>
+            </nz-list>
+          </div>
+        </div>
+
+        <!-- Selected Resource -->
+        <div class="form-section" *ngIf="selectedResource">
+          <h4>Selected Resource</h4>
+          <nz-card class="selected-resource-card">
+            <div class="selected-resource">
+              <div class="resource-info">
+                <h5>{{ selectedResource.name }}</h5>
+                <div class="resource-meta">
+                  <nz-tag [nzColor]="'blue'">{{ selectedResource.type }}</nz-tag>
+                  <span *ngIf="selectedResource.resourceGroup">
+                    Resource Group: {{ selectedResource.resourceGroup }}
+                  </span>
+                </div>
+              </div>
+              <button 
+                nz-button 
+                nzType="text" 
+                nzSize="small"
+                (click)="selectedResource = null; availableRoles = []; selectedRole = ''">
+                <span nz-icon nzType="close" nzTheme="outline"></span>
+              </button>
+            </div>
+          </nz-card>
+        </div>
+
+        <!-- Role Selection -->
+        <div class="form-section" *ngIf="selectedResource && availableRoles.length > 0">
+          <h4>Select Role</h4>
+          <nz-select 
+            [(ngModel)]="selectedRole" 
+            nzPlaceHolder="Choose a role to assign"
+            class="role-select">
+            <nz-option 
+              *ngFor="let role of availableRoles" 
+              [nzLabel]="role.name" 
+              [nzValue]="role.id">
+              <div class="role-option">
+                <div class="role-name">{{ role.name }}</div>
+                <div class="role-description" *ngIf="role.description">
+                  {{ role.description }}
+                </div>
+                <nz-tag 
+                  [nzColor]="role.type === 'builtin' ? 'blue' : 'green'"
+                  class="role-type-tag">
+                  {{ role.type === 'builtin' ? 'Built-in' : 'Custom' }}
+                </nz-tag>
+              </div>
+            </nz-option>
+          </nz-select>
+        </div>
+
+        <!-- Loading State -->
+        <div class="form-section" *ngIf="selectedResource && availableRoles.length === 0 && !addPermissionLoading">
+          <nz-alert 
+            nzType="info"
+            nzMessage="Loading available roles..."
+            nzShowIcon>
+          </nz-alert>
+        </div>
+
+        <!-- No Roles Available -->
+        <div class="form-section" *ngIf="selectedResource && availableRoles.length === 0 && !resourceSearchLoading">
+          <nz-alert 
+            nzType="warning"
+            nzMessage="No roles available for this resource type"
+            nzDescription="The selected resource type may not support role assignments or you may not have permission to view available roles."
+            nzShowIcon>
+          </nz-alert>
+        </div>
+      </div>
+    </ng-container>
+  </nz-modal>
 </div>
