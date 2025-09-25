@@ -63,24 +63,26 @@ export class AppComponent implements OnInit, OnDestroy {
             
             // Optimize by reducing delay and checking auth state immediately
             setTimeout(() => {
-              // Check if user is authenticated and redirect appropriately
+              const currentRoute = this.router.url;
+              
+              // Only handle authentication redirects for /app routes
+              if (currentRoute.startsWith('/app')) {
+                // Check if user is authenticated and redirect appropriately
                 if (this.authService.isAuthenticated()) {
-                  const currentRoute = this.router.url;
-                  
                   // Check if this is a redirect after tenant switching
                   const postTenantSwitchRedirect = sessionStorage.getItem('postTenantSwitchRedirect');
                   if (postTenantSwitchRedirect) {
                     console.log('Redirecting after tenant switch to:', postTenantSwitchRedirect);
                     sessionStorage.removeItem('postTenantSwitchRedirect');
                     this.router.navigate([postTenantSwitchRedirect]);
-                  } else if (currentRoute === '/' || currentRoute === '/login') {
+                  } else if (currentRoute === '/app' || currentRoute === '/app/login') {
                     // Check if user has already selected a tenant
                     const selectedTenant = localStorage.getItem('selectedTenant');
                     const currentUser = this.authService.getCurrentUser();
                     
                     if (selectedTenant) {
                       console.log('User has selected tenant, redirecting to user management');
-                      this.router.navigate(['/user-management']);
+                      this.router.navigate(['/app/user-management']);
                     } else if (currentUser?.tenantId) {
                       // Auto-select current tenant if no tenant selected
                       console.log('Auto-selecting current tenant:', currentUser.tenantId);
@@ -92,18 +94,18 @@ export class AppComponent implements OnInit, OnDestroy {
                         isDefault: true
                       };
                       localStorage.setItem('selectedTenant', JSON.stringify(defaultTenant));
-                      this.router.navigate(['/user-management']);
+                      this.router.navigate(['/app/user-management']);
                     } else {
-                      this.router.navigate(['/tenants']);
+                      this.router.navigate(['/app/tenants']);
                     }
                   }
                 } else {
-                  console.log('User not authenticated after initialization, redirecting to login');
-                  const currentRoute = this.router.url;
-                  if (currentRoute !== '/login') {
-                    this.router.navigate(['/login']);
+                  console.log('User not authenticated, redirecting to login');
+                  if (currentRoute !== '/app/login') {
+                    this.router.navigate(['/app/login']);
                   }
                 }
+              }
               
               // Set initial layout visibility
               this.updateLayoutVisibility(this.router.url);
@@ -134,8 +136,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
 
   private updateLayoutVisibility(url: string): void {
-    // Hide main layout on login page
-    this.showMainLayout = !url.includes('/login');
+    // Hide main layout on login page and homepage
+    this.showMainLayout = !url.includes('/login') && url !== '/';
   }
 
   private updatePageInfo(url: string): void {
@@ -146,14 +148,14 @@ export class AppComponent implements OnInit, OnDestroy {
     if (url.includes('/user-management')) {
       this.currentPageTitle = 'User Management';
       this.breadcrumbs = [
-        { label: 'Dashboard', link: '/dashboard', icon: 'home' },
+        { label: 'Dashboard', link: '/app/dashboard', icon: 'home' },
         { label: 'User Management', icon: 'user' }
       ];
     } else if (url.includes('/user-detail')) {
       this.currentPageTitle = 'User Details';
       this.breadcrumbs = [
-        { label: 'Dashboard', link: '/dashboard', icon: 'home' },
-        { label: 'User Management', link: '/user-management', icon: 'user' },
+        { label: 'Dashboard', link: '/app/dashboard', icon: 'home' },
+        { label: 'User Management', link: '/app/user-management', icon: 'user' },
         { label: 'User Details', icon: 'profile' }
       ];
     } else if (url.includes('/dashboard')) {

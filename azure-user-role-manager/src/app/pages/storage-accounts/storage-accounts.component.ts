@@ -66,10 +66,13 @@ interface StorageAccountTableItem {
   locks?: any[];
   loadingLocks?: boolean;
   locksLoading?: boolean;
+  locksExpanded?: boolean;
   users?: any[];
   accessLevel?: string;
   hasError?: boolean;
   errorMessage?: string;
+  hasLocks?: boolean; // Indicates if the storage account has any locks
+  lockCount?: number; // Number of locks on this storage account
 }
 
 @Component({
@@ -265,7 +268,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   }
 
   private convertToTableFormatBasic(storageAccounts: StorageAccount[]): StorageAccountTableItem[] {
-    return storageAccounts.map(account => ({
+    const tableItems = storageAccounts.map(account => ({
       id: account.id,
       name: account.name,
       resourceGroup: account.resourceGroup,
@@ -281,8 +284,50 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
       selected: false,
       locks: [],
       loadingLocks: false,
-      locksLoading: false
+      locksLoading: false,
+      hasLocks: false, // Will be determined after loading locks
+      lockCount: 0 // Number of locks on this storage account
     }));
+
+    // Proactively load locks for all storage accounts
+    this.loadLocksForAllAccounts(tableItems);
+    
+    return tableItems;
+  }
+
+  /**
+   * Load locks for all storage accounts to determine lock status upfront
+   */
+  private loadLocksForAllAccounts(accounts: StorageAccountTableItem[]): void {
+    accounts.forEach(account => {
+      account.loadingLocks = true;
+      
+      this.permissionsService.getStorageAccountLocks(account.id)
+        .pipe(
+          takeUntil(this.destroy$),
+          catchError(error => {
+            console.error(`Failed to load locks for storage account ${account.name}:`, error);
+            return of([]);
+          })
+        )
+        .subscribe({
+          next: (locks) => {
+            account.locks = locks || [];
+            account.lockCount = locks ? locks.length : 0;
+            account.hasLocks = account.lockCount > 0;
+            account.loadingLocks = false;
+            this.cdr.markForCheck();
+          },
+          error: (error) => {
+            console.error(`Error loading locks for ${account.name}:`, error);
+            account.locks = [];
+            account.lockCount = 0;
+            account.hasLocks = false;
+            account.loadingLocks = false;
+            this.cdr.markForCheck();
+          }
+        });
+    });
   }
 
   private convertToTableFormat(
@@ -801,11 +846,55 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
    * Toggle locks display for a storage account
    */
   toggleLocks(storageAccount: any): void {
+    // First ensure the row is expanded
+    if (!storageAccount.expanded) {
+      storageAccount.expanded = true;
+      
+      // Load permissions if not already loaded
+      if ((!storageAccount.permissions || storageAccount.permissions.length === 0) && !storageAccount.loadingPermissions) {
+        this.loadPermissionsForAccount(storageAccount);
+      }
+    }
+    
     if (!storageAccount.locks) {
       this.loadStorageAccountLocks(storageAccount);
     } else {
       storageAccount.locksExpanded = !storageAccount.locksExpanded;
     }
+  }
+
+  /**
+   * Group permissions by role for better organization
+   */
+  getGroupedPermissions(permissions: any[]): { [role: string]: any[] } {
+    if (!permissions || permissions.length === 0) {
+      return {};
+    }
+
+    return permissions.reduce((groups, permission) => {
+      const role = permission.properties.roleDefinitionName || 'Unknown Role';
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(permission);
+      return groups;
+    }, {} as { [role: string]: any[] });
+  }
+
+  /**
+   * Get the keys (role names) from grouped permissions
+   */
+  getGroupedPermissionKeys(permissions: any[]): string[] {
+    const grouped = this.getGroupedPermissions(permissions);
+    return Object.keys(grouped).sort();
+  }
+
+  /**
+   * Get permissions for a specific role
+   */
+  getPermissionsForRole(permissions: any[], role: string): any[] {
+    const grouped = this.getGroupedPermissions(permissions);
+    return grouped[role] || [];
   }
   
   private processQueue(): void {

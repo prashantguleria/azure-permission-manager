@@ -528,6 +528,69 @@
   font-style: italic;
 }
 
+/* Role Grouping Styles */
+.role-groups {
+  margin-top: 16px;
+}
+
+.role-group {
+  margin-bottom: 24px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fafafa;
+}
+
+.role-header {
+  padding: 12px 16px;
+  background-color: #f0f2f5;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.role-header h5 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.role-tag {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.user-count {
+  color: #666;
+  font-size: 12px;
+  font-weight: normal;
+}
+
+.role-permissions-table {
+  margin: 0;
+}
+
+.role-permissions-table .ant-table {
+  background-color: white;
+}
+
+.role-permissions-table .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.role-permissions-table .ant-table-tbody > tr > td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.role-permissions-table .ant-table-tbody > tr:last-child > td {
+  border-bottom: none;
+}
+
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -620,6 +683,45 @@
   text-align: center;
 }
 
+/* Lock Indicator Styles */
+.lock-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.lock-count {
+  background-color: #faad14;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 8px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-name {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: #262626;
+}
+
+.account-id {
+  font-size: 11px;
+  color: #8c8c8c;
+  font-family: 'Courier New', monospace;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .storage-accounts-container {
@@ -675,6 +777,15 @@
   .ant-table-tbody > tr > td {
     max-width: 150px; /* Smaller max width for mobile */
     font-size: 12px;
+  }
+  
+  .lock-indicator {
+    margin-left: 4px;
+  }
+  
+  .lock-count {
+    font-size: 9px;
+    padding: 1px 4px;
   }
 }
 

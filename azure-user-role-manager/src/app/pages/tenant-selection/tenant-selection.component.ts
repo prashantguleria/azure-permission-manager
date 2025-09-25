@@ -112,7 +112,7 @@ export class TenantSelectionComponent implements OnInit, OnDestroy {
       // If it's the current tenant, just navigate
       this.message.success(`Already connected to tenant: ${tenant.displayName}`);
       localStorage.setItem('selectedTenant', JSON.stringify(tenant));
-      this.router.navigate(['/user-management']);
+      this.router.navigate(['/app/user-management']);
       return;
     }
 

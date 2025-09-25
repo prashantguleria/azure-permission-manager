@@ -53,7 +53,7 @@ export const authGuard: CanActivateFn = async (route, state) => {
   // Check authentication status
   if (!authService.isAuthenticated()) {
     console.log('User not authenticated, redirecting to login');
-    router.navigate(['/login']);
+    router.navigate(['/app/login']);
     return false;
   }
 
@@ -105,7 +105,7 @@ export const authGuard: CanActivateFn = async (route, state) => {
     
     // No tenant selected and no current user tenant, redirect to tenant selection
     console.log('No tenant selected, redirecting to tenant selection');
-    router.navigate(['/tenants']);
+    router.navigate(['/app/tenants']);
     return false;
   }
 

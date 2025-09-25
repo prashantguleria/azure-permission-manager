@@ -9,7 +9,7 @@ export const tenantGuard: CanActivateFn = (route, state) => {
   // First check if user is authenticated
   if (!authService.isAuthenticated()) {
     console.log('User not authenticated, redirecting to login');
-    router.navigate(['/login']);
+    router.navigate(['/app/login']);
     return false;
   }
 
@@ -19,7 +19,7 @@ export const tenantGuard: CanActivateFn = (route, state) => {
   
   if (!selectedTenant || !currentTenantId) {
     console.log('No tenant selected, redirecting to tenant selection');
-    router.navigate(['/tenants']);
+    router.navigate(['/app/tenants']);
     return false;
   }
 
@@ -29,13 +29,13 @@ export const tenantGuard: CanActivateFn = (route, state) => {
     if (tenant.id !== currentTenantId) {
       console.log('Tenant mismatch, redirecting to tenant selection');
       localStorage.removeItem('selectedTenant');
-      router.navigate(['/tenants']);
+      router.navigate(['/app/tenants']);
       return false;
     }
   } catch (error) {
     console.error('Error parsing selected tenant:', error);
     localStorage.removeItem('selectedTenant');
-    router.navigate(['/tenants']);
+    router.navigate(['/app/tenants']);
     return false;
   }
 

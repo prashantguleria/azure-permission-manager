@@ -11,14 +11,24 @@ import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
-import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
+
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { FormsModule } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, takeUntil, forkJoin, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { AppAuditService } from '../../services/app-audit.service';
 import { AppAuditLog, AuditLogFilter, AuditAction } from '../../models/app-audit-log.model';
+import { AzureApiService } from '../../services/azure-api.service';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { User } from '../../models/user.model';
+
+export interface EnrichedAuditLog extends AppAuditLog {
+  targetUser?: {
+    displayName: string;
+    email: string;
+  };
+}
 
 @Component({
   selector: 'app-audit-logs',
@@ -37,19 +47,21 @@ import { NzMessageService } from 'ng-zorro-antd/message';
     NzInputModule,
     NzCardModule,
     NzSpaceModule,
-    NzPopconfirmModule,
+
     NzEmptyModule,
     NzGridModule
   ],
   templateUrl: './audit-logs.component.html',
   styleUrls: ['./audit-logs.component.scss']
 })
+
 export class AuditLogsComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   
   auditLogs: AppAuditLog[] = [];
-  filteredLogs: AppAuditLog[] = [];
+  filteredLogs: EnrichedAuditLog[] = [];
   loading = false;
+  private userCache = new Map<string, User>();
   
   // Filter properties
   filter: AuditLogFilter = {
@@ -75,6 +87,7 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
   
   constructor(
     private auditService: AppAuditService,
+    private azureApiService: AzureApiService,
     private message: NzMessageService
   ) {}
   
@@ -89,16 +102,28 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
   
   loadAuditLogs(): void {
     this.loading = true;
-    this.auditService.getAuditLogs(this.filter)
-      .pipe(takeUntil(this.destroy$))
+    this.auditService.getAuditLogs()
+      .pipe(
+        map(logs => this.enrichLogsWithUserInfo(logs)),
+        takeUntil(this.destroy$)
+      )
       .subscribe({
-        next: (logs) => {
-          this.auditLogs = logs;
-          this.filteredLogs = [...logs];
-          this.loading = false;
+        next: (enrichedLogs) => {
+          enrichedLogs.subscribe({
+            next: (logs) => {
+              this.auditLogs = logs;
+              this.applyFilters();
+              this.loading = false;
+            },
+            error: (error) => {
+              console.error('Error enriching audit logs:', error);
+              this.message.error('Failed to enrich audit logs');
+              this.loading = false;
+            }
+          });
         },
-        error: (error: any) => {
-          console.error('Failed to load audit logs:', error);
+        error: (error) => {
+          console.error('Error loading audit logs:', error);
           this.message.error('Failed to load audit logs');
           this.loading = false;
         }
@@ -120,41 +145,96 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
     this.loadAuditLogs();
   }
   
-  clearAllLogs(): void {
-    this.auditService.clearAuditLogs();
-    this.message.success('All audit logs cleared successfully');
-    this.loadAuditLogs();
-  }
-  
-  revertOperation(log: AppAuditLog): void {
-    if (!log.reversible) {
-      this.message.warning('This operation cannot be reverted');
-      return;
+  private enrichLogsWithUserInfo(logs: AppAuditLog[]) {
+    const userRequests = logs
+      .filter(log => log.action === 'permission_added' && log.details?.principalId)
+      .map(log => log.details!.principalId!)
+      .filter((id, index, arr) => arr.indexOf(id) === index) // Remove duplicates
+      .map(principalId => this.getUserInfo(principalId));
+
+    if (userRequests.length === 0) {
+      return of(logs.map(log => ({ ...log } as EnrichedAuditLog)));
     }
-    
-    this.auditService.revertOperation(log.id)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.message.success('Operation reverted successfully');
-          this.loadAuditLogs();
-        },
-        error: (error: any) => {
-          console.error('Failed to revert operation:', error);
-          this.message.error('Failed to revert operation: ' + (error.message || 'Unknown error'));
-        }
-      });
+
+    return forkJoin(userRequests).pipe(
+      map(users => {
+        const userMap = new Map<string, User>();
+        users.forEach(user => {
+          if (user) {
+            userMap.set(user.id, user);
+          }
+        });
+
+        return logs.map(log => {
+          const enrichedLog: EnrichedAuditLog = { ...log };
+          if (log.action === 'permission_added' && log.details?.principalId) {
+            const targetUser = userMap.get(log.details.principalId);
+            if (targetUser) {
+              enrichedLog.targetUser = {
+                displayName: targetUser.displayName || targetUser.userPrincipalName || 'Unknown User',
+                email: targetUser.mail || targetUser.userPrincipalName || ''
+              };
+            }
+          }
+          return enrichedLog;
+        });
+      }),
+      catchError(error => {
+        console.error('Error enriching logs with user info:', error);
+        return of(logs.map(log => ({ ...log } as EnrichedAuditLog)));
+      })
+    );
   }
-  
-  exportLogs(): void {
-    const blob = this.auditService.exportAuditLogs();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `audit-logs-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    window.URL.revokeObjectURL(url);
-    this.message.success('Audit logs exported successfully');
+
+  private getUserInfo(userId: string) {
+    if (this.userCache.has(userId)) {
+      return of(this.userCache.get(userId)!);
+    }
+
+    return this.azureApiService.getUserById(userId).pipe(
+      map(user => {
+        if (user) {
+          this.userCache.set(userId, user);
+        }
+        return user;
+      }),
+      catchError(error => {
+        console.error(`Error fetching user ${userId}:`, error);
+        return of(null);
+      })
+    );
+  }
+
+  applyFilters(): void {
+    let filtered = [...this.auditLogs] as EnrichedAuditLog[];
+
+    // Apply date range filter
+    if (this.filter.startDate) {
+      filtered = filtered.filter(log => new Date(log.timestamp) >= this.filter.startDate!);
+    }
+    if (this.filter.endDate) {
+      filtered = filtered.filter(log => new Date(log.timestamp) <= this.filter.endDate!);
+    }
+
+    // Apply user filter
+    if (this.filter.userId) {
+      filtered = filtered.filter(log => 
+        log.userId?.toLowerCase().includes(this.filter.userId!.toLowerCase()) ||
+        log.userName?.toLowerCase().includes(this.filter.userId!.toLowerCase())
+      );
+    }
+
+    // Apply action filter
+    if (this.filter.action) {
+      filtered = filtered.filter(log => log.action === this.filter.action);
+    }
+
+    // Apply resource type filter
+    if (this.filter.targetType) {
+      filtered = filtered.filter(log => log.targetType === this.filter.targetType);
+    }
+
+    this.filteredLogs = filtered;
   }
   
   getActionColor(action: AuditAction): string {

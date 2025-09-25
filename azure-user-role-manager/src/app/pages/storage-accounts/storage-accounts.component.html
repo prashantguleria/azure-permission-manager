@@ -237,7 +237,22 @@
             </td>
             <td>
               <div class="account-info">
-                <div class="account-name">{{ account.name }}</div>
+                <div class="account-name">
+                  {{ account.name }}
+                  <!-- Lock indicator -->
+                   <span 
+                     *ngIf="account.hasLocks && !account.loadingLocks" 
+                     class="lock-indicator"
+                     [nz-tooltip]="account.lockCount === 1 ? '1 active lock' : account.lockCount + ' active locks'">
+                     <i nz-icon nzType="lock" nzTheme="fill" style="color: #faad14; margin-left: 8px;"></i>
+                     <span class="lock-count">{{ account.lockCount }}</span>
+                   </span>
+                  <nz-spin 
+                    *ngIf="account.loadingLocks" 
+                    nzSize="small" 
+                    style="margin-left: 8px;">
+                  </nz-spin>
+                </div>
                 <div class="account-id">{{ account.id }}</div>
               </div>
             </td>
@@ -254,7 +269,12 @@
               <button nz-button nzType="text" (click)="managePermissions(account)" nz-tooltip="Manage Permissions">
                 <i nz-icon nzType="team"></i>
               </button>
-              <button nz-button nzType="text" (click)="toggleLocks(account)" nz-tooltip="View Locks">
+              <button 
+                *ngIf="account.hasLocks && !account.loadingLocks" 
+                nz-button 
+                nzType="text" 
+                (click)="toggleLocks(account)" 
+                [nz-tooltip]="'View ' + account.lockCount + (account.lockCount === 1 ? ' lock' : ' locks')">
                 <i nz-icon nzType="lock" [nzSpin]="account.locksLoading"></i>
               </button>
               <button nz-button nzType="text" (click)="exportAccountData(account)" nz-tooltip="Export Data">
@@ -275,7 +295,7 @@
                 
                 <div *ngIf="!account.loadingPermissions">
                   <!-- Locks Section -->
-                  <div class="locks-section" *ngIf="account.locks && account.locks.length > 0">
+                  <div class="locks-section" *ngIf="account.locks && account.locks.length > 0 && account.locksExpanded">
                     <div class="section-header">
                       <h4><i nz-icon nzType="lock" style="color: #ff4d4f; margin-right: 8px;"></i>Resource Locks</h4>
                       <nz-tag nzColor="orange">{{ account.locks.length }} lock(s)</nz-tag>
@@ -304,7 +324,7 @@
                   
                   <div class="permissions-section">
                     <div class="section-header">
-                      <h4>Users with Access ({{ (account.permissions && account.permissions.length) || 0 }})</h4>
+                      <h4>Users with Access (Grouped by Role) - {{ (account.permissions && account.permissions.length) || 0 }} total</h4>
                       <div class="section-actions">
                         <button nz-button nzType="primary" nzSize="small" (click)="addPermission(account)">
                           <i nz-icon nzType="plus"></i>
@@ -314,73 +334,79 @@
                     </div>
                   
                     <div *ngIf="account.permissions && account.permissions.length > 0; else noPermissions">
-                    <nz-table #usersTable [nzData]="account.permissions" [nzShowPagination]="false" [nzPageSize]="1000" nzSize="small">
-                      <thead>
-                        <tr>
-                          <th>User/Principal</th>
-                          <th>Role</th>
-                          <th>Type</th>
-                          <th>Assigned Date</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr *ngFor="let permission of usersTable.data">
-                          <td>
-                            <div class="user-info">
-                              <div class="user-name">
-                                <strong 
-                                  [ngClass]="{
-                                    'deleted-user': !permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal',
-                                    'error-user': permission.properties.principalDisplayName === 'Error loading user'
-                                  }">
-                                  {{ permission.properties.principalDisplayName || 'Unknown Principal' }}
-                                </strong>
-                                <nz-tag 
-                                  *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'" 
-                                  nzColor="red" 
-                                  nz-tooltip="This user may have been deleted from Azure AD">
-                                  Deleted
-                                </nz-tag>
-                                <nz-tag 
-                                  *ngIf="permission.properties.principalDisplayName === 'Error loading user'" 
-                                  nzColor="orange" 
-                                  nz-tooltip="Error loading user details">
-                                  Error
-                                </nz-tag>
-                              </div>
-                              <div class="user-email" *ngIf="permission.properties.principalEmail">
-                                {{ permission.properties.principalEmail }}
-                              </div>
-                              <div class="user-id">ID: {{ permission.properties.principalId }}</div>
-                              <div class="user-warning" *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'">
-                                <i nz-icon nzType="exclamation-circle" nzTheme="fill" style="color: #ff4d4f; margin-right: 4px;"></i>
-                                <small>User no longer exists in Azure AD</small>
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <nz-tag [nzColor]="getRoleColor(permission.properties.roleDefinitionName)">
-                              {{ permission.properties.roleDefinitionName }}
-                            </nz-tag>
-                          </td>
-                          <td>
-                            <nz-tag [nzColor]="getPrincipalTypeColor(permission.properties.principalType)">
-                              {{ permission.properties.principalType }}
-                            </nz-tag>
-                          </td>
-                          <td>{{ permission.properties.createdOn | date:'short' }}</td>
-                          <td>
-                            <button nz-button nzType="text" nzSize="small" (click)="viewPermissionDetails(permission)" nz-tooltip="View Details">
-                              <i nz-icon nzType="eye"></i>
-                            </button>
-                            <button nz-button nzType="text" nzSize="small" (click)="removePermission(account, permission)" nz-tooltip="Remove Access" nzDanger>
-                              <i nz-icon nzType="delete"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </nz-table>
+                      <!-- Role Groups -->
+                      <div class="role-groups">
+                        <div *ngFor="let role of getGroupedPermissionKeys(account.permissions)" class="role-group">
+                          <div class="role-header">
+                            <h5>
+                              <nz-tag [nzColor]="getRoleColor(role)" class="role-tag">{{ role }}</nz-tag>
+                              <span class="user-count">({{ getPermissionsForRole(account.permissions, role).length }} users)</span>
+                            </h5>
+                          </div>
+                          
+                          <nz-table #rolePermissionsTable [nzData]="getPermissionsForRole(account.permissions, role)" [nzShowPagination]="false" [nzPageSize]="1000" nzSize="small" class="role-permissions-table">
+                            <thead>
+                              <tr>
+                                <th>User/Principal</th>
+                                <th>Type</th>
+                                <th>Assigned Date</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr *ngFor="let permission of rolePermissionsTable.data">
+                                <td>
+                                  <div class="user-info">
+                                    <div class="user-name">
+                                      <strong 
+                                        [ngClass]="{
+                                          'deleted-user': !permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal',
+                                          'error-user': permission.properties.principalDisplayName === 'Error loading user'
+                                        }">
+                                        {{ permission.properties.principalDisplayName || 'Unknown Principal' }}
+                                      </strong>
+                                      <nz-tag 
+                                        *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'" 
+                                        nzColor="red" 
+                                        nz-tooltip="This user may have been deleted from Azure AD">
+                                        Deleted
+                                      </nz-tag>
+                                      <nz-tag 
+                                        *ngIf="permission.properties.principalDisplayName === 'Error loading user'" 
+                                        nzColor="orange" 
+                                        nz-tooltip="Error loading user details">
+                                        Error
+                                      </nz-tag>
+                                    </div>
+                                    <div class="user-email" *ngIf="permission.properties.principalEmail">
+                                      {{ permission.properties.principalEmail }}
+                                    </div>
+                                    <div class="user-id">ID: {{ permission.properties.principalId }}</div>
+                                    <div class="user-warning" *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'">
+                                      <i nz-icon nzType="exclamation-circle" nzTheme="fill" style="color: #ff4d4f; margin-right: 4px;"></i>
+                                      <small>User no longer exists in Azure AD</small>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>
+                                  <nz-tag [nzColor]="getPrincipalTypeColor(permission.properties.principalType)">
+                                    {{ permission.properties.principalType }}
+                                  </nz-tag>
+                                </td>
+                                <td>{{ permission.properties.createdOn | date:'short' }}</td>
+                                <td>
+                                  <button nz-button nzType="text" nzSize="small" (click)="viewPermissionDetails(permission)" nz-tooltip="View Details">
+                                    <i nz-icon nzType="eye"></i>
+                                  </button>
+                                  <button nz-button nzType="text" nzSize="small" (click)="removePermission(account, permission)" nz-tooltip="Remove Access" nzDanger>
+                                    <i nz-icon nzType="delete"></i>
+                                  </button>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </nz-table>
+                        </div>
+                      </div>
                     </div>
                   
                     <ng-template #noPermissions>

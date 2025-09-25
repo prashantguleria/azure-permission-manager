@@ -1,0 +1,163 @@
+<div class="homepage-container">
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <div class="hero-text">
+        <h1 nz-typography class="hero-title">
+          <span nz-icon nzType="safety-certificate" nzTheme="outline" class="hero-icon"></span>
+          Azure User Role Manager
+        </h1>
+        <h2 nz-typography class="hero-subtitle">Secure Azure Permission Management Made Simple</h2>
+        <p nz-typography class="hero-description">
+          Professional, client-side web application designed to help organizations manage
+          Azure Active Directory permissions and storage account access with complete security and transparency.
+        </p>
+        <div class="hero-actions">
+          <button nz-button nzType="primary" nzSize="large" (click)="navigateToApp()" class="cta-button">
+            <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
+            Launch Application
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Security Banner -->
+  <section class="security-banner">
+    <div class="security-content">
+      <div class="security-highlight">
+        <span nz-icon nzType="safety" nzTheme="outline" class="security-icon"></span>
+        <div class="security-text">
+          <h3>100% Secure & Private</h3>
+          <p>No data ever stored on external servers. All processing happens locally in your browser.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features-section">
+    <div class="section-content">
+      <div class="section-header">
+        <h2 nz-typography>Powerful Features for Enterprise Security</h2>
+        <p nz-typography class="section-description">
+          Comprehensive tools designed for modern Azure environments with enterprise-grade security.
+        </p>
+      </div>
+
+      <div nz-row [nzGutter]="[24, 24]" class="features-grid">
+        <div nz-col [nzXs]="24" [nzSm]="12" [nzLg]="8" *ngFor="let feature of features">
+          <nz-card class="feature-card" [nzBordered]="false">
+            <div class="feature-content">
+              <div class="feature-icon">
+                <span nz-icon [nzType]="feature.icon" nzTheme="outline"></span>
+              </div>
+              <h3 class="feature-title">{{ feature.title }}</h3>
+              <p class="feature-description">{{ feature.description }}</p>
+            </div>
+          </nz-card>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Security & Privacy Section -->
+  <section class="privacy-section">
+    <div class="section-content">
+      <div class="section-header">
+        <h2 nz-typography>Your Data Stays Yours</h2>
+        <p nz-typography class="section-description">
+          Built with privacy-first principles and complete transparency in data handling.
+        </p>
+      </div>
+
+      <div nz-row [nzGutter]="[24, 24]" class="security-grid">
+        <div nz-col [nzXs]="24" [nzSm]="12" *ngFor="let item of securityFeatures">
+          <div class="security-item">
+            <div class="security-item-icon">
+              <span nz-icon [nzType]="item.icon" nzTheme="outline"></span>
+            </div>
+            <div class="security-item-content">
+              <h4>{{ item.title }}</h4>
+              <p>{{ item.text }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="privacy-highlights">
+        <nz-card class="privacy-card">
+          <div class="privacy-content">
+            <h3>Complete Control Over Your Data</h3>
+            <div class="privacy-points">
+              <div class="privacy-point">
+                <span nz-icon nzType="check-circle" nzTheme="outline" class="check-icon"></span>
+                <span>All audit logs stored in your browser's local storage</span>
+              </div>
+              <div class="privacy-point">
+                <span nz-icon nzType="check-circle" nzTheme="outline" class="check-icon"></span>
+                <span>Clear your data anytime with a single click</span>
+              </div>
+              <div class="privacy-point">
+                <span nz-icon nzType="check-circle" nzTheme="outline" class="check-icon"></span>
+                <span>No tracking, analytics, or third-party data sharing</span>
+              </div>
+              <div class="privacy-point">
+                <span nz-icon nzType="check-circle" nzTheme="outline" class="check-icon"></span>
+                <span>Direct communication with Microsoft Azure APIs only</span>
+              </div>
+            </div>
+          </div>
+        </nz-card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Technical Excellence Section -->
+  <section class="technical-section">
+    <div class="section-content">
+      <div class="section-header">
+        <h2 nz-typography>Built for Enterprise</h2>
+        <p nz-typography class="section-description">
+          Modern architecture with industry-standard security protocols.
+        </p>
+      </div>
+
+      <div class="tech-highlights">
+        <div class="tech-row">
+          <div class="tech-item">
+            <nz-tag nzColor="blue">Angular 18+</nz-tag>
+            <nz-tag nzColor="green">TypeScript</nz-tag>
+            <nz-tag nzColor="purple">Ant Design</nz-tag>
+          </div>
+        </div>
+        <div class="tech-row">
+          <div class="tech-item">
+            <nz-tag nzColor="orange">OAuth 2.0</nz-tag>
+            <nz-tag nzColor="red">Microsoft Graph API</nz-tag>
+            <nz-tag nzColor="cyan">Azure Management API</nz-tag>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action -->
+  <section class="cta-section">
+    <div class="cta-content">
+      <h2>Ready to Secure Your Azure Environment?</h2>
+      <p>Start managing your Azure permissions with confidence, knowing your data stays private and secure.</p>
+      <button nz-button nzType="primary" nzSize="large" (click)="navigateToApp()" class="cta-button">
+        <span nz-icon nzType="rocket" nzTheme="outline"></span>
+        Get Started Now
+      </button>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="homepage-footer">
+    <div class="footer-content">
+      <p>&copy; 2025 Azure User Role Manager - Secure, Private, Professional Azure Permission Management</p>
+    </div>
+  </footer>
+</div>

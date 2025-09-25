@@ -49,3 +49,23 @@ export interface RoleRemovalResult {
   message: string;
   error?: any;
 }
+
+export interface Principal {
+  id: string;
+  displayName: string;
+  email?: string;
+  userPrincipalName?: string;
+  principalType: 'User' | 'ServicePrincipal' | 'Group';
+  isEnabled?: boolean;
+  createdDate?: Date;
+  appId?: string;
+  appDisplayName?: string;
+  servicePrincipalType?: string;
+  description?: string;
+}
+
+export interface PrincipalSearchResult {
+  principals: Principal[];
+  totalCount: number;
+  hasMore: boolean;
+}

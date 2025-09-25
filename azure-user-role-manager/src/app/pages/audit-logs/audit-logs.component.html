@@ -64,29 +64,7 @@
     </div>
   </div>
   
-  <!-- Action Buttons -->
-  <div class="action-buttons" nz-row [nzGutter]="16">
-    <div nz-col [nzSpan]="24">
-      <nz-space>
-        <button *nzSpaceItem nz-button nzType="default" (click)="exportLogs()">
-          <i nz-icon nzType="download"></i>
-          Export Logs
-        </button>
-        <button
-          *nzSpaceItem
-          nz-button
-          nzType="primary"
-          nzDanger
-          nz-popconfirm
-          nzPopconfirmTitle="Are you sure you want to clear all audit logs? This action cannot be undone."
-          nzPopconfirmPlacement="topRight"
-          (nzOnConfirm)="clearAllLogs()">
-          <i nz-icon nzType="delete"></i>
-          Clear All Logs
-        </button>
-      </nz-space>
-    </div>
-  </div>
+
   
   <!-- Audit Logs Table -->
   <nz-table
@@ -103,12 +81,11 @@
     <thead>
       <tr>
         <th nzWidth="180px" nzLeft>Timestamp</th>
-        <th nzWidth="120px">User</th>
+        <th nzWidth="200px">User</th>
         <th nzWidth="150px">Action</th>
         <th nzWidth="120px">Resource Type</th>
-        <th nzWidth="200px">Resource ID</th>
-        <th>Details</th>
-        <th nzWidth="100px" nzRight>Actions</th>
+        <th nzWidth="300px">Resource ID and Details</th>
+        <th>Additional Details</th>
       </tr>
     </thead>
     
@@ -119,7 +96,11 @@
         </td>
         
         <td>
-          <span class="user-id">{{ log.userId || 'System' }}</span>
+          <div>{{ log.userName || log.userId }}</div>
+          <div *ngIf="log.action === 'permission_added' && log.targetUser" class="text-xs text-gray-500 mt-1">
+            → {{ log.targetUser.displayName }}
+            <span *ngIf="log.targetUser.email" class="text-gray-400">({{ log.targetUser.email }})</span>
+          </div>
         </td>
         
         <td>
@@ -133,37 +114,22 @@
         </td>
         
         <td>
-          <span class="resource-id" [title]="log.targetId">
-            {{ log.targetId | slice:0:30 }}
-            <span *ngIf="log.targetId.length > 30">...</span>
-          </span>
+          <div class="resource-details">
+            <div class="resource-id" [title]="log.targetId">
+              <strong>ID:</strong> {{ log.targetId }}
+            </div>
+            <div class="resource-name" *ngIf="log.targetName" [title]="log.targetName">
+              <strong>Name:</strong> {{ log.targetName }}
+            </div>
+          </div>
         </td>
         
         <td>
           <div class="details-cell">
-            <span class="details-text" [title]="formatDetails(log.details)">
-              {{ formatDetails(log.details) | slice:0:50 }}
-              <span *ngIf="formatDetails(log.details).length > 50">...</span>
-            </span>
+            <div class="details-text" [title]="formatDetails(log.details)">
+              {{ formatDetails(log.details) }}
+            </div>
           </div>
-        </td>
-        
-        <td nzRight>
-          <nz-space nzSize="small">
-            <button
-              *nzSpaceItem
-              nz-button
-              nzType="primary"
-              nzSize="small"
-              [disabled]="!log.reversible"
-              [title]="log.reversible ? 'Revert this operation' : 'This operation cannot be reverted'"
-              nz-popconfirm
-              nzPopconfirmTitle="Are you sure you want to revert this operation?"
-              nzPopconfirmPlacement="topRight"
-              (nzOnConfirm)="revertOperation(log)">
-              <i nz-icon nzType="undo"></i>
-            </button>
-          </nz-space>
         </td>
       </tr>
     </tbody>

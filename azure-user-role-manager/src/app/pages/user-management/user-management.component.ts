@@ -24,7 +24,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { AzureApiService } from '../../services/azure-api.service';
 import { AuthService } from '../../services/auth.service';
 import { UtilityService } from '../../services/utility.service';
-import { User, UserSearchResult } from '../../models/user.model';
+import { User, UserSearchResult, Principal, PrincipalSearchResult } from '../../models/user.model';
 
 @Component({
   selector: 'app-user-management',
@@ -61,6 +61,8 @@ export class UserManagementComponent implements OnInit, OnDestroy {
   // Data properties
   users: User[] = [];
   allUsers: User[] = []; // Store all users for client-side pagination
+  principals: Principal[] = [];
+  allPrincipals: User[] = []; // Store all users for client-side pagination
   loading = false;
   searchQuery = '';
   totalCount = 0;
@@ -115,19 +117,38 @@ export class UserManagementComponent implements OnInit, OnDestroy {
         switchMap(query => {
           this.loading = true;
           this.pageIndex = 1;
-          return this.azureApiService.searchUsers(query, this.pageSize * 5) // Get more results for client-side pagination
+          return this.azureApiService.searchPrincipals(query, 'User', this.pageSize * 5) // Get more results for client-side pagination
             .pipe(
               catchError(error => {
                 console.error('Search error:', error);
-                this.message.error('Failed to search users');
+                this.message.error('Failed to search principals');
                 return of({ users: [], totalCount: 0, hasMore: false } as UserSearchResult);
               })
             );
         })
       )
       .subscribe(result => {
-        this.allUsers = result.users; // Store all users for pagination
-        this.totalCount = result.users.length;
+        this.allPrincipals = result.users; // Store all users for pagination
+        // Convert users to display format
+        this.allUsers = result.users.filter((u: User) => u.principalType === 'User' || !u.principalType).map((u: User) => ({
+           id: u.id,
+           displayName: u.displayName,
+           email: u.email || '',
+           userPrincipalName: u.userPrincipalName || '',
+           isEnabled: u.isEnabled || true,
+           createdDate: u.createdDate || new Date()
+         }));
+         // Also include service principals as "users" for display
+         const servicePrincipals = result.users.filter((u: User) => u.principalType === 'ServicePrincipal').map((u: User) => ({
+            id: u.id,
+            displayName: u.displayName + ' (Service Principal)',
+            email: u.email || u.displayName || '',
+            userPrincipalName: u.userPrincipalName || u.displayName || '',
+            isEnabled: true,
+            createdDate: u.createdDate || new Date()
+         }));
+        this.allUsers = [...this.allUsers, ...servicePrincipals];
+        this.totalCount = this.allUsers.length;
         this.hasMore = result.hasMore;
         this.paginateUsers();
         this.loading = false;
@@ -144,18 +165,37 @@ export class UserManagementComponent implements OnInit, OnDestroy {
 
     this.loading = true;
 
-    this.azureApiService.searchUsers(this.searchQuery, this.pageSize * 5) // Get more results for client-side pagination
+    this.azureApiService.searchPrincipals(this.searchQuery, 'User', this.pageSize * 5) // Get more results for client-side pagination
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          console.error('Load users error:', error);
-          this.message.error('Failed to load users');
+          console.error('Load principals error:', error);
+          this.message.error('Failed to load principals');
           return of({ users: [], totalCount: 0, hasMore: false } as UserSearchResult);
         })
       )
       .subscribe(result => {
-        this.allUsers = result.users; // Store all users for pagination
-        this.totalCount = result.users.length;
+        this.allPrincipals = result.users; // Store all users for pagination
+        // Convert users to display format
+        this.allUsers = result.users.filter((u: User) => u.principalType === 'User' || !u.principalType).map((u: User) => ({
+           id: u.id,
+           displayName: u.displayName,
+           email: u.email || '',
+           userPrincipalName: u.userPrincipalName || '',
+           isEnabled: u.isEnabled || true,
+           createdDate: u.createdDate || new Date()
+         }));
+         // Also include service principals as "users" for display
+         const servicePrincipals = result.users.filter((u: User) => u.principalType === 'ServicePrincipal').map((u: User) => ({
+            id: u.id,
+            displayName: u.displayName + ' (Service Principal)',
+            email: u.email || u.userPrincipalName || '',
+            userPrincipalName: u.userPrincipalName || '',
+            isEnabled: u.isEnabled || true,
+            createdDate: u.createdDate || new Date()
+         }));
+        this.allUsers = [...this.allUsers, ...servicePrincipals];
+        this.totalCount = this.allUsers.length;
         this.hasMore = result.hasMore;
         this.paginateUsers();
         this.loading = false;
@@ -226,11 +266,11 @@ export class UserManagementComponent implements OnInit, OnDestroy {
 
   // Navigation methods
   viewUserDetail(userId: string): void {
-    this.router.navigate(['/user-detail', userId]);
+    this.router.navigate(['/app/user-detail', userId]);
   }
 
   viewUserPermissions(user: User): void {
-    this.router.navigate(['/user-permissions'], {
+    this.router.navigate(['/app/user-permissions'], {
       queryParams: {
         userId: user.id,
         displayName: user.displayName,

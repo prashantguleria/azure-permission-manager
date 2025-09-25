@@ -37,7 +37,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Check if user is already authenticated
     if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/tenants']);
+      this.router.navigate(['/app/tenants']);
     }
   }
 

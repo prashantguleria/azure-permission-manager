@@ -1,0 +1,395 @@
+.homepage-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  
+  // Hero Section
+  .hero-section {
+    padding: 80px 20px 60px;
+    text-align: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.1);
+      z-index: 1;
+    }
+    
+    .hero-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 2;
+    }
+    
+    .hero-title {
+      font-size: 3.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: white !important;
+      
+      .hero-icon {
+        font-size: 3rem;
+        margin-right: 1rem;
+        color: #ffd700;
+      }
+      
+      @media (max-width: 768px) {
+        font-size: 2.5rem;
+        
+        .hero-icon {
+          font-size: 2rem;
+        }
+      }
+    }
+    
+    .hero-subtitle {
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 1.5rem;
+      color: rgba(255, 255, 255, 0.9) !important;
+      
+      @media (max-width: 768px) {
+        font-size: 1.25rem;
+      }
+    }
+    
+    .hero-description {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto 2.5rem;
+      color: rgba(255, 255, 255, 0.85) !important;
+      
+      @media (max-width: 768px) {
+        font-size: 1rem;
+      }
+    }
+    
+    .hero-actions {
+      .cta-button {
+        height: 50px;
+        padding: 0 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 25px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+      }
+    }
+  }
+  
+  // Security Banner
+  .security-banner {
+    background: #1f2937;
+    color: white;
+    padding: 30px 20px;
+    
+    .security-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    
+    .security-highlight {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      
+      @media (max-width: 768px) {
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .security-icon {
+        font-size: 2rem;
+        color: #10b981;
+      }
+      
+      .security-text {
+        h3 {
+          margin: 0 0 0.5rem;
+          font-size: 1.25rem;
+          font-weight: 600;
+        }
+        
+        p {
+          margin: 0;
+          color: rgba(255, 255, 255, 0.8);
+        }
+      }
+    }
+  }
+  
+  // Section Styles
+  .features-section,
+  .privacy-section,
+  .technical-section {
+    padding: 80px 20px;
+    
+    .section-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 3rem;
+      
+      h2 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: #1f2937 !important;
+        
+        @media (max-width: 768px) {
+          font-size: 2rem;
+        }
+      }
+      
+      .section-description {
+        font-size: 1.1rem;
+        color: #6b7280 !important;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+    }
+  }
+  
+  // Features Grid
+  .features-grid {
+    .feature-card {
+      height: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+      border: 1px solid #e5e7eb;
+      
+      &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      }
+      
+      .feature-content {
+        text-align: center;
+        padding: 1rem;
+        
+        .feature-icon {
+          font-size: 2.5rem;
+          color: #667eea;
+          margin-bottom: 1rem;
+        }
+        
+        .feature-title {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin-bottom: 0.75rem;
+          color: #1f2937;
+        }
+        
+        .feature-description {
+          color: #6b7280;
+          line-height: 1.6;
+          margin: 0;
+        }
+      }
+    }
+  }
+  
+  // Privacy Section
+  .privacy-section {
+    background: #f9fafb;
+    
+    .security-grid {
+      margin-bottom: 3rem;
+      
+      .security-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.5rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        height: 100%;
+        
+        .security-item-icon {
+          font-size: 1.5rem;
+          color: #10b981;
+          flex-shrink: 0;
+        }
+        
+        .security-item-content {
+          h4 {
+            margin: 0 0 0.5rem;
+            font-weight: 600;
+            color: #1f2937;
+          }
+          
+          p {
+            margin: 0;
+            color: #6b7280;
+            line-height: 1.5;
+          }
+        }
+      }
+    }
+    
+    .privacy-highlights {
+      .privacy-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e5e7eb;
+        
+        .privacy-content {
+          text-align: center;
+          
+          h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #1f2937;
+          }
+          
+          .privacy-points {
+            display: grid;
+            gap: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+            
+            .privacy-point {
+              display: flex;
+              align-items: center;
+              gap: 0.75rem;
+              text-align: left;
+              
+              .check-icon {
+                color: #10b981;
+                font-size: 1.1rem;
+                flex-shrink: 0;
+              }
+              
+              span:last-child {
+                color: #374151;
+                line-height: 1.5;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Technical Section
+  .technical-section {
+    .tech-highlights {
+      text-align: center;
+      
+      .tech-row {
+        margin-bottom: 1rem;
+        
+        .tech-item {
+          display: flex;
+          justify-content: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+      }
+    }
+  }
+  
+  // Call to Action
+  .cta-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 60px 20px;
+    text-align: center;
+    
+    .cta-content {
+      max-width: 800px;
+      margin: 0 auto;
+      
+      h2 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        
+        @media (max-width: 768px) {
+          font-size: 2rem;
+        }
+      }
+      
+      p {
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      
+      .cta-button {
+        height: 50px;
+        padding: 0 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 25px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+      }
+    }
+  }
+  
+  // Footer
+  .homepage-footer {
+    background: #1f2937;
+    color: white;
+    padding: 30px 20px;
+    text-align: center;
+    
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      
+      p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+      }
+    }
+  }
+}
+
+// Global responsive adjustments
+@media (max-width: 768px) {
+  .homepage-container {
+    .hero-section {
+      padding: 60px 20px 40px;
+    }
+    
+    .features-section,
+    .privacy-section,
+    .technical-section {
+      padding: 60px 20px;
+    }
+    
+    .cta-section {
+      padding: 40px 20px;
+    }
+  }
+}

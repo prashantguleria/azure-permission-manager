@@ -112,7 +112,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         this.loadUserPermissions();
       } else {
         // If no user selected, redirect back to user management
-        this.router.navigate(['/user-management']);
+        this.router.navigate(['/app/user-management']);
       }
     });
   }
