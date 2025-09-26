@@ -1,10 +1,10 @@
-import { Component, OnInit, Output, EventEmitter, Input } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter, Input, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { SelectModule } from 'primeng/select';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { MessageService } from 'primeng/api';
+import { MessageModule } from 'primeng/message';
 import { PermissionsService } from '../../services/permissions.service';
 import { Subscription } from '../../models/permissions.model';
 import { Subject, takeUntil } from 'rxjs';
@@ -15,35 +15,41 @@ import { Subject, takeUntil } from 'rxjs';
   imports: [
     CommonModule,
     FormsModule,
-    NzSelectModule,
-    NzSpinModule,
-    NzAlertModule
+    SelectModule,
+    ProgressSpinnerModule,
+    MessageModule
   ],
   template: `
     <div class="subscription-selector">
       <div class="selector-header">
-        <label class="selector-label">Select Subscription:</label>
-        <span class="required-indicator" *ngIf="required">*</span>
+        <span class="selector-label">Subscription</span>
+        <span *ngIf="required" class="required-indicator">*</span>
       </div>
       
       <div class="selector-content">
-        <nz-select
+        <p-select 
+          class="subscription-select"
+          [placeholder]="placeholder"
           [(ngModel)]="selectedSubscriptionId"
-          (ngModelChange)="onSubscriptionChange($event)"
-          [nzPlaceHolder]="placeholder"
-          [nzLoading]="loading"
-          [nzDisabled]="loading || subscriptions.length === 0"
-          nzShowSearch
-          nzAllowClear
-          class="subscription-select">
-          <nz-option 
-            *ngFor="let subscription of subscriptions" 
-            [nzLabel]="getSubscriptionLabel(subscription)" 
-            [nzValue]="subscription.subscriptionId">
-          </nz-option>
-        </nz-select>
+          (onChange)="onSubscriptionChange($event.value)"
+          [disabled]="loading"
+          [showClear]="true"
+          [options]="subscriptions"
+          optionLabel="displayName"
+          optionValue="subscriptionId">
+          <ng-template pTemplate="selectedItem" let-selectedOption>
+            <div *ngIf="selectedOption">
+              {{ getSubscriptionLabel(selectedOption) }}
+            </div>
+          </ng-template>
+          <ng-template pTemplate="item" let-subscription>
+            <div>
+              {{ getSubscriptionLabel(subscription) }}
+            </div>
+          </ng-template>
+        </p-select>
         
-        <nz-spin [nzSpinning]="loading" nzSize="small" class="loading-spinner" *ngIf="loading"></nz-spin>
+        <p-progressSpinner *ngIf="loading" class="loading-spinner" [style]="{width: '20px', height: '20px'}"></p-progressSpinner>
       </div>
       
       <div class="subscription-info" *ngIf="selectedSubscription && !loading">
@@ -57,21 +63,17 @@ import { Subject, takeUntil } from 'rxjs';
         </div>
       </div>
       
-      <nz-alert 
+      <p-message 
         *ngIf="!loading && subscriptions.length === 0 && !error"
-        nzType="warning"
-        nzMessage="No subscriptions available"
-        nzDescription="You don't have access to any Azure subscriptions or they haven't been loaded yet."
-        nzShowIcon>
-      </nz-alert>
+        severity="warn"
+        text="No subscriptions available. You do not have access to any Azure subscriptions or they have not been loaded yet.">
+      </p-message>
       
-      <nz-alert 
+      <p-message 
         *ngIf="error"
-        nzType="error"
-        [nzMessage]="error"
-        nzDescription="Failed to load subscriptions. Please try refreshing the page."
-        nzShowIcon>
-      </nz-alert>
+        severity="error"
+        [text]="getErrorMessage()">
+      </p-message>
     </div>
   `,
   styles: [`
@@ -155,13 +157,9 @@ import { Subject, takeUntil } from 'rxjs';
       color: #faad14;
       font-weight: 500;
     }
-    
-    nz-alert {
-      margin-top: 8px;
-    }
   `]
 })
-export class SubscriptionSelectorComponent implements OnInit {
+export class SubscriptionSelectorComponent implements OnInit, OnDestroy {
   @Input() placeholder: string = 'Select a subscription';
   @Input() required: boolean = true;
   @Input() preselectedSubscriptionId?: string;
@@ -178,7 +176,7 @@ export class SubscriptionSelectorComponent implements OnInit {
 
   constructor(
     private permissionsService: PermissionsService,
-    private message: NzMessageService
+    private messageService: MessageService
   ) {}
 
   ngOnInit(): void {
@@ -222,7 +220,11 @@ export class SubscriptionSelectorComponent implements OnInit {
           console.error('Failed to load subscriptions:', error);
           this.error = 'Failed to load subscriptions';
           this.loading = false;
-          this.message.error('Failed to load subscriptions. Please try again.');
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load subscriptions. Please try again.'
+          });
         }
       });
   }
@@ -250,5 +252,9 @@ export class SubscriptionSelectorComponent implements OnInit {
 
   clearSelection(): void {
     this.onSubscriptionChange(null);
+  }
+
+  getErrorMessage(): string {
+    return `Failed to load subscriptions: ${this.error}. Please try refreshing the page.`;
   }
 }

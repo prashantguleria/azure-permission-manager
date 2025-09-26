@@ -1,95 +1,101 @@
-<nz-layout class="tenant-layout">
+<div class="tenant-layout">
   <!-- Content -->
-  <nz-content class="content">
-    <div nz-row class="page-content" [nzGutter]="[16, 16]">
-      <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" [nzXl]="24">
+  <div class="content">
+    <div class="page-content flex flex-column gap-4">
+      <div class="col-12">
       <div class="page-header">
-        <h1 nz-typography class="page-title">Select Tenant</h1>
-        <p nz-typography nzType="secondary" class="page-description">
+        <h1 class="page-title">Select Tenant</h1>
+        <p class="page-description text-color-secondary">
           Choose the Azure Active Directory tenant you want to manage
         </p>
       </div>
 
       <!-- Search Section -->
       <div class="search-section">
-        <nz-input-group nzSize="large" [nzSuffix]="suffixIconSearch">
+        <div class="p-inputgroup">
           <input 
             type="text" 
-            nz-input 
+            pInputText
             placeholder="Search tenants by name or domain..."
             [(ngModel)]="searchTerm"
             (input)="onSearch()"
+            class="w-full"
           />
-        </nz-input-group>
-        <ng-template #suffixIconSearch>
-          <span nz-icon nzType="search" nzTheme="outline"></span>
-        </ng-template>
+          <span class="p-inputgroup-addon">
+            <i class="pi pi-search"></i>
+          </span>
+        </div>
       </div>
 
       <!-- Loading State -->
       <div *ngIf="isLoading" class="loading-container">
-        <nz-spin nzSize="large">
-          <div class="loading-content">
+        <div class="flex flex-column align-items-center justify-content-center p-4">
+          <p-progressSpinner></p-progressSpinner>
+          <div class="loading-content mt-3">
             <p>Loading available tenants...</p>
           </div>
-        </nz-spin>
+        </div>
       </div>
 
       <!-- Tenants Grid -->
       <div *ngIf="!isLoading" class="tenants-grid">
         <div *ngIf="filteredTenants.length === 0" class="empty-state">
-          <nz-empty 
-            nzNotFoundImage="simple" 
-            [nzNotFoundContent]="searchTerm ? 'No tenants found matching your search' : 'No tenants available'">
-          </nz-empty>
+          <div class="flex flex-column align-items-center justify-content-center p-6">
+            <i class="pi pi-inbox text-6xl text-color-secondary mb-3"></i>
+            <p class="text-color-secondary">{{ searchTerm ? 'No tenants found matching your search' : 'No tenants available' }}</p>
+          </div>
         </div>
 
-        <nz-card 
+        <p-card 
           *ngFor="let tenant of filteredTenants" 
-          class="tenant-card"
+          class="tenant-card cursor-pointer"
           [class.current-tenant]="tenant.isDefault"
-          [nzHoverable]="true"
-          [nzActions]="[actionSelect]"
           (click)="selectTenant(tenant)">
           
           <div class="tenant-info">
-            <div class="tenant-header">
-              <div class="tenant-avatar">
-                <span nz-icon nzType="bank" nzTheme="outline"></span>
+            <div class="tenant-header flex align-items-center justify-content-between mb-3">
+              <div class="flex align-items-center gap-3">
+                <div class="tenant-avatar">
+                  <i class="pi pi-building text-2xl"></i>
+                </div>
+                <div class="tenant-details">
+                  <h3 class="tenant-name m-0 mb-1">{{ tenant.displayName }}</h3>
+                  <p class="tenant-domain m-0 text-color-secondary">{{ tenant.defaultDomain }}</p>
+                </div>
               </div>
-              <div class="tenant-details">
-                <h3 class="tenant-name">{{ tenant.displayName }}</h3>
-                <p class="tenant-domain">{{ tenant.defaultDomain }}</p>
-              </div>
-              <div class="tenant-badges">
-                <nz-tag *ngIf="tenant.isDefault" nzColor="green">
-                  <span nz-icon nzType="check-circle" nzTheme="outline"></span>
+              <div class="tenant-badges flex gap-2">
+                <p-tag *ngIf="tenant.isDefault" severity="success" class="flex align-items-center gap-1">
+                  <i class="pi pi-check-circle"></i>
                   Current
-                </nz-tag>
-                <nz-tag nzColor="default">{{ tenant.countryLetterCode }}</nz-tag>
+                </p-tag>
+                <p-tag severity="secondary">{{ tenant.countryLetterCode }}</p-tag>
               </div>
             </div>
             
-            <div class="tenant-meta">
-              <div class="meta-item">
-                <span nz-icon nzType="global" nzTheme="outline"></span>
+            <div class="tenant-meta flex gap-4">
+              <div class="meta-item flex align-items-center gap-2">
+                <i class="pi pi-globe"></i>
                 <span>{{ tenant.countryLetterCode }}</span>
               </div>
-              <div class="meta-item">
-                <span nz-icon nzType="link" nzTheme="outline"></span>
+              <div class="meta-item flex align-items-center gap-2">
+                <i class="pi pi-link"></i>
                 <span>{{ tenant.defaultDomain }}</span>
               </div>
             </div>
           </div>
 
-          <ng-template #actionSelect>
-            <span *ngIf="!tenant.isDefault" nz-icon nzType="swap" nzTheme="outline"></span>
-            <span *ngIf="tenant.isDefault" nz-icon nzType="arrow-right" nzTheme="outline"></span>
-            {{ tenant.isDefault ? 'Continue' : 'Switch Tenant' }}
+          <ng-template pTemplate="footer">
+            <div class="flex align-items-center justify-content-center gap-2">
+              <i *ngIf="!tenant.isDefault" class="pi pi-refresh"></i>
+              <i *ngIf="tenant.isDefault" class="pi pi-arrow-right"></i>
+              {{ tenant.isDefault ? 'Continue' : 'Switch Tenant' }}
+            </div>
           </ng-template>
-        </nz-card>
+        </p-card>
       </div>
       </div>
     </div>
-  </nz-content>
-</nz-layout>
+  </div>
+</div>
+
+<p-toast></p-toast>

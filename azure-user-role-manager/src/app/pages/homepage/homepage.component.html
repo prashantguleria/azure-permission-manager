@@ -3,20 +3,20 @@
   <section class="hero-section">
     <div class="hero-content">
       <div class="hero-text">
-        <h1 nz-typography class="hero-title">
-          <span nz-icon nzType="safety-certificate" nzTheme="outline" class="hero-icon"></span>
+        <h1 class="hero-title">
+          <i class="pi pi-shield hero-icon"></i>
           Azure User Role Manager
         </h1>
-        <h2 nz-typography class="hero-subtitle">Secure Azure Permission Management Made Simple</h2>
-        <p nz-typography class="hero-description">
+        <h2 class="hero-subtitle">Secure Azure Permission Management Made Simple</h2>
+        <p class="hero-description">
           Professional, client-side web application designed to help organizations manage
           Azure Active Directory permissions and storage account access with complete security and transparency.
         </p>
         <div class="hero-actions">
-          <button nz-button nzType="primary" nzSize="large" (click)="navigateToApp()" class="cta-button">
-            <span nz-icon nzType="arrow-right" nzTheme="outline"></span>
+          <p-button (onClick)="navigateToApp()" class="cta-button" size="large" severity="primary">
+            <i class="pi pi-arrow-right"></i>
             Launch Application
-          </button>
+          </p-button>
         </div>
       </div>
     </div>
@@ -26,7 +26,7 @@
   <section class="security-banner">
     <div class="security-content">
       <div class="security-highlight">
-        <span nz-icon nzType="safety" nzTheme="outline" class="security-icon"></span>
+        <i class="pi pi-shield security-icon"></i>
         <div class="security-text">
           <h3>100% Secure & Private</h3>
           <p>No data ever stored on external servers. All processing happens locally in your browser.</p>
@@ -39,23 +39,23 @@
   <section class="features-section">
     <div class="section-content">
       <div class="section-header">
-        <h2 nz-typography>Powerful Features for Enterprise Security</h2>
-        <p nz-typography class="section-description">
+        <h2>Powerful Features for Enterprise Security</h2>
+        <p class="section-description">
           Comprehensive tools designed for modern Azure environments with enterprise-grade security.
         </p>
       </div>
 
-      <div nz-row [nzGutter]="[24, 24]" class="features-grid">
-        <div nz-col [nzXs]="24" [nzSm]="12" [nzLg]="8" *ngFor="let feature of features">
-          <nz-card class="feature-card" [nzBordered]="false">
+      <div class="p-grid features-grid">
+        <div class="p-col-12 p-md-6 p-lg-4" *ngFor="let feature of features">
+          <p-card class="feature-card">
             <div class="feature-content">
               <div class="feature-icon">
-                <span nz-icon [nzType]="feature.icon" nzTheme="outline"></span>
+                <i class="pi pi-{{feature.icon}}"></i>
               </div>
               <h3 class="feature-title">{{ feature.title }}</h3>
               <p class="feature-description">{{ feature.description }}</p>
             </div>
-          </nz-card>
+          </p-card>
         </div>
       </div>
     </div>
@@ -65,17 +65,17 @@
   <section class="privacy-section">
     <div class="section-content">
       <div class="section-header">
-        <h2 nz-typography>Your Data Stays Yours</h2>
-        <p nz-typography class="section-description">
+        <h2>Your Data Stays Yours</h2>
+        <p class="section-description">
           Built with privacy-first principles and complete transparency in data handling.
         </p>
       </div>
 
-      <div nz-row [nzGutter]="[24, 24]" class="security-grid">
-        <div nz-col [nzXs]="24" [nzSm]="12" *ngFor="let item of securityFeatures">
+      <div class="p-grid security-grid">
+        <div class="p-col-12 p-md-6" *ngFor="let item of securityFeatures">
           <div class="security-item">
             <div class="security-item-icon">
-              <span nz-icon [nzType]="item.icon" nzTheme="outline"></span>
+              <i class="pi pi-{{item.icon}}"></i>
             </div>
             <div class="security-item-content">
               <h4>{{ item.title }}</h4>
@@ -86,29 +86,29 @@
       </div>
 
       <div class="privacy-highlights">
-        <nz-card class="privacy-card">
+        <p-card class="privacy-card">
           <div class="privacy-content">
             <h3>Complete Control Over Your Data</h3>
             <div class="privacy-points">
               <div class="privacy-point">
-                <span nz-icon nzType="check-circle" nzTheme="outline" class="check-icon"></span>
+                <i class="pi pi-check-circle check-icon"></i>
                 <span>All audit logs stored in your browser's local storage</span>
               </div>
               <div class="privacy-point">
-                <span nz-icon nzType="check-circle" nzTheme="outline" class="check-icon"></span>
+                <i class="pi pi-check-circle check-icon"></i>
                 <span>Clear your data anytime with a single click</span>
               </div>
               <div class="privacy-point">
-                <span nz-icon nzType="check-circle" nzTheme="outline" class="check-icon"></span>
+                <i class="pi pi-check-circle check-icon"></i>
                 <span>No tracking, analytics, or third-party data sharing</span>
               </div>
               <div class="privacy-point">
-                <span nz-icon nzType="check-circle" nzTheme="outline" class="check-icon"></span>
+                <i class="pi pi-check-circle check-icon"></i>
                 <span>Direct communication with Microsoft Azure APIs only</span>
               </div>
             </div>
           </div>
-        </nz-card>
+        </p-card>
       </div>
     </div>
   </section>
@@ -117,8 +117,8 @@
   <section class="technical-section">
     <div class="section-content">
       <div class="section-header">
-        <h2 nz-typography>Built for Enterprise</h2>
-        <p nz-typography class="section-description">
+        <h2>Built for Enterprise</h2>
+        <p class="section-description">
           Modern architecture with industry-standard security protocols.
         </p>
       </div>
@@ -126,16 +126,16 @@
       <div class="tech-highlights">
         <div class="tech-row">
           <div class="tech-item">
-            <nz-tag nzColor="blue">Angular 18+</nz-tag>
-            <nz-tag nzColor="green">TypeScript</nz-tag>
-            <nz-tag nzColor="purple">Ant Design</nz-tag>
+            <p-tag severity="info" value="Angular 20+"></p-tag>
+            <p-tag severity="success" value="TypeScript"></p-tag>
+            <p-tag severity="secondary" value="PrimeNG"></p-tag>
           </div>
         </div>
         <div class="tech-row">
           <div class="tech-item">
-            <nz-tag nzColor="orange">OAuth 2.0</nz-tag>
-            <nz-tag nzColor="red">Microsoft Graph API</nz-tag>
-            <nz-tag nzColor="cyan">Azure Management API</nz-tag>
+            <p-tag severity="warning" value="OAuth 2.0"></p-tag>
+            <p-tag severity="danger" value="Microsoft Graph API"></p-tag>
+            <p-tag severity="info" value="Azure Management API"></p-tag>
           </div>
         </div>
       </div>
@@ -147,10 +147,10 @@
     <div class="cta-content">
       <h2>Ready to Secure Your Azure Environment?</h2>
       <p>Start managing your Azure permissions with confidence, knowing your data stays private and secure.</p>
-      <button nz-button nzType="primary" nzSize="large" (click)="navigateToApp()" class="cta-button">
-        <span nz-icon nzType="rocket" nzTheme="outline"></span>
+      <p-button (onClick)="navigateToApp()" class="cta-button" size="large" severity="primary">
+        <i class="pi pi-rocket"></i>
         Get Started Now
-      </button>
+      </p-button>
     </div>
   </section>
 

@@ -1,27 +1,31 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subject, firstValueFrom } from 'rxjs';
+import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { FormControl } from '@angular/forms';
+import { MenuItem } from 'primeng/api';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzAlertModule } from 'ng-zorro-antd/alert';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
-import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
-import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
-import { NzListModule } from 'ng-zorro-antd/list';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
-import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzStatisticModule } from 'ng-zorro-antd/statistic';
-
+import { CardModule } from 'primeng/card';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
+import { TagModule } from 'primeng/tag';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { BreadcrumbModule } from 'primeng/breadcrumb';
+import { CheckboxModule } from 'primeng/checkbox';
+import { DialogModule } from 'primeng/dialog';
+import { DialogService } from 'primeng/dynamicdialog';
+import { DividerModule } from 'primeng/divider';
+import { MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
+import { MessageModule } from 'primeng/message';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService } from 'primeng/api';
+import { InputGroupModule } from 'primeng/inputgroup';
+import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
+// Services
 import { AzureApiService } from '../../services/azure-api.service';
 import { PermissionsService } from '../../services/permissions.service';
 import {
@@ -34,6 +38,7 @@ import {
   PermissionError
 } from '../../models/permissions.model';
 import { User } from '../../models/user.model';
+import { PermissionDetailsComponent } from '../../components/permission-details/permission-details.component';
 
 interface PermissionTableItem {
   id: string;
@@ -72,24 +77,25 @@ interface RoleDefinition {
   imports: [
     CommonModule,
     FormsModule,
-    NzCardModule,
-    NzTableModule,
-    NzButtonModule,
-    NzInputModule,
-    NzSelectModule,
-    NzTagModule,
-    NzAlertModule,
-    NzSpinModule,
-    NzIconModule,
-    NzEmptyModule,
-    NzBreadCrumbModule,
-    NzCheckboxModule,
-    NzModalModule,
-    NzListModule,
-    NzDividerModule,
-    NzStatisticModule,
+    CardModule,
+    TableModule,
+    ButtonModule,
+    InputTextModule,
+    SelectModule,
+    TagModule,
+    ProgressSpinnerModule,
+    BreadcrumbModule,
+    CheckboxModule,
+    DialogModule,
+    DividerModule,
+    ToastModule,
+    MessageModule,
+    ConfirmDialogModule,
+    InputGroupModule,
+    InputGroupAddonModule,
 
   ],
+  providers: [MessageService, DialogService, ConfirmationService],
   templateUrl: './user-permissions.component.html',
   styleUrls: ['./user-permissions.component.css']
 })
@@ -105,6 +111,10 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
   selectedUser: User | null = null;
   permissionSummary: PermissionSummary | null = null;
   subscriptions: { id: string; name: string }[] = [];
+  
+  // Breadcrumb navigation
+  breadcrumbItems: MenuItem[] = [];
+  homeItem: MenuItem = { icon: 'pi pi-home', routerLink: '/app/dashboard' };
   
   // Add permission modal
   showAddPermissionModal = false;
@@ -140,7 +150,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
   
   // Bulk operations
   selectedPermissions = new Set<string>();
-  allSelected = false;
+  selectAll = false;
   indeterminate = false;
   bulkOperationLoading = false;
   
@@ -151,8 +161,9 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     private permissionsService: PermissionsService,
     private route: ActivatedRoute,
     private router: Router,
-    private modal: NzModalService,
-    private message: NzMessageService
+    private dialogService: DialogService,
+    private messageService: MessageService,
+    private confirmationService: ConfirmationService
   ) {}
 
   ngOnInit(): void {
@@ -167,6 +178,11 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
           isEnabled: true,
           createdDate: new Date()
         };
+        this.userId = params['userId'];
+        
+        // Initialize breadcrumb
+        this.initializeBreadcrumb();
+        
         this.loadUserPermissions();
       } else {
         // If no user selected, redirect back to user management
@@ -327,18 +343,18 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
       this.allPermissions = this.convertToTableFormat(permissions);
       this.applyFilters();
 
-      this.message.success('Permissions loaded successfully');
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Permissions loaded successfully' });
     } catch (error) {
       console.error('Failed to load permissions:', error);
       
       if (error instanceof PermissionError) {
         this.error = error.message;
         if (error.code === 'INSUFFICIENT_PERMISSIONS') {
-          this.message.error('You do not have sufficient permissions to view this user\'s permissions');
+          this.messageService.add({ severity: 'error', summary: 'Access Denied', detail: 'You do not have sufficient permissions to view this user\'s permissions' });
         }
       } else {
         this.error = 'Failed to load user permissions. Please try again.';
-        this.message.error('Failed to load permissions');
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load permissions' });
       }
     } finally {
       this.loading = false;
@@ -459,7 +475,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
 
   exportPermissions(): void {
     if (!this.permissions || !this.selectedUser) {
-      this.message.warning('No permissions to export');
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'No permissions to export' });
       return;
     }
 
@@ -468,7 +484,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
       const displayName = this.selectedUser.displayName;
       
       if (!userId || !displayName) {
-        this.message.error('User information is incomplete');
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'User information is incomplete' });
         return;
       }
       
@@ -485,10 +501,10 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
       link.click();
       window.URL.revokeObjectURL(url);
 
-      this.message.success('Permissions exported successfully');
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Permissions exported successfully' });
     } catch (error) {
       console.error('Export failed:', error);
-      this.message.error('Failed to export permissions');
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to export permissions' });
     }
   }
 
@@ -540,15 +556,22 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     return this.selectedUser?.displayName || 'Current User';
   }
 
+  // Breadcrumb initialization
+  private initializeBreadcrumb(): void {
+    this.breadcrumbItems = [
+      { label: 'Users', command: () => this.navigateToUsers() },
+      { label: this.getUserDisplayName(), command: () => this.navigateToUserDetails() },
+      { label: 'Permissions' }
+    ];
+  }
+
   // Navigation Methods
   navigateToUsers(): void {
     this.router.navigate(['/app/user-management']);
   }
 
   navigateToUserDetails(): void {
-    this.router.navigate(['/app/user-management'], { 
-      queryParams: { selectedUserId: this.userId } 
-    });
+    this.router.navigate(['/app/user-detail', this.userId]);
   }
 
   // Bulk Selection Methods
@@ -556,13 +579,17 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     const selectedCount = this.selectedPermissions.size;
     const totalCount = this.filteredPermissions.length;
     
-    this.allSelected = selectedCount > 0 && selectedCount === totalCount;
+    this.selectAll = selectedCount === totalCount && totalCount > 0;
     this.indeterminate = selectedCount > 0 && selectedCount < totalCount;
   }
 
-  onAllChecked(checked: boolean): void {
+  onAllChecked(event: any): void {
+    // Handle PrimeNG checkbox event - ensure we get boolean value to prevent iteration errors
+    const isChecked = typeof event === 'boolean' ? event : Boolean(event?.checked);
+    
     this.filteredPermissions.forEach(permission => {
-      if (checked) {
+      permission.selected = isChecked;
+      if (isChecked) {
         this.selectedPermissions.add(permission.id);
       } else {
         this.selectedPermissions.delete(permission.id);
@@ -571,8 +598,11 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     this.updateSelectionState();
   }
 
-  onItemChecked(id: string, checked: boolean): void {
-    if (checked) {
+  onItemChecked(id: string, event: any): void {
+    // Handle PrimeNG checkbox event - ensure we get boolean value to prevent iteration errors
+    const isChecked = typeof event === 'boolean' ? event : Boolean(event?.checked);
+    
+    if (isChecked) {
       this.selectedPermissions.add(id);
     } else {
       this.selectedPermissions.delete(id);
@@ -587,48 +617,90 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
   // Bulk Operations
   async bulkRemovePermissions(): Promise<void> {
     if (this.selectedPermissions.size === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'No permissions selected for removal'
+      });
       return;
     }
 
     this.bulkOperationLoading = true;
     
     try {
-      const selectedItems = this.filteredPermissions.filter(p => 
-        this.selectedPermissions.has(p.id)
+      const selectedIds = Array.from(this.selectedPermissions);
+      const permissionsToRemove = this.filteredPermissions.filter(
+        permission => selectedIds.includes(permission.id)
       );
       
-      // Remove permissions via API calls
-      const removePromises = selectedItems.map(item => 
-        this.removePermission(item.resourceId || '', item.principalId || '', item.roleName)
-      );
+      let successCount = 0;
+      let errorCount = 0;
       
-      await Promise.all(removePromises);
+      // Remove each permission individually
+      for (const permission of permissionsToRemove) {
+        try {
+          await this.removePermissionWithoutReload(permission);
+          successCount++;
+        } catch (error) {
+          console.error(`Error removing permission ${permission.id}:`, error);
+          errorCount++;
+        }
+      }
       
-      // Clear selections and refresh
+      // Clear selection
       this.selectedPermissions.clear();
       this.updateSelectionState();
+      
+      // Reload permissions to reflect changes from Azure
       await this.loadUserPermissions();
       
-      // Show success message
-      console.log(`Successfully removed ${selectedItems.length} permissions`);
+      // Show summary message
+      if (errorCount === 0) {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: `${successCount} permission(s) removed successfully`
+        });
+      } else {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Partial Success',
+          detail: `${successCount} permission(s) removed, ${errorCount} failed`
+        });
+      }
       
     } catch (error) {
       console.error('Error removing permissions:', error);
-      // Handle error - could show notification
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to remove selected permissions'
+      });
     } finally {
       this.bulkOperationLoading = false;
     }
   }
 
-  private async removePermission(resourceId: string, principalId: string, roleName: string): Promise<void> {
-    // Simulate API call to remove permission
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // In real implementation, make actual API call
-        console.log(`Removing permission: ${roleName} from ${resourceId} for ${principalId}`);
-        resolve();
-      }, 500);
-    });
+  private async removePermissionWithoutReload(permission: PermissionTableItem): Promise<void> {
+    try {
+      // Call appropriate removal method based on permission type
+      switch (permission.type) {
+        case 'Directory':
+          await this.removeDirectoryRoleAssignment(permission);
+          break;
+        case 'Application':
+          await this.removeApplicationRoleAssignment(permission);
+          break;
+        case 'RBAC':
+          await this.removeRBACRoleAssignment(permission);
+          break;
+        default:
+          throw new Error(`Unsupported permission type: ${permission.type}`);
+      }
+    } catch (error) {
+      console.error(`Error removing permission ${permission.id}:`, error);
+      throw error;
+    }
   }
 
   // Add Permission Modal Methods
@@ -785,5 +857,227 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     }
   }
 
+  viewPermissionDetails(permission: PermissionTableItem): void {
+    const ref = this.dialogService.open(PermissionDetailsComponent, {
+      header: 'Permission Details',
+      width: '600px',
+      data: {
+        permission: permission
+      }
+    });
+  }
+
+  confirmRemovePermission(permission: PermissionTableItem): void {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to remove the "${permission.roleName}" role assignment for this user?`,
+      header: 'Confirm Permission Removal',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.removePermission(permission);
+      }
+    });
+  }
+
+  private async removePermission(permission: PermissionTableItem): Promise<void> {
+    try {
+      this.loading = true;
+      
+      // Call appropriate removal method based on permission type
+      switch (permission.type) {
+        case 'Directory':
+          await this.removeDirectoryRoleAssignment(permission);
+          break;
+        case 'Application':
+          await this.removeApplicationRoleAssignment(permission);
+          break;
+        case 'RBAC':
+          await this.removeRBACRoleAssignment(permission);
+          break;
+        default:
+          throw new Error(`Unsupported permission type: ${permission.type}`);
+      }
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: `${permission.type} role "${permission.roleName}" removed successfully`
+      });
+      
+      // Reload permissions to reflect changes from Azure
+      await this.loadUserPermissions();
+      
+    } catch (error) {
+      console.error('Error removing permission:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: error instanceof Error ? error.message : 'Failed to remove permission'
+      });
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  getScopeLevel(scope: string): string {
+    // Extract scope level from Azure resource path
+    if (scope.includes('/subscriptions/') && scope.includes('/resourceGroups/') && scope.includes('/providers/')) {
+      return 'Resource';
+    } else if (scope.includes('/subscriptions/') && scope.includes('/resourceGroups/')) {
+      return 'Resource Group';
+    } else if (scope.includes('/subscriptions/')) {
+      return 'Subscription';
+    } else if (scope.includes('/providers/Microsoft.Management/managementGroups/')) {
+      return 'Management Group';
+    }
+    return 'Unknown';
+  }
+
+  getScopePath(scope: string): string {
+    // Extract readable path from Azure resource scope
+    const parts = scope.split('/');
+    const pathParts: string[] = [];
+    
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i] === 'subscriptions' && i + 1 < parts.length) {
+        pathParts.push(`Sub: ${parts[i + 1].substring(0, 8)}...`);
+      } else if (parts[i] === 'resourceGroups' && i + 1 < parts.length) {
+        pathParts.push(`RG: ${parts[i + 1]}`);
+      } else if (parts[i] === 'providers' && i + 2 < parts.length) {
+        pathParts.push(`${parts[i + 2]}`);
+      }
+    }
+    
+    return pathParts.join(' / ') || scope;
+  }
+
+  getTypeTagSeverity(principalType: string): 'success' | 'info' | 'warning' | 'danger' {
+    // Return PrimeNG tag severity based on principal type
+    switch (principalType?.toLowerCase()) {
+      case 'user':
+        return 'info';
+      case 'group':
+        return 'success';
+      case 'serviceprincipal':
+        return 'warning';
+      case 'managedidentity':
+        return 'danger';
+      default:
+        return 'info';
+    }
+  }
+
+  getRoleTagSeverity(roleName: string): 'success' | 'info' | 'warning' | 'danger' {
+    // Return PrimeNG tag severity based on role name
+    if (!roleName) {
+      return 'info';
+    }
+    const highPrivilegeRoles = ['Owner', 'Contributor', 'Global Administrator', 'User Administrator'];
+    if (highPrivilegeRoles.some(role => roleName.includes(role))) {
+      return 'danger';
+    }
+    return 'info';
+  }
+
+  isIndeterminate(): boolean {
+    const selectedCount = this.getSelectedCount();
+    return selectedCount > 0 && selectedCount < this.filteredPermissions.length;
+  }
+
+  onSelectAllChange(event: any): void {
+    // Handle PrimeNG checkbox event - ensure we get boolean value to prevent iteration errors
+    const isChecked = typeof event === 'boolean' ? event : Boolean(event?.checked);
+    
+    if (isChecked) {
+      this.filteredPermissions.forEach(permission => {
+        permission.selected = true;
+        this.selectedPermissions.add(permission.id);
+      });
+    } else {
+      this.filteredPermissions.forEach(permission => {
+        permission.selected = false;
+        this.selectedPermissions.delete(permission.id);
+      });
+    }
+    this.updateSelectionState();
+  }
+
+  onPermissionSelectionChange(): void {
+    // Update selected permissions set based on individual checkbox changes
+    this.selectedPermissions.clear();
+    this.filteredPermissions.forEach(permission => {
+      if (permission.selected) {
+        this.selectedPermissions.add(permission.id);
+      }
+    });
+    this.updateSelectionState();
+  }
+
+  confirmRemoveSelected(): void {
+    const selectedCount = this.getSelectedCount();
+    if (selectedCount === 0) return;
+    
+    this.confirmationService.confirm({
+      message: `Are you sure you want to remove ${selectedCount} selected permission${selectedCount > 1 ? 's' : ''}?`,
+      header: 'Confirm Bulk Permission Removal',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.bulkRemovePermissions();
+      }
+    });
+  }
+
+
+
+  clearError(): void {
+    this.error = null;
+  }
+
+  /**
+   * Remove Directory role assignment
+   */
+  private async removeDirectoryRoleAssignment(permission: PermissionTableItem): Promise<void> {
+    if (!this.selectedUser) {
+      throw new Error('No user selected');
+    }
+    
+    // For directory roles, we need to call the Azure API service
+    const result = await firstValueFrom(this.azureApiService.removeUserRole({ assignmentId: permission.id }));
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to remove directory role');
+    }
+  }
+
+  /**
+   * Remove Application role assignment
+   */
+  private async removeApplicationRoleAssignment(permission: PermissionTableItem): Promise<void> {
+    if (!this.selectedUser) {
+      throw new Error('No user selected');
+    }
+    
+    // For application roles, we need to call the Azure API service
+    const result = await firstValueFrom(this.azureApiService.removeUserRole({ assignmentId: permission.id }));
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to remove application role');
+    }
+  }
+
+  /**
+   * Remove RBAC role assignment
+   */
+  private async removeRBACRoleAssignment(permission: PermissionTableItem): Promise<void> {
+    if (!permission.resourceId || !permission.principalId) {
+      throw new Error('Missing resource ID or principal ID for RBAC role removal');
+    }
+    
+    // For RBAC roles, we need to use the permissions service
+    await firstValueFrom(this.permissionsService.removeStorageAccountPermission(
+      permission.id,
+      permission.resourceId || ''
+    ));
+  }
 
 }

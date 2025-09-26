@@ -1,12 +1,10 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { NzTypographyModule } from 'ng-zorro-antd/typography';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { DividerModule } from 'primeng/divider';
 import { AuthService } from '../../services/auth.service';
 import { Subject, takeUntil } from 'rxjs';
 
@@ -15,12 +13,10 @@ import { Subject, takeUntil } from 'rxjs';
   standalone: true,
   imports: [
     CommonModule,
-    NzButtonModule,
-    NzCardModule,
-    NzIconModule,
-    NzSpinModule,
-    NzTypographyModule,
-    NzDividerModule
+    ButtonModule,
+    CardModule,
+    ProgressSpinnerModule,
+    DividerModule
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss'

@@ -11,50 +11,44 @@
   padding: 12px 16px;
   border-radius: 6px;
   
-  ::ng-deep {
-    .ant-breadcrumb {
-      font-size: 14px;
-      display: flex;
+  :deep(.p-breadcrumb) {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    
+    .p-breadcrumb-list {
+      display: inline-flex;
       align-items: center;
-      flex-wrap: nowrap;
+      gap: 6px;
       white-space: nowrap;
       
-      .ant-breadcrumb-link {
+      a {
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        padding: 4px 8px;
+        border-radius: 4px;
         white-space: nowrap;
         
-        a {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          text-decoration: none;
-          transition: all 0.2s ease;
-          padding: 4px 8px;
-          border-radius: 4px;
-          white-space: nowrap;
-          
-          &:hover {
-          }
-          
-          span[nz-icon] {
-            font-size: 14px;
-          }
+        &:hover {
         }
       }
+    }
+    
+    .p-breadcrumb-separator {
+      margin: 0 8px;
+      font-weight: bold;
+    }
+    
+    // Last breadcrumb item (current page)
+    .p-breadcrumb-list:last-child {
+      font-weight: 500;
       
-      .ant-breadcrumb-separator {
-        margin: 0 8px;
-        font-weight: bold;
-      }
-      
-      // Last breadcrumb item (current page)
-      .ant-breadcrumb-link:last-child {
-        font-weight: 500;
-        
-        span {
-        }
+      span {
       }
     }
   }
@@ -127,6 +121,36 @@
         }
       }
     }
+
+    .user-details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+
+      .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px;
+        border: 1px solid var(--surface-border);
+        border-radius: 6px;
+        background: var(--surface-ground);
+
+        label {
+          font-weight: 600;
+          font-size: 13px;
+          color: var(--text-color-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        span {
+          font-size: 14px;
+          color: var(--text-color);
+        }
+      }
+    }
   }
 }
 
@@ -149,23 +173,21 @@
 
 // Table Styles
 .role-assignments-table {
-  ::ng-deep {
-    .ant-table {
-      border-radius: 8px;
-    }
+  :deep(.p-datatable) {
+    border-radius: 8px;
+  }
 
-    .ant-table-thead > tr > th {
-      font-weight: 600;
-    }
+  :deep(.p-datatable-thead > tr > th) {
+    font-weight: 600;
+  }
 
-    .ant-table-tbody > tr {
-      &:hover {
-      }
+  :deep(.p-datatable-tbody > tr) {
+    &:hover {
     }
+  }
 
-    .ant-table-tbody > tr > td {
-      vertical-align: middle;
-    }
+  :deep(.p-datatable-tbody > tr > td) {
+    vertical-align: middle;
   }
 
   .role-info {
@@ -197,24 +219,22 @@
 }
 
 // Descriptions Styles
-::ng-deep {
-  .ant-descriptions-item-label {
+:deep(.p-fieldset) {
+  .p-fieldset-legend {
     font-weight: 600;
   }
 
-  .ant-descriptions-item-content {
+  .p-fieldset-content {
   }
 }
 
 // Loading and Empty States
-::ng-deep {
-  .ant-spin-container {
-    min-height: 200px;
-  }
+:deep(.p-progress-spinner) {
+  min-height: 200px;
+}
 
-  .ant-empty {
-    padding: 40px 20px;
-  }
+:deep(.p-datatable-emptymessage) {
+  padding: 40px 20px;
 }
 
 // Responsive Design
@@ -263,74 +283,62 @@
   }
 
   .role-assignments-table {
-    ::ng-deep {
-      .ant-table {
-        font-size: 12px;
-      }
+    :deep(.p-datatable) {
+      font-size: 12px;
+    }
 
-      .ant-table-thead > tr > th,
-      .ant-table-tbody > tr > td {
-        padding: 8px 4px;
-      }
+    :deep(.p-datatable-thead > tr > th),
+    :deep(.p-datatable-tbody > tr > td) {
+      padding: 8px 4px;
     }
   }
 
-  ::ng-deep {
-    .ant-descriptions {
-      .ant-descriptions-item {
-        padding-bottom: 12px;
-      }
+  :deep(.p-fieldset) {
+    .p-fieldset-content {
+      padding-bottom: 12px;
     }
   }
 }
 
 @media (max-width: 576px) {
   .role-assignments-table {
-    ::ng-deep {
-      .ant-table-thead > tr > th:nth-child(3),
-      .ant-table-tbody > tr > td:nth-child(3),
-      .ant-table-thead > tr > th:nth-child(4),
-      .ant-table-tbody > tr > td:nth-child(4) {
-        display: none;
-      }
+    :deep(.p-datatable-thead > tr > th:nth-child(3)),
+    :deep(.p-datatable-tbody > tr > td:nth-child(3)),
+    :deep(.p-datatable-thead > tr > th:nth-child(4)),
+    :deep(.p-datatable-tbody > tr > td:nth-child(4)) {
+      display: none;
     }
   }
 
-  ::ng-deep {
-    .ant-descriptions {
-      .ant-descriptions-row {
-        flex-direction: column;
-      }
+  :deep(.p-fieldset) {
+    .p-fieldset-content {
+      flex-direction: column;
     }
   }
 }
 
 // Animation
 .role-assignments-table {
-  ::ng-deep {
-    .ant-table-tbody > tr {
-      transition: all 0.2s ease;
-    }
+  :deep(.p-datatable-tbody > tr) {
+    transition: all 0.2s ease;
   }
 }
 
 // Custom scrollbar for table
-::ng-deep {
-  .ant-table-body {
-    &::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
+:deep(.p-datatable-scrollable-body) {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
 
-    &::-webkit-scrollbar-track {
-      border-radius: 3px;
-    }
+  &::-webkit-scrollbar-track {
+    border-radius: 3px;
+  }
 
-    &::-webkit-scrollbar-thumb {
-      border-radius: 3px;
+  &::-webkit-scrollbar-thumb {
+    border-radius: 3px;
 
-      &:hover {
-      }
+    &:hover {
     }
   }
 }

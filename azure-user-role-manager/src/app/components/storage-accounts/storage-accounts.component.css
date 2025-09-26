@@ -1,0 +1,170 @@
+.storage-accounts-container {
+  padding: 1rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.subscription-selector {
+  margin-bottom: 1rem;
+}
+
+.summary-section {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.summary-card {
+  flex: 1;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #f9f9f9;
+}
+
+.filters-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 200px;
+  position: relative;
+}
+
+.filter-item p-inputGroup {
+  align-items: center;
+}
+
+/* Fix dropdown z-index issues */
+.filter-item ::ng-deep .p-select-panel {
+  z-index: 1000 !important;
+}
+
+.filter-item ::ng-deep .p-select {
+  position: relative;
+  z-index: 1;
+}
+
+.filter-item ::ng-deep .p-select-overlay {
+  z-index: 1000 !important;
+}
+
+/* Standardize input control heights */
+.filter-item ::ng-deep .p-inputtext,
+.filter-item ::ng-deep .p-select,
+.filter-item ::ng-deep .p-select .p-select-label {
+  height: 2.5rem;
+  min-height: 2.5rem;
+}
+
+.filter-item ::ng-deep .p-inputgroup .p-inputtext {
+  height: 2.5rem;
+}
+
+.filter-item ::ng-deep .p-inputgroup-addon {
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.loading-section,
+.error-section {
+  text-align: center;
+  padding: 2rem;
+}
+
+.bulk-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.selection-info {
+  font-weight: bold;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.main-table {
+  flex: 1;
+  overflow: auto;
+}
+
+.main-table ::ng-deep .p-datatable-header {
+  background: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+}
+
+.main-table ::ng-deep .p-datatable-tbody > tr {
+  border-bottom: 1px solid #eee;
+}
+
+.main-table ::ng-deep .p-datatable-tbody > tr:hover {
+  background: #f9f9f9;
+}
+
+.storage-account-name {
+  font-weight: bold;
+  color: #0066cc;
+}
+
+.resource-group {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.expanded-content {
+  padding: 1rem;
+  background: #f9f9f9;
+  border-top: 1px solid #ddd;
+}
+
+.permissions-subtable {
+  margin-bottom: 1rem;
+}
+
+.permissions-subtable ::ng-deep .p-datatable {
+  border: 1px solid #ddd;
+}
+
+.locks-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.locks-section h4 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.no-locks {
+  color: #666;
+  font-style: italic;
+}

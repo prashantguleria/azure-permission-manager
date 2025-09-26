@@ -1,97 +1,104 @@
-<nz-card nzTitle="Audit Logs" class="audit-logs-container">
+<p-card header="Audit Logs" class="audit-logs-container">
   <!-- Filter Section -->
-  <div class="filter-section" nz-row [nzGutter]="16">
-    <div nz-col [nzSpan]="6">
+  <div class="filter-section p-grid p-nogutter">
+    <div class="p-col-12 p-md-3">
       <label>Date Range:</label>
-      <nz-range-picker
-        [ngModel]="[filter.startDate, filter.endDate]"
-        (ngModelChange)="filter.startDate = $event[0]; filter.endDate = $event[1]"
-        nzFormat="yyyy-MM-dd"
-        style="width: 100%">
-      </nz-range-picker>
+      <p-datepicker
+        [(ngModel)]="filter.startDate"
+        placeholder="Start Date"
+        dateFormat="yy-mm-dd"
+        styleClass="w-full mb-2">
+      </p-datepicker>
+      <p-datepicker
+        [(ngModel)]="filter.endDate"
+        placeholder="End Date"
+        dateFormat="yy-mm-dd"
+        styleClass="w-full">
+      </p-datepicker>
     </div>
     
-    <div nz-col [nzSpan]="4">
+    <div class="p-col-12 p-md-2">
       <label>Action:</label>
-      <nz-select
+      <p-select
         [(ngModel)]="filter.action"
-        nzPlaceHolder="Select action"
-        nzAllowClear
-        style="width: 100%">
-        <nz-option
-          *ngFor="let option of actionOptions"
-          [nzLabel]="option.label"
-          [nzValue]="option.value">
-        </nz-option>
-      </nz-select>
+        [options]="actionOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select action"
+        [showClear]="true"
+        styleClass="w-full">
+      </p-select>
     </div>
     
-    <div nz-col [nzSpan]="4">
+    <div class="p-col-12 p-md-2">
       <label>Resource Type:</label>
-      <nz-select
+      <p-select
         [(ngModel)]="filter.targetType"
-        nzPlaceHolder="Select resource type"
-        nzAllowClear
-        style="width: 100%">
-        <nz-option
-          *ngFor="let option of resourceTypeOptions"
-          [nzLabel]="option.label"
-          [nzValue]="option.value">
-        </nz-option>
-      </nz-select>
+        [options]="resourceTypeOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select resource type"
+        [showClear]="true"
+        styleClass="w-full">
+      </p-select>
     </div>
     
-    <div nz-col [nzSpan]="4">
+    <div class="p-col-12 p-md-2">
       <label>User ID:</label>
       <input
-        nz-input
+        pInputText
         [(ngModel)]="filter.userId"
         placeholder="Enter user ID"
-        style="width: 100%" />
+        class="w-full" />
     </div>
     
-    <div nz-col [nzSpan]="6" class="filter-buttons">
-      <nz-space>
-        <button *nzSpaceItem nz-button nzType="primary" (click)="applyFilter()">
-          <i nz-icon nzType="search"></i>
-          Apply Filter
-        </button>
-        <button *nzSpaceItem nz-button (click)="clearFilter()">
-          <i nz-icon nzType="clear"></i>
-          Clear
-        </button>
-      </nz-space>
+    <div class="p-col-12 p-md-3 filter-buttons">
+      <div class="p-d-flex p-ai-end p-jc-start">
+        <p-button
+          label="Apply Filter"
+          icon="pi pi-search"
+          (onClick)="applyFilter()"
+          styleClass="p-mr-2">
+        </p-button>
+        <p-button
+          label="Clear"
+          icon="pi pi-times"
+          severity="secondary"
+          (onClick)="clearFilter()">
+        </p-button>
+      </div>
     </div>
   </div>
   
 
   
   <!-- Audit Logs Table -->
-  <nz-table
-    #auditTable
-    [nzData]="filteredLogs"
-    [nzLoading]="loading"
-    [nzPageSize]="20"
-    [nzShowSizeChanger]="true"
-    [nzPageSizeOptions]="[10, 20, 50, 100]"
-    nzShowQuickJumper
-    [nzScroll]="{ x: '1200px' }"
+  <p-table
+    [value]="filteredLogs"
+    [loading]="loading"
+    [paginator]="true"
+    [rows]="20"
+    [rowsPerPageOptions]="[10, 20, 50, 100]"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+    [scrollable]="true"
+    scrollHeight="600px"
     class="audit-table">
     
-    <thead>
+    <ng-template pTemplate="header">
       <tr>
-        <th nzWidth="180px" nzLeft>Timestamp</th>
-        <th nzWidth="200px">User</th>
-        <th nzWidth="150px">Action</th>
-        <th nzWidth="120px">Resource Type</th>
-        <th nzWidth="300px">Resource ID and Details</th>
+        <th style="width: 180px">Timestamp</th>
+        <th style="width: 200px">User</th>
+        <th style="width: 150px">Action</th>
+        <th style="width: 120px">Resource Type</th>
+        <th style="width: 300px">Resource ID and Details</th>
         <th>Additional Details</th>
       </tr>
-    </thead>
+    </ng-template>
     
-    <tbody>
-      <tr *ngFor="let log of auditTable.data">
-        <td nzLeft>
+    <ng-template pTemplate="body" let-log>
+      <tr>
+        <td>
           <span class="timestamp">{{ log.timestamp | date:'yyyy-MM-dd HH:mm:ss' }}</span>
         </td>
         
@@ -104,9 +111,8 @@
         </td>
         
         <td>
-          <nz-tag [nzColor]="getActionColor(log.action)">
-            {{ getActionLabel(log.action) }}
-          </nz-tag>
+          <p-tag [value]="getActionLabel(log.action)" [severity]="getActionSeverity(log.action)">
+          </p-tag>
         </td>
         
         <td>
@@ -132,19 +138,20 @@
           </div>
         </td>
       </tr>
-    </tbody>
-  </nz-table>
+    </ng-template>
+  </p-table>
   
   <!-- Empty State -->
-  <div *ngIf="!loading && filteredLogs.length === 0" class="empty-state">
-    <nz-empty
-      nzNotFoundImage="simple"
-      nzNotFoundContent="No audit logs found">
-      <ng-container *nzEmpty>
-        <span>No audit logs match your current filters.</span>
-        <br>
-        <button nz-button nzType="primary" (click)="clearFilter()">Clear Filters</button>
-      </ng-container>
-    </nz-empty>
+  <div *ngIf="!loading && filteredLogs.length === 0" class="empty-state p-text-center p-p-4">
+    <div class="p-mb-3">
+      <i class="pi pi-info-circle" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
+    </div>
+    <h5 class="p-mb-2">No audit logs found</h5>
+    <p class="p-mb-3 p-text-secondary">No audit logs match your current filters.</p>
+    <p-button
+      label="Clear Filters"
+      icon="pi pi-times"
+      (onClick)="clearFilter()">
+    </p-button>
   </div>
-</nz-card>
+</p-card>

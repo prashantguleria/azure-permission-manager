@@ -1,17 +1,15 @@
 <div class="storage-accounts-container">
-  <!-- Header -->
-  <div class="header">
-    <h1>Storage Accounts</h1>
-    <div class="header-actions">
-      <button nz-button nzType="primary" (click)="refreshData()" [nzLoading]="loading">
-        <i nz-icon nzType="reload"></i>
-        Refresh
-      </button>
-      <button nz-button (click)="exportData()" [disabled]="loading || filteredStorageAccounts.length === 0">
-        <i nz-icon nzType="download"></i>
-        Export CSV
-      </button>
-
+  <!-- Header Section -->
+  <div class="page-header">
+    <div class="header-content">
+      <div class="header-left">
+        <h1>Storage Accounts</h1>
+        <p class="subtitle">Manage Azure Storage Account permissions and access</p>
+      </div>
+      <div class="header-actions">
+        <p-button label="Refresh" icon="pi pi-refresh" (onClick)="refreshData()" [loading]="loading"></p-button>
+        <p-button label="Export" icon="pi pi-download" (onClick)="exportData()" [disabled]="loading || filteredStorageAccounts.length === 0" severity="secondary"></p-button>
+      </div>
     </div>
   </div>
 
@@ -24,135 +22,126 @@
   </div>
 
   <!-- Summary Cards -->
-  <div class="summary-cards" *ngIf="!loading && !error">
-    <nz-card class="summary-card">
-      <div class="summary-content">
-        <i nz-icon nzType="hdd" class="summary-icon"></i>
-        <div class="summary-text">
-          <nz-statistic [nzValue]="totalStorageAccounts" nzTitle="Total Storage Accounts" [nzValueStyle]="{ color: '#1890ff' }"></nz-statistic>
+  <div class="summary-section" *ngIf="!loading">
+    <div class="summary-cards">
+      <p-card class="summary-card">
+        <div class="statistic">
+          <div class="statistic-title">Total Storage Accounts</div>
+          <div class="statistic-value">{{ totalStorageAccounts }} <span class="statistic-suffix">accounts</span></div>
         </div>
-      </div>
-    </nz-card>
-
-    <nz-card class="summary-card">
-      <div class="summary-content">
-        <i nz-icon nzType="team" class="summary-icon"></i>
-        <div class="summary-text">
-          <nz-statistic [nzValue]="totalUsersWithAccess" nzTitle="Users with Access" [nzValueStyle]="{ color: '#1890ff' }"></nz-statistic>
+      </p-card>
+      <p-card class="summary-card">
+        <div class="statistic">
+          <div class="statistic-title">With Permissions</div>
+          <div class="statistic-value">{{ accountsWithPermissions }} <span class="statistic-suffix">accounts</span></div>
         </div>
-      </div>
-    </nz-card>
-
-    <nz-card class="summary-card">
-      <div class="summary-content">
-        <i nz-icon nzType="safety" class="summary-icon"></i>
-        <div class="summary-text">
-          <nz-statistic [nzValue]="highPrivilegeAssignments" nzTitle="High Privilege Assignments" [nzValueStyle]="{ color: '#f5222d' }"></nz-statistic>
+      </p-card>
+      <p-card class="summary-card">
+        <div class="statistic">
+          <div class="statistic-title">Total Users</div>
+          <div class="statistic-value">{{ totalUsers }} <span class="statistic-suffix">users</span></div>
         </div>
-      </div>
-    </nz-card>
-
-    <nz-card class="summary-card">
-      <div class="summary-content">
-        <i nz-icon nzType="folder" class="summary-icon"></i>
-        <div class="summary-text">
-          <nz-statistic [nzValue]="resourceGroups.length" nzTitle="Resource Groups" [nzValueStyle]="{ color: '#52c41a' }"></nz-statistic>
+      </p-card>
+      <p-card class="summary-card">
+        <div class="statistic">
+          <div class="statistic-title">Locked Resources</div>
+          <div class="statistic-value">{{ lockedAccounts }} <span class="statistic-suffix">accounts</span></div>
         </div>
-      </div>
-    </nz-card>
+      </p-card>
+    </div>
   </div>
 
   <!-- High Privilege Alert -->
-  <nz-alert 
+  <p-message 
     *ngIf="highPrivilegeAssignments > 0"
-    nzType="warning"
-    nzShowIcon
-    [nzMessage]="'High Privilege Access Detected'"
-    [nzDescription]="highPrivilegeAssignments + ' high-privilege role assignments found across storage accounts'"
+    severity="warn" 
+    [closable]="true"
     class="privilege-alert">
-  </nz-alert>
+    <ng-template pTemplate="content">
+      <div class="p-message-content">
+        <i class="pi pi-exclamation-triangle"></i>
+        <div>
+          <div class="p-message-summary">High Privilege Access Detected</div>
+          <div class="p-message-detail">{{ highPrivilegeAssignments }} high-privilege role assignments found across storage accounts</div>
+        </div>
+      </div>
+    </ng-template>
+  </p-message>
 
   <!-- Filters Section -->
-  <nz-card class="filters-card" *ngIf="!loading">
+  <p-card class="filters-card" *ngIf="!loading">
     <div class="filters-content">
       <div class="filter-row">
         <div class="filter-item">
           <label class="filter-label">Search:</label>
-          <nz-input-group nzSearch [nzAddOnAfter]="searchButton">
+          <p-inputGroup>
+            <p-inputGroupAddon>
+              <i class="pi pi-search"></i>
+            </p-inputGroupAddon>
             <input 
-              type="text" 
-              nz-input 
+              pInputText 
               placeholder="Search storage accounts, users, roles..." 
               [(ngModel)]="searchTerm"
               (input)="applyFilters()"/>
-          </nz-input-group>
-          <ng-template #searchButton>
-            <button nz-button nzType="primary" nzSearch (click)="applyFilters()">
-              <span nz-icon nzType="search"></span>
-            </button>
-          </ng-template>
+          </p-inputGroup>
         </div>
 
         <div class="filter-item" *ngIf="resourceGroups.length > 0">
           <label class="filter-label">Resource Group:</label>
-          <nz-select 
+          <p-select 
             [(ngModel)]="selectedResourceGroup" 
-            (ngModelChange)="applyFilters()"
-            nzPlaceHolder="All resource groups"
-            nzAllowClear
-            class="filter-select">
-            <nz-option 
-              *ngFor="let rg of resourceGroups" 
-              [nzLabel]="rg" 
-              [nzValue]="rg">
-            </nz-option>
-          </nz-select>
+            (onChange)="applyFilters()"
+            placeholder="All Resource Groups"
+            [showClear]="true"
+            class="filter-select"
+            appendTo="body"
+            [options]="resourceGroupOptions">
+          </p-select>
         </div>
 
         <div class="filter-item" *ngIf="locations.length > 0">
           <label class="filter-label">Location:</label>
-          <nz-select 
+          <p-select 
             [(ngModel)]="selectedLocation" 
-            (ngModelChange)="applyFilters()"
-            nzPlaceHolder="All locations"
-            nzAllowClear
-            class="filter-select">
-            <nz-option 
-              *ngFor="let location of locations" 
-              [nzLabel]="location" 
-              [nzValue]="location">
-            </nz-option>
-          </nz-select>
+            (onChange)="applyFilters()"
+            placeholder="All locations"
+            [showClear]="true"
+            class="filter-select"
+            appendTo="body"
+            [options]="locationOptions">
+          </p-select>
         </div>
 
         <div class="filter-item">
           <label class="filter-label">Access Level:</label>
-          <nz-select 
+          <p-select 
             [(ngModel)]="selectedAccessLevel" 
-            (ngModelChange)="applyFilters()"
-            nzPlaceHolder="All access levels"
-            nzAllowClear
-            class="filter-select">
-            <nz-option nzValue="Owner" nzLabel="Owner"></nz-option>
-            <nz-option nzValue="Contributor" nzLabel="Contributor"></nz-option>
-            <nz-option nzValue="Reader" nzLabel="Reader"></nz-option>
-            <nz-option nzValue="Storage Account Contributor" nzLabel="Storage Account Contributor"></nz-option>
-          </nz-select>
+            (onChange)="applyFilters()"
+            placeholder="All access levels"
+            [showClear]="true"
+            class="filter-select"
+            appendTo="body"
+            [options]="[
+              {label: 'Owner', value: 'Owner'},
+              {label: 'Contributor', value: 'Contributor'},
+              {label: 'Reader', value: 'Reader'},
+              {label: 'Storage Account Contributor', value: 'Storage Account Contributor'}
+            ]">
+          </p-select>
         </div>
 
         <div class="filter-actions">
-          <button 
-            nz-button 
-            nzType="default" 
-            (click)="clearFilters()" 
-            nzSize="small">
-            <span nz-icon nzType="close" nzTheme="outline"></span>
-            Clear
-          </button>
+          <p-button 
+            label="Clear" 
+            icon="pi pi-times" 
+            (onClick)="clearFilters()" 
+            severity="secondary" 
+            size="small">
+          </p-button>
         </div>
       </div>
     </div>
-  </nz-card>
+  </p-card>
 
   <!-- Loading State -->
   <div class="loading-container" *ngIf="loading">
@@ -161,152 +150,145 @@
 
   <!-- Error State -->
   <div class="error-container" *ngIf="error && !loading">
-    <nz-alert nzType="error" nzShowIcon [nzMessage]="'Error Loading Storage Accounts'" [nzDescription]="error">
-      <button nz-button nzType="primary" (click)="refreshData()">
-        <i nz-icon nzType="reload"></i>
-        Try Again
-      </button>
-    </nz-alert>
+    <p-message severity="error" 
+      [text]="'Error Loading Storage Accounts: ' + error">
+    </p-message>
+    <div style="margin-top: 12px;">
+      <p-button 
+        label="Retry" 
+        icon="pi pi-refresh" 
+        (onClick)="refreshData()"
+        size="small">
+      </p-button>
+    </div>
   </div>
 
   <!-- Bulk Actions -->
   <div class="bulk-actions-container" *ngIf="!loading && !error && filteredStorageAccounts.length > 0">
-    <nz-card class="bulk-actions-card">
+    <p-card class="bulk-actions-card">
       <div class="bulk-actions-content">
         <div class="selection-info">
           <span class="selected-count">{{ getSelectedAccountsCount() }} of {{ filteredStorageAccounts.length }} selected</span>
-          <button nz-button nzType="link" nzSize="small" (click)="selectAllAccounts()" *ngIf="getSelectedAccountsCount() < filteredStorageAccounts.length">
-            Select All
-          </button>
-          <button nz-button nzType="link" nzSize="small" (click)="clearSelection()" *ngIf="getSelectedAccountsCount() > 0">
-            Clear Selection
-          </button>
+          <p-button label="Select All" (onClick)="selectAllAccounts()" *ngIf="getSelectedAccountsCount() < filteredStorageAccounts.length" severity="secondary" size="small"></p-button>
+          <p-button label="Clear Selection" (onClick)="clearSelection()" *ngIf="getSelectedAccountsCount() > 0" severity="secondary" size="small"></p-button>
         </div>
         <div class="bulk-actions" *ngIf="getSelectedAccountsCount() > 0">
-          <button nz-button nzType="primary" (click)="bulkAddPermissions()" [disabled]="getSelectedAccountsCount() === 0">
-            <i nz-icon nzType="plus"></i>
-            Add Permissions
-          </button>
-          <button nz-button nzType="default" nzDanger (click)="bulkRemovePermissions()" [disabled]="getSelectedAccountsCount() === 0">
-            <i nz-icon nzType="delete"></i>
-            Remove Permissions
-          </button>
+          <p-button label="Add Permissions" icon="pi pi-plus" (onClick)="bulkAddPermissions()" [disabled]="getSelectedAccountsCount() === 0"></p-button>
+          <p-button label="Remove Permissions" icon="pi pi-trash" (onClick)="bulkRemovePermissions()" [disabled]="getSelectedAccountsCount() === 0" severity="danger"></p-button>
         </div>
       </div>
-    </nz-card>
+    </p-card>
   </div>
 
   <!-- Storage Accounts Table -->
   <div class="table-container" *ngIf="!loading && !error && filteredStorageAccounts.length > 0">
-    <nz-table 
+    <p-table 
       #storageAccountsTable 
-      [nzData]="filteredStorageAccounts" 
-      [nzPageSize]="pageSize"
-      [nzPageIndex]="pageIndex"
-      [nzTotal]="filteredStorageAccounts.length"
-      [nzShowSizeChanger]="true"
-      [nzPageSizeOptions]="[10, 20, 50, 100]"
-      (nzPageIndexChange)="onPageIndexChange($event)"
-      (nzPageSizeChange)="onPageSizeChange($event)"
-      nzSize="middle"
-      class="storage-accounts-table">
-      <thead>
+      [value]="filteredStorageAccounts" 
+      [rows]="pageSize"
+      [first]="pageIndex * pageSize"
+      [totalRecords]="filteredStorageAccounts.length"
+      [paginator]="true"
+      [rowsPerPageOptions]="[10, 20, 50, 100]"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+      (onPage)="onPageChange($event)"
+      dataKey="id"
+      [expandedRowKeys]="expandedRows"
+      styleClass="p-datatable-sm storage-accounts-table">
+      <ng-template pTemplate="header">
         <tr>
-          <th nzWidth="50px">
-            <label nz-checkbox [(ngModel)]="allSelected" [nzIndeterminate]="indeterminate" (ngModelChange)="onAllChecked($event)"></label>
+          <th style="width: 50px">
+            <p-checkbox [(ngModel)]="allSelected" [indeterminate]="indeterminate" (onChange)="onAllChecked($event)"></p-checkbox>
           </th>
-          <th nzWidth="50px"></th>
+          <th style="width: 50px"></th>
           <th>Storage Account</th>
           <th>Resource Group</th>
           <th>Location</th>
           <th>SKU</th>
-          <th nzWidth="120px">Actions</th>
+          <th style="width: 120px">Actions</th>
         </tr>
-      </thead>
-      <tbody>
-        <ng-container *ngFor="let account of storageAccountsTable.data">
-          <!-- Main row -->
-          <tr>
-            <td>
-              <label nz-checkbox [(ngModel)]="account.selected" (ngModelChange)="onItemChecked(account, $event)"></label>
-            </td>
-            <td>
-              <button nz-button nzType="link" nzSize="small" (click)="toggleExpand(account)">
-                  <i nz-icon [nzType]="account.expanded ? 'minus' : 'plus'"></i>
-              </button>
-            </td>
-            <td>
-              <div class="account-info">
-                <div class="account-name">
-                  {{ account.name }}
-                  <!-- Lock indicator -->
-                   <span 
-                     *ngIf="account.hasLocks && !account.loadingLocks" 
-                     class="lock-indicator"
-                     [nz-tooltip]="account.lockCount === 1 ? '1 active lock' : account.lockCount + ' active locks'">
-                     <i nz-icon nzType="lock" nzTheme="fill" style="color: #faad14; margin-left: 8px;"></i>
-                     <span class="lock-count">{{ account.lockCount }}</span>
-                   </span>
-                  <nz-spin 
-                    *ngIf="account.loadingLocks" 
-                    nzSize="small" 
-                    style="margin-left: 8px;">
-                  </nz-spin>
-                </div>
-                <div class="account-id">{{ account.id }}</div>
+      </ng-template>
+      <ng-template pTemplate="body" let-account let-expanded="expanded" let-rowIndex="rowIndex">
+        <!-- Main row -->
+        <tr>
+          <td>
+            <p-checkbox [(ngModel)]="account.selected" (onChange)="onItemChecked(account, $event)"></p-checkbox>
+          </td>
+          <td>
+            <p-button 
+              [icon]="account.expanded ? 'pi pi-minus' : 'pi pi-plus'" 
+              (onClick)="toggleExpand(account)" 
+              severity="secondary" 
+              [text]="true" 
+              size="small">
+            </p-button>
+          </td>
+          <td>
+            <div class="account-info">
+              <div class="account-name">
+                {{ account.name }}
+                <!-- Lock indicator -->
+                 <span 
+                   *ngIf="account.hasLocks && !account.loadingLocks" 
+                   class="lock-indicator"
+                   [pTooltip]="account.lockCount === 1 ? '1 active lock' : account.lockCount + ' active locks'">
+                   <i class="pi pi-lock" style="color: #faad14; margin-left: 8px;"></i>
+                   <span class="lock-count">{{ account.lockCount }}</span>
+                 </span>
+                <p-progressSpinner 
+                  *ngIf="account.loadingLocks" 
+                  [style]="{width: '16px', height: '16px', 'margin-left': '8px'}">
+                </p-progressSpinner>
               </div>
-            </td>
-            <td>{{ account.resourceGroup }}</td>
-            <td>{{ account.location }}</td>
-            <td>
-              <nz-tag>{{ account.sku || 'N/A' }}</nz-tag>
-            </td>
+              <div class="account-id">{{ account.id }}</div>
+            </div>
+          </td>
+          <td>{{ account.resourceGroup }}</td>
+          <td>{{ account.location }}</td>
+          <td>
+            <p-tag>{{ account.sku || 'N/A' }}</p-tag>
+          </td>
 
-            <td>
-              <button nz-button nzType="text" (click)="viewAccountDetails(account)" nz-tooltip="View Details">
-                <i nz-icon nzType="eye"></i>
-              </button>
-              <button nz-button nzType="text" (click)="managePermissions(account)" nz-tooltip="Manage Permissions">
-                <i nz-icon nzType="team"></i>
-              </button>
-              <button 
+          <td>
+            <div class="table-actions">
+              <p-button icon="pi pi-eye" (onClick)="viewAccountDetails(account)" pTooltip="View Details" severity="secondary" [text]="true" size="small"></p-button>
+              <p-button icon="pi pi-users" (onClick)="managePermissions(account)" pTooltip="Manage Permissions" severity="secondary" [text]="true" size="small"></p-button>
+              <p-button 
                 *ngIf="account.hasLocks && !account.loadingLocks" 
-                nz-button 
-                nzType="text" 
-                (click)="toggleLocks(account)" 
-                [nz-tooltip]="'View ' + account.lockCount + (account.lockCount === 1 ? ' lock' : ' locks')">
-                <i nz-icon nzType="lock" [nzSpin]="account.locksLoading"></i>
-              </button>
-              <button nz-button nzType="text" (click)="exportAccountData(account)" nz-tooltip="Export Data">
-                <i nz-icon nzType="download"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <!-- Expanded row -->
-          <tr *ngIf="account.expanded" [nzExpand]="true">
+                icon="pi pi-lock" 
+                (onClick)="toggleLocks(account)" 
+                [pTooltip]="'View ' + account.lockCount + (account.lockCount === 1 ? ' lock' : ' locks')" 
+                severity="secondary" 
+                [text]="true" 
+                size="small"
+                [loading]="account.locksLoading">
+              </p-button>
+              <p-button icon="pi pi-download" (onClick)="exportAccountData(account)" pTooltip="Export Data" severity="secondary" [text]="true" size="small"></p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="rowexpansion" let-account>
+          <tr>
             <td colspan="7">
               <div class="expanded-content">
                 <div *ngIf="account.loadingPermissions" class="loading-permissions">
-                  <nz-spin nzSize="small">
-                    <p>Loading permissions...</p>
-                  </nz-spin>
+                  <p-progressSpinner [style]="{width: '24px', height: '24px'}">
+                  </p-progressSpinner>
+                  <p>Loading permissions...</p>
                 </div>
                 
                 <div *ngIf="!account.loadingPermissions">
                   <!-- Locks Section -->
                   <div class="locks-section" *ngIf="account.locks && account.locks.length > 0 && account.locksExpanded">
                     <div class="section-header">
-                      <h4><i nz-icon nzType="lock" style="color: #ff4d4f; margin-right: 8px;"></i>Resource Locks</h4>
-                      <nz-tag nzColor="orange">{{ account.locks.length }} lock(s)</nz-tag>
+                      <h4><i class="pi pi-lock" style="color: #ff4d4f; margin-right: 8px;"></i>Resource Locks</h4>
+                      <p-tag severity="warning">{{ account.locks.length }} lock(s)</p-tag>
                     </div>
-                    <nz-alert 
-                      nzType="warning" 
-                      nzMessage="Locks prevent permission modifications" 
-                      nzDescription="Delete locks will be temporarily removed during permission operations and recreated afterward."
-                      nzShowIcon
-                      style="margin-bottom: 12px;">
-                    </nz-alert>
+                    <p-message severity="warn" [style]="{'margin-bottom': '12px'}" 
+                      text="Locks prevent permission modifications. Delete locks will be temporarily removed during permission operations and recreated afterward.">
+                    </p-message>
                     <div class="locks-list">
                       <div class="lock-item" *ngFor="let lock of account.locks">
                         <div class="lock-info">
@@ -326,10 +308,7 @@
                     <div class="section-header">
                       <h4>Users with Access (Grouped by Role) - {{ (account.permissions && account.permissions.length) || 0 }} total</h4>
                       <div class="section-actions">
-                        <button nz-button nzType="primary" nzSize="small" (click)="addPermission(account)">
-                          <i nz-icon nzType="plus"></i>
-                          Add Permission
-                        </button>
+                        <p-button label="Add Permission" icon="pi pi-plus" (onClick)="addPermission(account)" size="small"></p-button>
                       </div>
                     </div>
                   
@@ -339,22 +318,22 @@
                         <div *ngFor="let role of getGroupedPermissionKeys(account.permissions)" class="role-group">
                           <div class="role-header">
                             <h5>
-                              <nz-tag [nzColor]="getRoleColor(role)" class="role-tag">{{ role }}</nz-tag>
+                              <p-tag [severity]="getRoleColor(role)" class="role-tag">{{ role }}</p-tag>
                               <span class="user-count">({{ getPermissionsForRole(account.permissions, role).length }} users)</span>
                             </h5>
                           </div>
                           
-                          <nz-table #rolePermissionsTable [nzData]="getPermissionsForRole(account.permissions, role)" [nzShowPagination]="false" [nzPageSize]="1000" nzSize="small" class="role-permissions-table">
-                            <thead>
+                          <p-table [value]="getPermissionsForRole(account.permissions, role)" [paginator]="false" styleClass="p-datatable-sm role-permissions-table">
+                            <ng-template pTemplate="header">
                               <tr>
                                 <th>User/Principal</th>
                                 <th>Type</th>
                                 <th>Assigned Date</th>
                                 <th>Actions</th>
                               </tr>
-                            </thead>
-                            <tbody>
-                              <tr *ngFor="let permission of rolePermissionsTable.data">
+                            </ng-template>
+                            <ng-template pTemplate="body" let-permission>
+                              <tr>
                                 <td>
                                   <div class="user-info">
                                     <div class="user-name">
@@ -365,97 +344,80 @@
                                         }">
                                         {{ permission.properties.principalDisplayName || 'Unknown Principal' }}
                                       </strong>
-                                      <nz-tag 
+                                      <p-tag 
                                         *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'" 
-                                        nzColor="red" 
-                                        nz-tooltip="This user may have been deleted from Azure AD">
+                                        severity="danger" 
+                                        pTooltip="This user may have been deleted from Azure AD">
                                         Deleted
-                                      </nz-tag>
-                                      <nz-tag 
+                                      </p-tag>
+                                      <p-tag 
                                         *ngIf="permission.properties.principalDisplayName === 'Error loading user'" 
-                                        nzColor="orange" 
-                                        nz-tooltip="Error loading user details">
+                                        severity="warning" 
+                                        pTooltip="Error loading user details">
                                         Error
-                                      </nz-tag>
+                                      </p-tag>
                                     </div>
                                     <div class="user-email" *ngIf="permission.properties.principalEmail">
                                       {{ permission.properties.principalEmail }}
                                     </div>
                                     <div class="user-id">ID: {{ permission.properties.principalId }}</div>
                                     <div class="user-warning" *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'">
-                                      <i nz-icon nzType="exclamation-circle" nzTheme="fill" style="color: #ff4d4f; margin-right: 4px;"></i>
+                                      <i class="pi pi-exclamation-triangle" style="color: #ff4d4f; margin-right: 4px;"></i>
                                       <small>User no longer exists in Azure AD</small>
                                     </div>
                                   </div>
                                 </td>
                                 <td>
-                                  <nz-tag [nzColor]="getPrincipalTypeColor(permission.properties.principalType)">
+                                  <p-tag [severity]="getPrincipalTypeColor(permission.properties.principalType)">
                                     {{ permission.properties.principalType }}
-                                  </nz-tag>
+                                  </p-tag>
                                 </td>
                                 <td>{{ permission.properties.createdOn | date:'short' }}</td>
                                 <td>
-                                  <button nz-button nzType="text" nzSize="small" (click)="viewPermissionDetails(permission)" nz-tooltip="View Details">
-                                    <i nz-icon nzType="eye"></i>
-                                  </button>
-                                  <button nz-button nzType="text" nzSize="small" (click)="removePermission(account, permission)" nz-tooltip="Remove Access" nzDanger>
-                                    <i nz-icon nzType="delete"></i>
-                                  </button>
+                                  <div class="table-actions">
+                                    <p-button icon="pi pi-eye" (onClick)="viewPermissionDetails(permission)" pTooltip="View Details" severity="secondary" [text]="true" size="small"></p-button>
+                                    <p-button icon="pi pi-trash" (onClick)="removePermission(account, permission)" pTooltip="Remove Access" severity="danger" [text]="true" size="small"></p-button>
+                                  </div>
                                 </td>
                               </tr>
-                            </tbody>
-                          </nz-table>
+                            </ng-template>
+                          </p-table>
                         </div>
                       </div>
                     </div>
                   
                     <ng-template #noPermissions>
-                    <nz-empty nzNotFoundImage="simple">
-                      <div nz-empty-default>
+                      <div class="p-empty-state">
+                        <i class="pi pi-users" style="font-size: 3rem; color: #6c757d;"></i>
                         <p>No role assignments found for this storage account</p>
-                        <button nz-button nzType="primary" (click)="addPermission(account)">
-                          <i nz-icon nzType="plus"></i>
-                          Add Permission
-                        </button>
+                        <p-button label="Add Permission" icon="pi pi-plus" (onClick)="addPermission(account)"></p-button>
                       </div>
-                    </nz-empty>
                     </ng-template>
                   </div>
                 </div>
               </div>
             </td>
           </tr>
-        </ng-container>
-      </tbody>
-    </nz-table>
+        </ng-template>
+    </p-table>
   </div>
 
   <!-- Empty State -->
   <div class="empty-state" *ngIf="!loading && !error && filteredStorageAccounts.length === 0">
-    <nz-empty [nzNotFoundImage]="'simple'" [nzNotFoundContent]="emptyTemplate">
-      <ng-template #emptyTemplate>
-        <div class="empty-content">
-          <i nz-icon nzType="hdd" class="empty-icon"></i>
-          <h3>No Storage Accounts Found</h3>
-          <p *ngIf="searchTerm || selectedResourceGroup || selectedLocation || selectedAccessLevel; else noDataTemplate">
-            No storage accounts match your current filters. Try adjusting your search criteria.
-          </p>
-          <ng-template #noDataTemplate>
-            <p>No storage accounts found in the selected subscription.</p>
-          </ng-template>
-          <div class="empty-actions">
-            <button nz-button nzType="primary" (click)="clearFilters()" *ngIf="searchTerm || selectedResourceGroup || selectedLocation || selectedAccessLevel">
-              <i nz-icon nzType="clear"></i>
-              Clear Filters
-            </button>
-            <button nz-button (click)="refreshData()">
-              <i nz-icon nzType="reload"></i>
-              Refresh
-            </button>
-          </div>
-        </div>
+    <div class="p-empty-state">
+      <i class="pi pi-database" style="font-size: 3rem; color: #6c757d;"></i>
+      <h3>No Storage Accounts Found</h3>
+      <p *ngIf="searchTerm || selectedResourceGroup || selectedLocation || selectedAccessLevel; else noDataTemplate">
+        No storage accounts match your current filters. Try adjusting your search criteria.
+      </p>
+      <ng-template #noDataTemplate>
+        <p>No storage accounts found in the selected subscription.</p>
       </ng-template>
-    </nz-empty>
+      <div class="empty-actions">
+        <p-button label="Clear Filters" icon="pi pi-times" (onClick)="clearFilters()" *ngIf="searchTerm || selectedResourceGroup || selectedLocation || selectedAccessLevel"></p-button>
+        <p-button label="Refresh" icon="pi pi-refresh" (onClick)="refreshData()"></p-button>
+      </div>
+    </div>
   </div>
 </div>
 

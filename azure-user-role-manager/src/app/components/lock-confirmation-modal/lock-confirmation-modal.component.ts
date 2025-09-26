@@ -1,9 +1,8 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NzModalModule } from 'ng-zorro-antd/modal';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { DialogModule } from 'primeng/dialog';
+import { ButtonModule } from 'primeng/button';
+import { MessageModule } from 'primeng/message';
 
 export interface LockConfirmationData {
   resourceName: string;
@@ -21,35 +20,33 @@ export interface LockConfirmationData {
   standalone: true,
   imports: [
     CommonModule,
-    NzModalModule,
-    NzButtonModule,
-    NzIconModule,
-    NzAlertModule
+    DialogModule,
+    ButtonModule,
+    MessageModule
   ],
   template: `
-    <nz-modal
-      [(nzVisible)]="visible"
-      nzTitle="Resource Lock Detected"
-      [nzOkText]="'Remove Lock & Continue'"
-      [nzCancelText]="'Cancel'"
-      [nzOkType]="'primary'"
-      [nzOkDanger]="true"
-      [nzOkLoading]="loading"
-      (nzOnOk)="onConfirm()"
-      (nzOnCancel)="onCancel()"
-      nzWidth="600px"
-    >
-      <ng-container *nzModalContent>
-        <nz-alert
-          nzType="warning"
-          nzShowIcon
-          [nzMessage]="alertMessage"
-          [nzDescription]="alertDescription"
-          class="mb-4"
-        ></nz-alert>
+    <p-dialog
+      [(visible)]="visible"
+      header="Resource Lock Detected"
+      [modal]="true"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      styleClass="lock-confirmation-modal"
+      [style]="{width: '600px'}"
+      (onHide)="onCancel()">
+      <ng-template pTemplate="content">
+        <p-message
+          severity="warn"
+          [text]="alertMessage + ': ' + alertDescription"
+          styleClass="mb-4">
+          <ng-template pTemplate="icon">
+            <i class="pi pi-exclamation-triangle"></i>
+          </ng-template>
+        </p-message>
         
         <div class="lock-details">
-          <h4><i nz-icon nzType="lock" class="text-orange-500"></i> Lock Details</h4>
+          <h4><i class="pi pi-lock text-orange-500"></i> Lock Details</h4>
           <div class="lock-list mt-2">
             <div 
               *ngFor="let lock of data?.locks" 
@@ -70,7 +67,7 @@ export interface LockConfirmationData {
         </div>
         
         <div class="workflow-explanation mt-4">
-          <h4><i nz-icon nzType="info-circle" class="text-blue-500"></i> What will happen:</h4>
+          <h4><i class="pi pi-info-circle text-blue-500"></i> What will happen:</h4>
           <ol class="list-decimal list-inside mt-2 space-y-1 text-sm">
             <li>The lock(s) will be temporarily removed</li>
             <li>The {{ data?.operationType }} operation will be performed</li>
@@ -78,34 +75,93 @@ export interface LockConfirmationData {
           </ol>
         </div>
         
-        <nz-alert
-          nzType="info"
-          nzShowIcon
-          nzMessage="Security Notice"
-          nzDescription="The resource will be temporarily unprotected during this operation. The lock will be recreated immediately after completion."
-          class="mt-4"
-        ></nz-alert>
-      </ng-container>
-    </nz-modal>
+        <p-message
+          severity="info"
+          text="Security Notice: The resource will be temporarily unprotected during this operation. The lock will be recreated immediately after completion."
+          styleClass="mt-4">
+          <ng-template pTemplate="icon">
+            <i class="pi pi-info-circle"></i>
+          </ng-template>
+        </p-message>
+       </ng-template>
+       
+       <ng-template pTemplate="footer">
+         <p-button
+           label="Cancel"
+           icon="pi pi-times"
+           [text]="true"
+           (onClick)="onCancel()"
+           styleClass="p-button-text">
+         </p-button>
+         <p-button
+           label="Remove Lock & Continue"
+           icon="pi pi-unlock"
+           [loading]="loading"
+           (onClick)="onConfirm()"
+           styleClass="p-button-danger">
+         </p-button>
+       </ng-template>
+     </p-dialog>
   `,
   styles: [`
+    .lock-details h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .workflow-explanation h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #495057;
+    }
+    
     .lock-item {
       transition: all 0.2s ease;
+      padding: 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      background-color: #f8f9fa;
     }
     
     .lock-item:hover {
-      border-color: #d1d5db;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border-color: #adb5bd;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     
     .lock-level-readonly {
-      background-color: #fef3c7;
-      color: #92400e;
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
     }
     
     .lock-level-cannotdelete {
-      background-color: #fee2e2;
-      color: #991b1b;
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .text-orange-500 {
+      color: #f97316;
+    }
+    
+    .text-blue-500 {
+      color: #3b82f6;
     }
     
     .mb-4 {
@@ -122,6 +178,33 @@ export interface LockConfirmationData {
     
     .mt-1 {
       margin-top: 0.25rem;
+    }
+    
+    .list-decimal {
+      list-style-type: decimal;
+    }
+    
+    .list-inside {
+      list-style-position: inside;
+    }
+    
+    .space-y-1 > * + * {
+      margin-top: 0.25rem;
+    }
+    
+    .text-sm {
+      font-size: 14px;
+    }
+    
+    .text-gray-600 {
+      color: #6b7280;
+    }
+    
+    ::ng-deep .lock-confirmation-modal .p-dialog-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px 24px;
     }
   `]
 })

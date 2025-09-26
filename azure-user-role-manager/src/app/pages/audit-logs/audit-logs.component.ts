@@ -1,26 +1,22 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzModalModule } from 'ng-zorro-antd/modal';
-import { NzMessageModule } from 'ng-zorro-antd/message';
-import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
-import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzSpaceModule } from 'ng-zorro-antd/space';
-
-import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzGridModule } from 'ng-zorro-antd/grid';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { TagModule } from 'primeng/tag';
+import { DialogModule } from 'primeng/dialog';
+import { ToastModule } from 'primeng/toast';
+import { DatePickerModule } from 'primeng/datepicker';
+import { SelectModule } from 'primeng/select';
+import { InputTextModule } from 'primeng/inputtext';
+import { CardModule } from 'primeng/card';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil, forkJoin, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { AppAuditService } from '../../services/app-audit.service';
 import { AppAuditLog, AuditLogFilter, AuditAction } from '../../models/app-audit-log.model';
 import { AzureApiService } from '../../services/azure-api.service';
-import { NzMessageService } from 'ng-zorro-antd/message';
+import { MessageService } from 'primeng/api';
 import { User } from '../../models/user.model';
 
 export interface EnrichedAuditLog extends AppAuditLog {
@@ -36,21 +32,18 @@ export interface EnrichedAuditLog extends AppAuditLog {
   imports: [
     CommonModule,
     FormsModule,
-    NzTableModule,
-    NzButtonModule,
-    NzIconModule,
-    NzTagModule,
-    NzModalModule,
-    NzMessageModule,
-    NzDatePickerModule,
-    NzSelectModule,
-    NzInputModule,
-    NzCardModule,
-    NzSpaceModule,
-
-    NzEmptyModule,
-    NzGridModule
+    TableModule,
+    ButtonModule,
+    TagModule,
+    DialogModule,
+    ToastModule,
+    DatePickerModule,
+    SelectModule,
+    InputTextModule,
+    CardModule,
+    ProgressSpinnerModule
   ],
+  providers: [MessageService],
   templateUrl: './audit-logs.component.html',
   styleUrls: ['./audit-logs.component.scss']
 })
@@ -88,7 +81,7 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
   constructor(
     private auditService: AppAuditService,
     private azureApiService: AzureApiService,
-    private message: NzMessageService
+    private message: MessageService
   ) {}
   
   ngOnInit(): void {
@@ -117,14 +110,14 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
             },
             error: (error) => {
               console.error('Error enriching audit logs:', error);
-              this.message.error('Failed to enrich audit logs');
+              this.message.add({ severity: 'error', summary: 'Error', detail: 'Failed to enrich audit logs' });
               this.loading = false;
             }
           });
         },
         error: (error) => {
           console.error('Error loading audit logs:', error);
-          this.message.error('Failed to load audit logs');
+          this.message.add({ severity: 'error', summary: 'Error', detail: 'Failed to load audit logs' });
           this.loading = false;
         }
       });
@@ -248,6 +241,20 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
         return 'red';
       default:
         return 'blue';
+    }
+  }
+  
+  getActionSeverity(action: AuditAction): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
+    switch (action) {
+      case 'permission_added':
+      case 'lock_added':
+        return 'success';
+      case 'permission_removed':
+      case 'bulk_permissions_removed':
+      case 'lock_removed':
+        return 'danger';
+      default:
+        return 'info';
     }
   }
   

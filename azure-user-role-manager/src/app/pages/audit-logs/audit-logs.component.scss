@@ -17,10 +17,7 @@
     .filter-buttons {
       display: flex;
       align-items: flex-end;
-      
-      nz-space {
-        width: 100%;
-      }
+      gap: 8px;
     }
   }
   
@@ -94,7 +91,7 @@
       }
     }
     
-    nz-tag {
+    .tag {
       font-size: 11px;
       padding: 2px 6px;
       border-radius: 4px;
@@ -109,10 +106,6 @@
   .empty-state {
     padding: 40px 20px;
     text-align: center;
-    
-    nz-empty {
-      margin: 0;
-    }
   }
 }
 
@@ -122,14 +115,14 @@
     margin: 10px;
     
     .filter-section {
-      .ant-col {
+      :deep(.p-col) {
         margin-bottom: 12px;
       }
     }
     
     .audit-table {
-      .ant-table-scroll {
-        .ant-table-body {
+      :deep(.p-datatable-scrollable) {
+        :deep(.p-datatable-tbody) {
           font-size: 12px;
         }
       }

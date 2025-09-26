@@ -1,24 +1,58 @@
-/* You can add global styles to this file, and also import other style files */
+/* PrimeNG theme is configured in app.config.ts with @primeuix/themes/aura */
+/* Custom styling to enhance PrimeNG components */
+@import 'primeicons/primeicons.css';
+@import 'primeflex/primeflex.css';
 
-/* Ensure full width layout */
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Global Variables */
+:root {
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-size-base: 14px;
+  --line-height-base: 1.5;
+  --color-text: #374151;
+  --color-background: #f9fafb;
+  --primary-color: #3b82f6;
+  --primary-color-hover: #2563eb;
+  --border-color: #e2e8f0;
+  --border-radius: 0.375rem;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 html, body {
   width: 100%;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-color);
+  background-color: var(--surface-ground);
 }
 
 *, *::before, *::after {
   box-sizing: border-box;
-}
-
-/* Override any NG-ZORRO container constraints */
-.ant-layout {
-  width: 100% !important;
-}
-
-.ant-row {
-  width: 100% !important;
 }
 
 /* Ensure app root takes full width */
@@ -26,4 +60,536 @@ app-root {
   display: block;
   width: 100%;
   min-height: 100vh;
+}
+
+/* Custom Application Styles */
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-navbar {
+  background: var(--primary-color);
+  color: var(--primary-color-text);
+  padding: 0.75rem 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+.navbar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 100%;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.burger-menu {
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  transition: background-color 0.2s;
+}
+
+.burger-menu:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand-logo {
+  font-size: 1.5rem;
+}
+
+.brand-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.user-name {
+  font-weight: 500;
+}
+
+.main-content-wrapper {
+  display: flex;
+  flex: 1;
+}
+
+.menu-sidebar {
+  background: #ffffff;
+  border-right: 2px solid var(--surface-border);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+  transition: width 0.3s ease;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.sidebar-menu {
+  padding: 1rem 0;
+}
+
+.menu-item {
+  margin: 0.25rem 0;
+}
+
+.menu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: var(--text-color);
+  text-decoration: none;
+  transition: all 0.2s;
+  border-radius: 0 25px 25px 0;
+  margin-right: 0.5rem;
+}
+
+.menu-link:hover {
+  background: var(--primary-50);
+  color: var(--primary-color);
+}
+
+.menu-item.active .menu-link {
+  background: var(--primary-color);
+  color: var(--primary-color-text);
+}
+
+.menu-link i {
+  font-size: 1.25rem;
+  width: 1.25rem;
+  text-align: center;
+}
+
+.main-content {
+  flex: 1;
+  background: #f8fafc;
+  transition: margin-left 0.3s ease;
+  position: relative;
+}
+
+.inner-content {
+  padding: 1.5rem;
+}
+
+.breadcrumb-container {
+  margin-bottom: 1.5rem;
+}
+
+.page-breadcrumb {
+  background: transparent;
+  padding: 0;
+}
+
+/* PrimeNG Component Fixes */
+
+/* PrimeNG Dropdown Z-Index Fix */
+.p-select-panel,
+.p-datepicker-panel,
+.p-multiselect-panel,
+.p-autocomplete-panel,
+.p-tooltip,
+.p-overlaypanel {
+  z-index: 9999 !important;
+}
+
+/* Fix dropdown positioning */
+.p-select .p-select-panel {
+  min-width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Improve dropdown item styling */
+.p-select-item {
+  padding: 0.75rem 1rem;
+  border: none;
+  color: var(--text-color);
+  background: transparent;
+  transition: background-color 0.15s;
+}
+
+.p-select-item:hover {
+  background-color: var(--surface-hover);
+}
+
+.p-select-item.p-highlight {
+  background-color: var(--primary-color);
+  color: var(--primary-color-text);
+}
+
+/* Fix table styling */
+.p-datatable {
+  .p-datatable-thead > tr > th {
+    background: var(--surface-section);
+    border: 1px solid var(--surface-border);
+    font-weight: 600;
+    padding: 1rem;
+    text-align: left;
+  }
+  
+  .p-datatable-tbody > tr > td {
+    padding: 1rem;
+    border: 1px solid var(--surface-border);
+    vertical-align: middle;
+  }
+  
+  .p-datatable-tbody > tr:nth-child(even) {
+    background: var(--surface-50);
+  }
+  
+  .p-datatable-tbody > tr:hover {
+    background: var(--primary-50);
+  }
+}
+
+/* Fix table action buttons alignment */
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  
+  .p-button {
+    padding: 0.5rem;
+    min-width: auto;
+  }
+  
+  .p-button.p-button-sm {
+    padding: 0.375rem;
+  }
+}
+
+/* Fix card styling */
+.p-card {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  
+  .p-card-header {
+    padding: 1.5rem 1.5rem 0;
+  }
+  
+  .p-card-body {
+    padding: 1.5rem;
+  }
+  
+  .p-card-content {
+    padding: 0;
+  }
+}
+
+/* Fix button spacing and alignment */
+.p-button {
+  font-weight: 500;
+  
+  &.p-button-sm {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Fix form field spacing */
+.p-field {
+  margin-bottom: 1rem;
+  
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-color);
+  }
+}
+
+/* Fix input field styling */
+.p-inputtext,
+.p-select,
+.p-multiselect {
+  width: 100%;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  padding: 0.75rem;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  
+  &:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-50);
+  }
+}
+
+/* Fix input group alignment */
+.p-inputgroup {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  
+  .p-inputtext {
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+    border-right: none;
+    flex: 1;
+  }
+  
+  .p-button {
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    border-left: none;
+    white-space: nowrap;
+    
+    &:focus {
+      z-index: 1;
+    }
+  }
+  
+  .p-inputgroup-addon {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--surface-100);
+    border: 1px solid var(--surface-border);
+    border-left: none;
+    border-right: none;
+  }
+  
+  .p-inputgroup-addon:first-child {
+    border-left: 1px solid var(--surface-border);
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+  }
+  
+  .p-inputgroup-addon:last-child {
+    border-right: 1px solid var(--surface-border);
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  }
+}
+
+/* Responsive input group fixes */
+@media (max-width: 768px) {
+  .p-inputgroup {
+    flex-direction: column;
+    
+    .p-inputtext,
+    .p-button,
+    .p-inputgroup-addon {
+      border-radius: var(--border-radius);
+      border: 1px solid var(--surface-border);
+      margin-bottom: 0.5rem;
+    }
+    
+    .p-inputtext:last-child,
+    .p-button:last-child,
+    .p-inputgroup-addon:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+/* Fix message styling */
+.p-message {
+  margin-bottom: 1rem;
+  border-radius: var(--border-radius);
+}
+
+/* Fix tag styling */
+.p-tag {
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius);
+}
+
+/* Fix breadcrumb styling */
+.p-breadcrumb {
+  background: transparent;
+  border: none;
+  padding: 0;
+  
+  .p-breadcrumb-list {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Fix progress spinner */
+.p-progress-spinner {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Fix checkbox alignment */
+.p-checkbox {
+  vertical-align: middle;
+}
+
+/* Utility Classes */
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 1rem; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.mr-2 { margin-right: 0.5rem; }
+.ml-2 { margin-left: 0.5rem; }
+.p-2 { padding: 0.5rem; }
+.p-3 { padding: 1rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 1rem; }
+
+/* Improve form field spacing */
+.p-field {
+  margin-bottom: 1rem;
+}
+
+.p-field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+/* Improve card styling */
+.p-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.p-card .p-card-header {
+  padding: 1.5rem 1.5rem 0;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.p-card .p-card-body {
+  padding: 1.5rem;
+}
+
+/* Improve button spacing and styling */
+.p-button {
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.p-button:not(.p-button-icon-only) {
+  padding: 0.75rem 1rem;
+}
+
+.p-button.p-button-sm {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Improve input styling */
+.p-inputtext,
+.p-select,
+.p-datepicker input {
+  border-radius: 6px;
+  border: 1px solid var(--surface-border);
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.p-inputtext:focus,
+.p-select:focus,
+.p-datepicker input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+/* Improve message styling */
+.p-message {
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+/* Improve tag styling */
+.p-tag {
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Improve breadcrumb styling */
+.p-breadcrumb {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+.p-breadcrumb .p-breadcrumb-list {
+  background: transparent;
+}
+
+/* Improve progress spinner */
+.p-progress-spinner {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Improve checkbox alignment */
+.p-checkbox {
+  vertical-align: middle;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .navbar-content {
+    padding: 0 0.5rem;
+  }
+  
+  .brand-name {
+    display: none;
+  }
+  
+  .user-name {
+    display: none;
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+  }
+  
+  .menu-sidebar {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    height: calc(100vh - 60px);
+    z-index: 999;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .menu-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .table-actions {
+    flex-direction: column;
+    gap: 0.25rem;
+    
+    .p-button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+  
+  .p-card .p-card-header,
+  .p-card .p-card-body {
+    padding: 1rem;
+  }
 }

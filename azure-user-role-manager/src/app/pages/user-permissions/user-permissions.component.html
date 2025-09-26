@@ -1,49 +1,44 @@
 <div class="user-permissions-container">
   <!-- Breadcrumb Navigation -->
-  <nz-breadcrumb class="breadcrumb-nav">
-    <nz-breadcrumb-item>
-      <a (click)="navigateToUsers()">
-        <span nz-icon nzType="team" nzTheme="outline"></span>
-        Users
+  <p-breadcrumb class="breadcrumb-nav" [model]="breadcrumbItems" [home]="homeItem">
+    <ng-template pTemplate="item" let-item>
+      <a (click)="navigateToUsers()" *ngIf="item.label === 'Users'">
+        <i class="pi pi-users"></i>
+        {{ item.label }}
       </a>
-    </nz-breadcrumb-item>
-    <nz-breadcrumb-item>
-      <a (click)="navigateToUserDetails()">
-        {{ getUserDisplayName() }}
+      <a (click)="navigateToUserDetails()" *ngIf="item.label === getUserDisplayName()">
+        {{ item.label }}
       </a>
-    </nz-breadcrumb-item>
-    <nz-breadcrumb-item>
-      <span nz-icon nzType="safety-certificate" nzTheme="outline"></span>
-      Permissions
-    </nz-breadcrumb-item>
-  </nz-breadcrumb>
+      <span *ngIf="item.label === 'Permissions'">
+        <i class="pi pi-shield"></i>
+        {{ item.label }}
+      </span>
+    </ng-template>
+  </p-breadcrumb>
 
   <!-- Header Section -->
   <div class="header-section">
     <div class="header-content">
       <h2 class="page-title">
-        <span nz-icon nzType="safety-certificate" nzTheme="outline"></span>
+        <i class="pi pi-shield"></i>
         User Permissions - {{ getUserDisplayName() }}
       </h2>
       <div class="header-actions">
-        <button 
-          nz-button 
-          nzType="default" 
+        <p-button 
+          label="Refresh"
+          icon="pi pi-refresh" 
           (click)="refreshPermissions()" 
-          [nzLoading]="loading"
-          nzSize="small">
-          <span nz-icon nzType="reload" nzTheme="outline"></span>
-          Refresh
-        </button>
-        <button 
-          nz-button 
-          nzType="primary" 
+          [loading]="loading"
+          size="small"
+          severity="secondary">
+        </p-button>
+        <p-button 
+          label="Export CSV"
+          icon="pi pi-download" 
           (click)="exportPermissions()" 
           [disabled]="!permissions || loading"
-          nzSize="small">
-          <span nz-icon nzType="download" nzTheme="outline"></span>
-          Export CSV
-        </button>
+          size="small">
+        </p-button>
       </div>
     </div>
   </div>
@@ -51,465 +46,449 @@
   <!-- Summary Cards -->
   <div class="summary-section" *ngIf="permissionSummary && !loading">
     <div class="summary-cards">
-      <nz-card class="summary-card">
-        <nz-statistic 
-          nzTitle="Directory Roles" 
-          [nzValue]="permissionSummary.totalDirectoryRoles"
-          [nzValueStyle]="{ color: '#1890ff' }">
-          <ng-template #nzPrefix>
-            <span nz-icon nzType="team" nzTheme="outline"></span>
-          </ng-template>
-        </nz-statistic>
-      </nz-card>
+      <p-card class="summary-card">
+        <ng-template pTemplate="header">
+          <div class="statistic-header">
+            <i class="pi pi-users" style="color: #1890ff;"></i>
+            <span class="statistic-title">Directory Roles</span>
+          </div>
+        </ng-template>
+        <div class="statistic-value" style="color: #1890ff;">
+          {{ permissionSummary.totalDirectoryRoles }}
+        </div>
+      </p-card>
       
-      <nz-card class="summary-card">
-        <nz-statistic 
-          nzTitle="Application Roles" 
-          [nzValue]="permissionSummary.totalAppRoles"
-          [nzValueStyle]="{ color: '#52c41a' }">
-          <ng-template #nzPrefix>
-            <span nz-icon nzType="appstore" nzTheme="outline"></span>
-          </ng-template>
-        </nz-statistic>
-      </nz-card>
+      <p-card class="summary-card">
+        <ng-template pTemplate="header">
+          <div class="statistic-header">
+            <i class="pi pi-th-large" style="color: #52c41a;"></i>
+            <span class="statistic-title">Application Roles</span>
+          </div>
+        </ng-template>
+        <div class="statistic-value" style="color: #52c41a;">
+          {{ permissionSummary.totalAppRoles }}
+        </div>
+      </p-card>
       
-      <nz-card class="summary-card">
-        <nz-statistic 
-          nzTitle="RBAC Roles" 
-          [nzValue]="permissionSummary.totalRbacRoles"
-          [nzValueStyle]="{ color: '#fa8c16' }">
-          <ng-template #nzPrefix>
-            <span nz-icon nzType="cloud" nzTheme="outline"></span>
-          </ng-template>
-        </nz-statistic>
-      </nz-card>
+      <p-card class="summary-card">
+        <ng-template pTemplate="header">
+          <div class="statistic-header">
+            <i class="pi pi-cloud" style="color: #fa8c16;"></i>
+            <span class="statistic-title">RBAC Roles</span>
+          </div>
+        </ng-template>
+        <div class="statistic-value" style="color: #fa8c16;">
+          {{ permissionSummary.totalRbacRoles }}
+        </div>
+      </p-card>
       
-      <nz-card class="summary-card">
-        <nz-statistic 
-          nzTitle="Subscriptions" 
-          [nzValue]="permissionSummary.totalSubscriptions"
-          [nzValueStyle]="{ color: '#722ed1' }">
-          <ng-template #nzPrefix>
-            <span nz-icon nzType="database" nzTheme="outline"></span>
-          </ng-template>
-        </nz-statistic>
-      </nz-card>
+      <p-card class="summary-card">
+        <ng-template pTemplate="header">
+          <div class="statistic-header">
+            <i class="pi pi-database" style="color: #722ed1;"></i>
+            <span class="statistic-title">Subscriptions</span>
+          </div>
+        </ng-template>
+        <div class="statistic-value" style="color: #722ed1;">
+          {{ permissionSummary.totalSubscriptions }}
+        </div>
+      </p-card>
     </div>
 
     <!-- High Privilege Alert -->
-    <nz-alert 
+    <p-message
       *ngIf="permissionSummary.highPrivilegeRoles.length > 0"
-      nzType="warning"
-      nzShowIcon
-      [nzMessage]="'High Privilege Roles Detected'"
-      [nzDescription]="'This user has ' + permissionSummary.highPrivilegeRoles.length + ' high-privilege roles: ' + permissionSummary.highPrivilegeRoles.join(', ')"
+      severity="warn"
+      [text]="'High Privilege Roles Detected: This user has ' + permissionSummary.highPrivilegeRoles.length + ' high-privilege roles: ' + permissionSummary.highPrivilegeRoles.join(', ')"
       class="privilege-alert">
-    </nz-alert>
+      <ng-template pTemplate="icon">
+        <i class="pi pi-exclamation-triangle"></i>
+      </ng-template>
+    </p-message>
   </div>
 
   <!-- Filters Section -->
-  <nz-card class="filters-card" *ngIf="!loading">
+  <div class="filters-card" *ngIf="!loading">
     <div class="filters-content">
       <div class="filter-row">
         <div class="filter-item">
           <label class="filter-label">Search:</label>
-          <nz-input-group nzSearch [nzAddOnAfter]="searchButton">
+          <p-inputGroup>
             <input 
               type="text" 
-              nz-input 
+              pInputText 
               placeholder="Search roles, resources..." 
               [(ngModel)]="searchQuery"
               (keyup.enter)="onSearch()"/>
-          </nz-input-group>
-          <ng-template #searchButton>
-            <button nz-button nzType="primary" nzSearch (click)="onSearch()">
-              <span nz-icon nzType="search"></span>
-            </button>
-          </ng-template>
+            <p-button 
+              icon="pi pi-search" 
+              (click)="onSearch()">
+            </p-button>
+          </p-inputGroup>
         </div>
 
         <div class="filter-item">
           <label class="filter-label">Permission Type:</label>
-          <nz-select 
+          <p-select 
             [(ngModel)]="selectedPermissionType" 
-            (ngModelChange)="onPermissionTypeChange()"
-            nzPlaceHolder="Select permission type"
+            (onChange)="onPermissionTypeChange()"
+            placeholder="Select permission type"
+            [options]="permissionTypeOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
             class="filter-select">
-            <nz-option 
-              *ngFor="let option of permissionTypeOptions" 
-              [nzLabel]="option.label" 
-              [nzValue]="option.value">
-            </nz-option>
-          </nz-select>
+          </p-select>
         </div>
 
         <div class="filter-item" *ngIf="subscriptions.length > 0">
           <label class="filter-label">Subscription:</label>
-          <nz-select 
+          <p-select 
             [(ngModel)]="selectedSubscription" 
-            (ngModelChange)="onSubscriptionChange()"
-            nzPlaceHolder="All subscriptions"
-            nzAllowClear
+            (onChange)="onSubscriptionChange()"
+            placeholder="All subscriptions"
+            [showClear]="true"
+            [options]="subscriptions"
+            optionLabel="name"
+            optionValue="id"
+            appendTo="body"
             class="filter-select">
-            <nz-option 
-              *ngFor="let sub of subscriptions" 
-              [nzLabel]="sub.name" 
-              [nzValue]="sub.id">
-            </nz-option>
-          </nz-select>
+          </p-select>
         </div>
 
         <div class="filter-actions">
-          <button 
-            nz-button 
-            nzType="default" 
+          <p-button 
+            label="Clear"
+            icon="pi pi-times" 
             (click)="clearFilters()" 
-            nzSize="small">
-            <span nz-icon nzType="close" nzTheme="outline"></span>
-            Clear
-          </button>
+            size="small"
+            severity="secondary">
+          </p-button>
         </div>
       </div>
     </div>
-  </nz-card>
+  </div>
 
   <!-- Loading State -->
   <div class="loading-container" *ngIf="loading">
-    <nz-spin nzSize="large" nzTip="Loading user permissions...">
-      <div class="loading-content"></div>
-    </nz-spin>
+    <p-progressSpinner 
+      styleClass="w-4rem h-4rem" 
+      strokeWidth="8" 
+      fill="var(--surface-ground)" 
+      animationDuration=".5s">
+    </p-progressSpinner>
+    <p class="loading-text">Loading permissions...</p>
   </div>
 
   <!-- Error State -->
-  <nz-alert 
+  <p-message
     *ngIf="error && !loading"
-    nzType="error"
-    nzShowIcon
-    [nzMessage]="'Error Loading Permissions'"
-    [nzDescription]="error"
-    nzCloseable
-    (nzOnClose)="error = null"
+    severity="error"
+    [text]="error"
+    [closable]="true"
+    (onClose)="clearError()"
     class="error-alert">
-  </nz-alert>
+    <ng-template pTemplate="icon">
+      <i class="pi pi-exclamation-triangle"></i>
+    </ng-template>
+  </p-message>
 
   <!-- Bulk Actions Section -->
-  <nz-card class="bulk-actions-card" *ngIf="!loading && !error && filteredPermissions.length > 0">
-    <div class="bulk-actions-content">
-      <div class="bulk-selection">
-        <label nz-checkbox 
-          [(ngModel)]="allSelected" 
-          [nzIndeterminate]="indeterminate"
-          (ngModelChange)="onAllChecked($event)">
-          Select All ({{ getSelectedCount() }} selected)
-        </label>
-      </div>
-      <div class="bulk-actions">
-        <button 
-          nz-button 
-          nzType="primary" 
-          (click)="openAddPermissionModal()"
-          nzSize="small">
-          <span nz-icon nzType="plus" nzTheme="outline"></span>
-          Add Permission
-        </button>
-        <button 
-          nz-button 
-          nzType="primary" 
-          nzDanger
-          [disabled]="getSelectedCount() === 0"
-          [nzLoading]="bulkOperationLoading"
-          nz-popconfirm
-          nzPopconfirmTitle="Are you sure you want to remove the selected permissions?"
-          nzPopconfirmPlacement="topRight"
-          (nzOnConfirm)="bulkRemovePermissions()"
-          nzSize="small">
-          <span nz-icon nzType="delete" nzTheme="outline"></span>
-          Remove Selected ({{ getSelectedCount() }})
-        </button>
+  <div class="bulk-actions" *ngIf="filteredPermissions && filteredPermissions.length > 0 && !loading">
+    <div class="bulk-selection">
+      <div class="flex align-items-center gap-2">
+        <p-checkbox 
+          [(ngModel)]="selectAll" 
+          (onChange)="onSelectAllChange($event)"
+          [indeterminate]="isIndeterminate()">
+        </p-checkbox>
+        <label>Select All ({{ getSelectedCount() }} selected)</label>
       </div>
     </div>
-  </nz-card>
+    
+    <div class="bulk-buttons" *ngIf="getSelectedCount() > 0">
+      <p-button 
+        label="Add Permission"
+        icon="pi pi-plus" 
+        (click)="openAddPermissionModal()" 
+        size="small">
+      </p-button>
+      
+      <p-confirmDialog></p-confirmDialog>
+      <p-button 
+        label="Remove Selected ({{ getSelectedCount() }})"
+        icon="pi pi-trash" 
+        (click)="confirmRemoveSelected()" 
+        [disabled]="getSelectedCount() === 0"
+        size="small"
+        severity="danger">
+      </p-button>
+    </div>
+  </div>
 
   <!-- Permissions Table -->
-  <nz-card class="table-card" *ngIf="!loading && !error">
-    <nz-table 
-      #permissionsTable
-      [nzData]="filteredPermissions"
-      [nzPageSize]="pageSize"
-      [nzPageIndex]="pageIndex"
-      [nzShowSizeChanger]="true"
-      [nzShowQuickJumper]="true"
-      [nzShowTotal]="totalTemplate"
-      nzSize="middle"
-      nzBordered
-      class="permissions-table">
+  <p-card class="permissions-table-card" *ngIf="!loading && !error">
+    <p-table 
+      [value]="filteredPermissions"
+      [paginator]="true"
+      [rows]="pageSize"
+      [rowsPerPageOptions]="[10, 20, 50, 100]"
+      [showCurrentPageReport]="true"
+      [scrollable]="true"
+      scrollHeight="600px"
+      [loading]="loading"
+      styleClass="p-datatable-sm"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries">
       
-      <thead>
+      <ng-template pTemplate="header">
         <tr>
-          <th nzWidth="50px">
-            <label nz-checkbox 
-              [(ngModel)]="allSelected" 
-              [nzIndeterminate]="indeterminate"
-              (ngModelChange)="onAllChecked($event)">
-            </label>
+          <th style="width: 50px">
+            <p-checkbox 
+              [(ngModel)]="selectAll" 
+              [indeterminate]="indeterminate"
+              (onChange)="onAllChecked($event)">
+            </p-checkbox>
           </th>
-          <th 
-            nzColumnKey="type" 
-            [nzSortFn]="true" 
-            nzWidth="120px">
-            Type
-          </th>
-          <th 
-            nzColumnKey="roleName" 
-            [nzSortFn]="true" 
-            nzWidth="200px">
-            Role Name
-          </th>
-          <th 
-            nzColumnKey="resourceName" 
-            [nzSortFn]="true" 
-            nzWidth="200px">
-            Resource
-          </th>
-          <th 
-            nzColumnKey="scope" 
-            [nzSortFn]="true" 
-            nzWidth="120px">
-            Scope
-          </th>
-          <th 
-            nzColumnKey="assignedDate" 
-            [nzSortFn]="true" 
-            nzWidth="140px">
-            Assigned Date
-          </th>
-          <th nzWidth="300px">Description</th>
+          <th pSortableColumn="resourceName">Resource <p-sortIcon field="resourceName"></p-sortIcon></th>
+          <th pSortableColumn="roleDefinitionName">Role <p-sortIcon field="roleDefinitionName"></p-sortIcon></th>
+          <th pSortableColumn="scope">Scope <p-sortIcon field="scope"></p-sortIcon></th>
+          <th pSortableColumn="principalType">Type <p-sortIcon field="principalType"></p-sortIcon></th>
+          <th pSortableColumn="inherited">Inherited <p-sortIcon field="inherited"></p-sortIcon></th>
+          <th style="width: 120px">Actions</th>
         </tr>
-      </thead>
+      </ng-template>
       
-      <tbody>
-        <tr *ngFor="let item of permissionsTable.data">
+      <ng-template pTemplate="body" let-permission let-rowIndex="rowIndex">
+        <tr>
           <td>
-            <label nz-checkbox 
-              [ngModel]="selectedPermissions.has(item.id)"
-              (ngModelChange)="onItemChecked(item.id, $event)">
-            </label>
-          </td>
-          <td>
-            <nz-tag [nzColor]="getPermissionTypeColor(item.type)">
-              {{ item.type }}
-            </nz-tag>
-          </td>
-          <td>
-            <div class="role-name-cell">
-              <span class="role-name">{{ item.roleName }}</span>
-              <nz-tag 
-                *ngIf="item.isHighPrivilege" 
-                nzColor="red" 
-                class="privilege-tag">
-                <span nz-icon nzType="warning" nzTheme="fill"></span>
-                High Privilege
-              </nz-tag>
-            </div>
+            <p-checkbox 
+              [(ngModel)]="permission.selected"
+              (onChange)="onItemChecked(permission.id, $event)">
+            </p-checkbox>
           </td>
           <td>
             <div class="resource-info">
-              <div class="resource-name" [title]="item.resourceName">
-                {{ item.resourceName }}
-              </div>
-              <div class="resource-details" *ngIf="item.resourceGroup || item.resourceType">
-                <nz-tag *ngIf="item.resourceType" [nzColor]="'blue'" class="resource-type-tag">
-                  {{ item.resourceType }}
-                </nz-tag>
-                <span *ngIf="item.resourceGroup" class="resource-group-info">
-                  <span nz-icon nzType="folder" nzTheme="outline"></span>
-                  {{ item.resourceGroup }}
-                </span>
-              </div>
+              <div class="resource-name">{{ permission.resourceName }}</div>
+              <div class="resource-type">{{ permission.resourceType }}</div>
             </div>
           </td>
           <td>
-            <nz-tag [nzColor]="getScopeColor(item.scope)">
-              {{ item.scope }}
-            </nz-tag>
-          </td>
-          <td>
-            <span *ngIf="item.assignedDate; else noDateTemplate" class="assigned-date">
-              {{ item.assignedDate | date:'short' }}
-            </span>
-            <ng-template #noDateTemplate>
-              <span class="no-date">-</span>
+            <p-tag 
+              *ngIf="permission.roleDefinitionName && permission.roleDefinitionName.trim(); else noRoleTag"
+              [value]="permission.roleDefinitionName" 
+              [severity]="getRoleTagSeverity(permission.roleDefinitionName)">
+            </p-tag>
+            <ng-template #noRoleTag>
+              <span class="text-color-secondary text-sm">No role assigned</span>
             </ng-template>
           </td>
           <td>
-            <div class="description-cell" [title]="item.description">
-              {{ item.description || '-' }}
+            <div class="scope-info">
+              <div class="scope-level">{{ getScopeLevel(permission.scope) }}</div>
+              <div class="scope-path">{{ getScopePath(permission.scope) }}</div>
+            </div>
+          </td>
+          <td>
+            <p-tag 
+              *ngIf="permission.principalType && permission.principalType.trim(); else noTypeTag"
+              [value]="permission.principalType" 
+              [severity]="getTypeTagSeverity(permission.principalType)">
+            </p-tag>
+            <ng-template #noTypeTag>
+              <span class="text-color-secondary text-sm">Unknown type</span>
+            </ng-template>
+          </td>
+          <td>
+            <p-tag [value]="permission.inherited ? 'Yes' : 'No'" [severity]="permission.inherited ? 'warning' : 'success'"></p-tag>
+          </td>
+          <td>
+            <div class="table-actions">
+              <p-button 
+                icon="pi pi-eye" 
+                (click)="viewPermissionDetails(permission)"
+                [text]="true"
+                size="small"
+                pTooltip="View Details">
+              </p-button>
+              <p-button 
+                icon="pi pi-trash" 
+                (click)="confirmRemovePermission(permission)"
+                [text]="true"
+                size="small"
+                severity="danger"
+                pTooltip="Remove Permission">
+              </p-button>
             </div>
           </td>
         </tr>
-      </tbody>
-    </nz-table>
-
-    <ng-template #totalTemplate let-total let-range="range">
-      Showing {{ range[0] }}-{{ range[1] }} of {{ total }} permissions
-    </ng-template>
-  </nz-card>
+      </ng-template>
+      
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="7" class="text-center">
+            <div class="empty-state">
+              <i class="pi pi-info-circle" style="font-size: 2rem; color: var(--text-color-secondary)"></i>
+              <p>No permissions found</p>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-card>
 
   <!-- Empty State -->
-  <nz-card *ngIf="!loading && !error && filteredPermissions.length === 0" class="empty-state">
-    <div class="empty-content">
-      <span nz-icon nzType="inbox" nzTheme="outline" class="empty-icon"></span>
-      <h3>No Permissions Found</h3>
-      <p *ngIf="searchQuery || selectedPermissionType !== 'all' || selectedSubscription">
-        No permissions match your current filters. Try adjusting your search criteria.
-      </p>
-      <p *ngIf="!searchQuery && selectedPermissionType === 'all' && !selectedSubscription">
-        This user has no assigned permissions.
-      </p>
-      <div class="empty-actions">
-        <button 
-          *ngIf="searchQuery || selectedPermissionType !== 'all' || selectedSubscription"
-          nz-button 
-          nzType="primary" 
-          (click)="clearFilters()">
-          Clear Filters
-        </button>
-        <button 
-          nz-button 
-          nzType="primary" 
-          (click)="openAddPermissionModal()">
-          <span nz-icon nzType="plus" nzTheme="outline"></span>
-          Add Permission
-        </button>
-      </div>
+  <div class="empty-state-container" *ngIf="!loading && !error && (!filteredPermissions || filteredPermissions.length === 0)">
+    <div class="empty-state">
+      <i class="pi pi-info-circle" style="font-size: 4rem; color: var(--text-color-secondary)"></i>
+      <h3>No permissions found for this user</h3>
+      <p-button 
+        label="Add Permission"
+        icon="pi pi-plus" 
+        (click)="openAddPermissionModal()">
+      </p-button>
     </div>
-  </nz-card>
+  </div>
 
   <!-- Add Permission Modal -->
-  <nz-modal 
-    [(nzVisible)]="showAddPermissionModal"
-    nzTitle="Add Permission"
-    [nzOkText]="'Add Permission'"
-    [nzCancelText]="'Cancel'"
-    [nzOkLoading]="addPermissionLoading"
-    [nzOkDisabled]="!selectedResource || !selectedRole"
-    (nzOnOk)="addPermission()"
-    (nzOnCancel)="closeAddPermissionModal()"
-    nzWidth="600px">
+  <p-dialog 
+    [(visible)]="showAddPermissionModal"
+    header="Add Permission"
+    [modal]="true"
+    [closable]="true"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="add-permission-dialog"
+    [style]="{width: '600px'}"
+    (onHide)="closeAddPermissionModal()">
     
-    <ng-container *nzModalContent>
+    <ng-template pTemplate="content">
       <div class="add-permission-form">
         <!-- Resource Search -->
         <div class="form-section">
           <h4>Search Azure Resource</h4>
-          <nz-input-group nzSearch [nzAddOnAfter]="searchResourceButton">
+          <div class="p-inputgroup">
             <input 
               type="text" 
-              nz-input 
+              pInputText
               placeholder="Search for storage accounts, resource groups, subscriptions..." 
               [(ngModel)]="resourceSearchQuery"
               (keyup.enter)="searchResources()"/>
-          </nz-input-group>
-          <ng-template #searchResourceButton>
-            <button 
-              nz-button 
-              nzType="primary" 
-              nzSearch 
-              [nzLoading]="resourceSearchLoading"
+            <p-button 
+              icon="pi pi-search"
+              [loading]="resourceSearchLoading"
               (click)="searchResources()">
-              <span nz-icon nzType="search"></span>
-            </button>
-          </ng-template>
+            </p-button>
+          </div>
           
           <!-- Search Results -->
           <div *ngIf="searchedResources.length > 0" class="resource-search-results">
-            <nz-list nzSize="small">
-              <nz-list-item 
+            <div class="resource-list">
+              <div 
                 *ngFor="let resource of searchedResources" 
-                class="resource-option"
+                class="resource-option p-3 border-round cursor-pointer hover:surface-hover"
                 (click)="selectResource(resource)">
-                <div class="resource-name">{{ resource.name }}</div>
-                <div class="resource-details">
-                  <nz-tag [nzColor]="'blue'">{{ resource.type }}</nz-tag>
-                  <span *ngIf="resource.resourceGroup" class="resource-group">
+                <div class="resource-name font-semibold">{{ resource.name }}</div>
+                <div class="resource-details flex align-items-center gap-2 mt-1">
+                  <p-tag [value]="resource.type" severity="info"></p-tag>
+                  <span *ngIf="resource.resourceGroup" class="resource-group text-sm text-color-secondary">
                     {{ resource.resourceGroup }}
                   </span>
                 </div>
-              </nz-list-item>
-            </nz-list>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Selected Resource -->
         <div class="form-section" *ngIf="selectedResource">
           <h4>Selected Resource</h4>
-          <nz-card class="selected-resource-card">
-            <div class="selected-resource">
+          <p-card class="selected-resource-card">
+            <div class="selected-resource flex justify-content-between align-items-start">
               <div class="resource-info">
-                <h5>{{ selectedResource.name }}</h5>
-                <div class="resource-meta">
-                  <nz-tag [nzColor]="'blue'">{{ selectedResource.type }}</nz-tag>
-                  <span *ngIf="selectedResource.resourceGroup">
+                <h5 class="m-0 mb-2">{{ selectedResource.name }}</h5>
+                <div class="resource-meta flex align-items-center gap-2">
+                  <p-tag [value]="selectedResource.type" severity="info"></p-tag>
+                  <span *ngIf="selectedResource.resourceGroup" class="text-sm text-color-secondary">
                     Resource Group: {{ selectedResource.resourceGroup }}
                   </span>
                 </div>
               </div>
-              <button 
-                nz-button 
-                nzType="text" 
-                nzSize="small"
+              <p-button 
+                icon="pi pi-times" 
+                [text]="true"
+                size="small"
                 (click)="selectedResource = null; availableRoles = []; selectedRole = ''">
-                <span nz-icon nzType="close" nzTheme="outline"></span>
-              </button>
+              </p-button>
             </div>
-          </nz-card>
+          </p-card>
         </div>
 
         <!-- Role Selection -->
         <div class="form-section" *ngIf="selectedResource && availableRoles.length > 0">
           <h4>Select Role</h4>
-          <nz-select 
+          <p-select 
             [(ngModel)]="selectedRole" 
-            nzPlaceHolder="Choose a role to assign"
-            class="role-select">
-            <nz-option 
-              *ngFor="let role of availableRoles" 
-              [nzLabel]="role.name" 
-              [nzValue]="role.id">
+            [options]="availableRoles"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Choose a role to assign"
+            class="role-select w-full">
+            <ng-template pTemplate="selectedItem" let-selectedOption>
+              <div *ngIf="selectedOption">
+                <div class="role-name font-semibold">{{ selectedOption.name }}</div>
+              </div>
+            </ng-template>
+            <ng-template pTemplate="item" let-role>
               <div class="role-option">
-                <div class="role-name">{{ role.name }}</div>
-                <div class="role-description" *ngIf="role.description">
+                <div class="role-name font-semibold">{{ role.name }}</div>
+                <div class="role-description text-sm text-color-secondary" *ngIf="role.description">
                   {{ role.description }}
                 </div>
-                <nz-tag 
-                  [nzColor]="role.type === 'builtin' ? 'blue' : 'green'"
-                  class="role-type-tag">
-                  {{ role.type === 'builtin' ? 'Built-in' : 'Custom' }}
-                </nz-tag>
+                <p-tag 
+                  [value]="role.type === 'builtin' ? 'Built-in' : 'Custom'"
+                  [severity]="role.type === 'builtin' ? 'info' : 'success'"
+                  class="role-type-tag mt-1">
+                </p-tag>
               </div>
-            </nz-option>
-          </nz-select>
+            </ng-template>
+          </p-select>
         </div>
 
         <!-- Loading State -->
         <div class="form-section" *ngIf="selectedResource && availableRoles.length === 0 && !addPermissionLoading">
-          <nz-alert 
-            nzType="info"
-            nzMessage="Loading available roles..."
-            nzShowIcon>
-          </nz-alert>
+          <p-message 
+            severity="info"
+            text="Loading available roles..."
+            [closable]="false">
+          </p-message>
         </div>
 
         <!-- No Roles Available -->
         <div class="form-section" *ngIf="selectedResource && availableRoles.length === 0 && !resourceSearchLoading">
-          <nz-alert 
-            nzType="warning"
-            nzMessage="No roles available for this resource type"
-            nzDescription="The selected resource type may not support role assignments or you may not have permission to view available roles."
-            nzShowIcon>
-          </nz-alert>
+          <p-message 
+            severity="warn"
+            text="No roles available for this resource type"
+            detail="The selected resource type may not support role assignments or you may not have permission to view available roles."
+            [closable]="false">
+          </p-message>
         </div>
       </div>
-    </ng-container>
-  </nz-modal>
+    </ng-template>
+    
+    <ng-template pTemplate="footer">
+      <p-button 
+        label="Cancel" 
+        icon="pi pi-times" 
+        [text]="true"
+        (click)="closeAddPermissionModal()">
+      </p-button>
+      <p-button 
+        label="Add Permission" 
+        icon="pi pi-plus" 
+        [loading]="addPermissionLoading"
+        [disabled]="!selectedResource || !selectedRole"
+        (click)="addPermission()">
+      </p-button>
+    </ng-template>
+  </p-dialog>
 </div>

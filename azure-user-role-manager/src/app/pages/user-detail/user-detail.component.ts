@@ -3,26 +3,23 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil, finalize } from 'rxjs';
 import { AccountInfo } from '@azure/msal-browser';
+import { MenuItem } from 'primeng/api';
 
-// NG-ZORRO imports
-import { NzLayoutModule } from 'ng-zorro-antd/layout';
-import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzTypographyModule } from 'ng-zorro-antd/typography';
-import { NzDescriptionsModule } from 'ng-zorro-antd/descriptions';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzModalModule } from 'ng-zorro-antd/modal';
-import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
-import { NzAvatarModule } from 'ng-zorro-antd/avatar';
-import { NzGridModule } from 'ng-zorro-antd/grid';
+// PrimeNG imports
+import { CardModule } from 'primeng/card';
+import { ButtonModule } from 'primeng/button';
+import { BreadcrumbModule } from 'primeng/breadcrumb';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { DialogModule } from 'primeng/dialog';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { TooltipModule } from 'primeng/tooltip';
+import { DividerModule } from 'primeng/divider';
+import { AvatarModule } from 'primeng/avatar';
+import { ToastModule } from 'primeng/toast';
+import { SkeletonModule } from 'primeng/skeleton';
 
 // Services and Models
 import { AuthService } from '../../services/auth.service';
@@ -36,23 +33,19 @@ import { User, RoleAssignment } from '../../models/user.model';
   imports: [
     CommonModule,
     RouterModule,
-    NzLayoutModule,
-    NzBreadCrumbModule,
-    NzCardModule,
-    NzButtonModule,
-    NzIconModule,
-    NzTypographyModule,
-    NzDescriptionsModule,
-    NzTableModule,
-    NzTagModule,
-    NzSpinModule,
-    NzEmptyModule,
-    NzModalModule,
-    NzPopconfirmModule,
-    NzToolTipModule,
-    NzDividerModule,
-    NzAvatarModule,
-    NzGridModule
+    CardModule,
+    ButtonModule,
+    BreadcrumbModule,
+    TableModule,
+    TagModule,
+    ProgressSpinnerModule,
+    DialogModule,
+    ConfirmDialogModule,
+    TooltipModule,
+    DividerModule,
+    AvatarModule,
+    ToastModule,
+    SkeletonModule
   ],
   templateUrl: './user-detail.component.html',
   styleUrl: './user-detail.component.scss'
@@ -74,13 +67,18 @@ export class UserDetailComponent implements OnInit, OnDestroy {
   
   // User ID from route
   userId: string | null = null;
+  
+  // Breadcrumb items
+  breadcrumbItems: MenuItem[] = [];
+  homeItem: MenuItem = { icon: 'pi pi-home', routerLink: '/' };
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private authService: AuthService,
     private azureApiService: AzureApiService,
-    private message: NzMessageService,
+    private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     public utilityService: UtilityService
   ) {}
 
@@ -103,10 +101,18 @@ export class UserDetailComponent implements OnInit, OnDestroy {
     this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.userId = params['id'];
       if (this.userId) {
+        this.initializeBreadcrumb();
         this.loadUserDetails();
         this.loadRoleAssignments();
       }
     });
+  }
+
+  private initializeBreadcrumb(): void {
+    this.breadcrumbItems = [
+      { label: 'Users', routerLink: '/users' },
+      { label: 'User Details' }
+    ];
   }
 
   private loadUserDetails(): void {
@@ -124,7 +130,11 @@ export class UserDetailComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           console.error('Error loading user details:', error);
-          this.message.error('Failed to load user details');
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load user details'
+          });
         }
       });
   }
@@ -144,9 +154,25 @@ export class UserDetailComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           console.error('Error loading role assignments:', error);
-          this.message.error('Failed to load role assignments');
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load role assignments'
+          });
         }
       });
+  }
+
+  confirmRemoveRole(assignment: RoleAssignment): void {
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to remove this role assignment?',
+      header: 'Confirm Removal',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.onRemoveRole(assignment);
+      }
+    });
   }
 
   onRemoveRole(assignment: RoleAssignment): void {
@@ -161,15 +187,27 @@ export class UserDetailComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (result) => {
           if (result.success) {
-            this.message.success(`Role "${assignment.roleName}" removed successfully`);
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Success',
+              detail: `Role "${assignment.roleName}" removed successfully`
+            });
             this.loadRoleAssignments(); // Reload the assignments
           } else {
-            this.message.error(result.message || 'Failed to remove role assignment');
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: result.message || 'Failed to remove role assignment'
+            });
           }
         },
         error: (error: any) => {
           console.error('Error removing role assignment:', error);
-          this.message.error('Failed to remove role assignment');
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to remove role assignment'
+          });
         }
       });
   }

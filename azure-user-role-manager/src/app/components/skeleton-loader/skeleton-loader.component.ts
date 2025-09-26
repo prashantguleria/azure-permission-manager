@@ -1,40 +1,49 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
-import { NzCardModule } from 'ng-zorro-antd/card';
+import { SkeletonModule } from 'primeng/skeleton';
+import { CardModule } from 'primeng/card';
 
 @Component({
   selector: 'app-skeleton-loader',
   standalone: true,
-  imports: [CommonModule, NzSkeletonModule, NzCardModule],
+  imports: [CommonModule, SkeletonModule, CardModule],
   template: `
     <div class="skeleton-container">
       <!-- Table skeleton -->
       <div *ngIf="type === 'table'" class="table-skeleton">
-        <nz-card>
+        <p-card>
           <div class="skeleton-header">
-            <nz-skeleton-element nzType="button" [nzSize]="'default'" class="skeleton-button"></nz-skeleton-element>
-            <nz-skeleton-element nzType="input" [nzSize]="'default'" class="skeleton-input"></nz-skeleton-element>
+            <p-skeleton width="100px" height="2rem" class="skeleton-button"></p-skeleton>
+            <p-skeleton width="300px" height="2rem" class="skeleton-input"></p-skeleton>
           </div>
           <div class="skeleton-table-rows">
             <div *ngFor="let item of skeletonRows" class="skeleton-row">
-              <nz-skeleton [nzActive]="true" [nzParagraph]="{ rows: 1 }" [nzTitle]="false"></nz-skeleton>
+              <p-skeleton width="100%" height="1rem"></p-skeleton>
             </div>
           </div>
-        </nz-card>
+        </p-card>
       </div>
 
       <!-- Card skeleton -->
       <div *ngIf="type === 'card'" class="card-skeleton">
-        <nz-card *ngFor="let item of skeletonRows">
-          <nz-skeleton [nzActive]="true" [nzAvatar]="true" [nzParagraph]="{ rows: 2 }"></nz-skeleton>
-        </nz-card>
+        <p-card *ngFor="let item of skeletonRows">
+          <div class="skeleton-card-content">
+            <p-skeleton shape="circle" size="3rem" class="skeleton-avatar"></p-skeleton>
+            <div class="skeleton-text">
+              <p-skeleton width="100%" height="1rem" class="mb-2"></p-skeleton>
+              <p-skeleton width="80%" height="1rem"></p-skeleton>
+            </div>
+          </div>
+        </p-card>
       </div>
 
       <!-- List skeleton -->
       <div *ngIf="type === 'list'" class="list-skeleton">
         <div *ngFor="let item of skeletonRows" class="skeleton-list-item">
-          <nz-skeleton [nzActive]="true" [nzAvatar]="true" [nzParagraph]="{ rows: 1 }"></nz-skeleton>
+          <div class="skeleton-list-content">
+            <p-skeleton shape="circle" size="2.5rem" class="skeleton-avatar"></p-skeleton>
+            <p-skeleton width="100%" height="1rem" class="skeleton-text"></p-skeleton>
+          </div>
         </div>
       </div>
     </div>
@@ -89,6 +98,30 @@ import { NzCardModule } from 'ng-zorro-antd/card';
       padding: 16px;
       border: 1px solid #f0f0f0;
       border-radius: 6px;
+    }
+
+    .skeleton-card-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .skeleton-text {
+      flex: 1;
+    }
+
+    .skeleton-list-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .skeleton-list-content .skeleton-text {
+      flex: 1;
+    }
+
+    .mb-2 {
+      margin-bottom: 8px;
     }
   `]
 })

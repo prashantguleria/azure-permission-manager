@@ -105,7 +105,7 @@
   z-index: 10;
   transition: width 0.3s ease;
   
-  ::ng-deep .ant-layout-sider-children {
+  :deep(.p-sidebar-content) {
     height: 100%;
     overflow-y: auto;
   }
@@ -122,10 +122,10 @@
   margin-bottom: 16px;
   
   .page-breadcrumb {
-    ::ng-deep .ant-breadcrumb {
+    :deep(.p-breadcrumb) {
       font-size: 14px;
       
-      .ant-breadcrumb-link {
+      .p-breadcrumb-item a {
         &:hover {
         }
       }
@@ -217,7 +217,7 @@
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     
-    &:not(.ant-layout-sider-collapsed) {
+    &:not(.p-sidebar-collapsed) {
       transform: translateX(0);
     }
   }

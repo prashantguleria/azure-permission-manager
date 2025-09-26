@@ -2,19 +2,13 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzTypographyModule } from 'ng-zorro-antd/typography';
-import { NzLayoutModule } from 'ng-zorro-antd/layout';
-
-import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzMessageModule } from 'ng-zorro-antd/message';
-import { NzGridModule } from 'ng-zorro-antd/grid';
+import { CardModule } from 'primeng/card';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { TagModule } from 'primeng/tag';
+import { MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
 import { AuthService } from '../../services/auth.service';
 import { AzureApiService } from '../../services/azure-api.service';
 import { Tenant } from '../../models/tenant.model';
@@ -26,19 +20,14 @@ import { Subject, takeUntil } from 'rxjs';
   imports: [
     CommonModule,
     FormsModule,
-    NzCardModule,
-    NzButtonModule,
-    NzInputModule,
-    NzIconModule,
-    NzSpinModule,
-    NzEmptyModule,
-    NzTypographyModule,
-    NzLayoutModule,
-
-    NzTagModule,
-    NzMessageModule,
-    NzGridModule
+    CardModule,
+    ButtonModule,
+    InputTextModule,
+    ProgressSpinnerModule,
+    TagModule,
+    ToastModule
   ],
+  providers: [MessageService],
   templateUrl: './tenant-selection.component.html',
   styleUrl: './tenant-selection.component.scss'
 })
@@ -55,7 +44,7 @@ export class TenantSelectionComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private azureApiService: AzureApiService,
     private router: Router,
-    private message: NzMessageService
+    private messageService: MessageService
   ) {}
 
   ngOnInit(): void {
@@ -79,12 +68,12 @@ export class TenantSelectionComponent implements OnInit, OnDestroy {
           this.isLoading = false;
           
           if (tenants.length === 0) {
-            this.message.warning('No tenants found for your account');
+            this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'No tenants found for your account' });
           }
         },
         error: (error) => {
           console.error('Error loading tenants:', error);
-          this.message.error('Failed to load tenants. Please try again.');
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load tenants. Please try again.' });
           this.isLoading = false;
           
           // Fallback to empty array on error
@@ -110,14 +99,14 @@ export class TenantSelectionComponent implements OnInit, OnDestroy {
   selectTenant(tenant: Tenant): void {
     if (tenant.isDefault) {
       // If it's the current tenant, just navigate
-      this.message.success(`Already connected to tenant: ${tenant.displayName}`);
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: `Already connected to tenant: ${tenant.displayName}` });
       localStorage.setItem('selectedTenant', JSON.stringify(tenant));
       this.router.navigate(['/app/user-management']);
       return;
     }
 
     // Show loading message for tenant switch
-    this.message.loading(`Switching to tenant: ${tenant.displayName}...`, { nzDuration: 0 });
+    this.messageService.add({ severity: 'info', summary: 'Info', detail: `Switching to tenant: ${tenant.displayName}...` });
     
     // Store tenant info for after redirect
     localStorage.setItem('selectedTenant', JSON.stringify(tenant));
@@ -131,14 +120,12 @@ export class TenantSelectionComponent implements OnInit, OnDestroy {
             // The redirect will happen automatically, no need to navigate here
             console.log(`Tenant switch initiated for: ${tenant.displayName}`);
           } else {
-            this.message.remove();
-            this.message.error(`Failed to switch to tenant: ${tenant.displayName}`);
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: `Failed to switch to tenant: ${tenant.displayName}` });
           }
         },
         error: (error) => {
           console.error('Error switching tenant:', error);
-          this.message.remove();
-          this.message.error(`Error switching to tenant: ${tenant.displayName}`);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: `Error switching to tenant: ${tenant.displayName}` });
         }
       });
   }

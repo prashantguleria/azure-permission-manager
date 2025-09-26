@@ -1,12 +1,11 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormArray, ReactiveFormsModule } from '@angular/forms';
-import { NzModalModule } from 'ng-zorro-antd/modal';
-import { NzFormModule } from 'ng-zorro-antd/form';
-import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { DialogModule } from 'primeng/dialog';
+import { CheckboxModule } from 'primeng/checkbox';
+import { ButtonModule } from 'primeng/button';
+import { MessageService } from 'primeng/api';
+import { DividerModule } from 'primeng/divider';
 
 export interface RemovePermissionRequest {
   roleAssignmentIds: string[];
@@ -18,25 +17,23 @@ export interface RemovePermissionRequest {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    NzModalModule,
-    NzFormModule,
-    NzCheckboxModule,
-    NzButtonModule,
-    NzDividerModule
+    DialogModule,
+    CheckboxModule,
+    ButtonModule,
+    DividerModule
   ],
   template: `
-    <nz-modal
-      [(nzVisible)]="visible"
-      nzTitle="Remove Permissions from Storage Accounts"
-      (nzOnCancel)="onCancel()"
-      (nzOnOk)="onOk()"
-      [nzOkLoading]="loading"
-      nzOkText="Remove Selected Permissions"
-      nzCancelText="Cancel"
-      [nzOkType]="'primary'"
-      [nzOkDanger]="true">
+    <p-dialog
+      [(visible)]="visible"
+      header="Remove Permissions from Storage Accounts"
+      (onHide)="onCancel()"
+      [modal]="true"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      styleClass="bulk-remove-modal">
       
-      <ng-container *nzModalContent>
+      <ng-template pTemplate="content">
         <div class="bulk-remove-permission-form">
           <div class="selected-accounts">
             <h4>Removing permissions from {{ selectedAccounts.length }} storage account(s):</h4>
@@ -45,16 +42,21 @@ export interface RemovePermissionRequest {
             </ul>
           </div>
           
-          <nz-divider></nz-divider>
+          <p-divider></p-divider>
           
           <div class="permissions-list" *ngIf="roleAssignments.length > 0">
             <h4>Select permissions to remove:</h4>
-            <form nz-form [formGroup]="removeForm">
+            <form [formGroup]="removeForm">
               <div formArrayName="selectedAssignments">
                 <div 
                   *ngFor="let assignment of roleAssignments; let i = index" 
                   class="permission-item">
-                  <label nz-checkbox [formControlName]="i">
+                  <p-checkbox 
+                    [formControlName]="i"
+                    [binary]="true"
+                    inputId="checkbox-{{i}}">
+                  </p-checkbox>
+                  <label for="checkbox-{{i}}" class="permission-label">
                     <div class="permission-details">
                       <div class="role-name">{{ assignment.roleDefinitionName }}</div>
                       <div class="principal-info">
@@ -73,8 +75,24 @@ export interface RemovePermissionRequest {
             <p>No role assignments found for the selected storage accounts.</p>
           </div>
         </div>
-      </ng-container>
-    </nz-modal>
+      </ng-template>
+      
+      <ng-template pTemplate="footer">
+        <p-button 
+          label="Cancel" 
+          icon="pi pi-times" 
+          (onClick)="onCancel()"
+          styleClass="p-button-text">
+        </p-button>
+        <p-button 
+          label="Remove Selected Permissions" 
+          icon="pi pi-trash" 
+          (onClick)="onOk()"
+          [loading]="loading"
+          severity="danger">
+        </p-button>
+      </ng-template>
+    </p-dialog>
   `,
   styles: [`
     .bulk-remove-permission-form {
@@ -109,12 +127,19 @@ export interface RemovePermissionRequest {
       border: 1px solid #d9d9d9;
       border-radius: 4px;
       background: #fafafa;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
     }
     .permission-item:hover {
       background: #f0f0f0;
     }
+    .permission-label {
+      flex: 1;
+      cursor: pointer;
+    }
     .permission-details {
-      margin-left: 8px;
+      margin: 0;
     }
     .role-name {
       font-weight: 500;
@@ -142,7 +167,7 @@ export interface RemovePermissionRequest {
     }
   `]
 })
-export class BulkRemoveModalComponent {
+export class BulkRemoveModalComponent implements OnChanges {
   @Input() visible = false;
   @Input() selectedAccounts: any[] = [];
   @Input() roleAssignments: any[] = [];
@@ -154,7 +179,7 @@ export class BulkRemoveModalComponent {
 
   constructor(
     private fb: FormBuilder,
-    private message: NzMessageService
+    private messageService: MessageService
   ) {
     this.removeForm = this.fb.group({
       selectedAssignments: this.fb.array([])
@@ -190,7 +215,11 @@ export class BulkRemoveModalComponent {
       .filter((index: number) => index !== -1);
 
     if (selectedIndices.length === 0) {
-      this.message.warning('Please select at least one permission to remove');
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'Please select at least one permission to remove'
+      });
       return;
     }
 

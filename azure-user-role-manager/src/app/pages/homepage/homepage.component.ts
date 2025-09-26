@@ -1,28 +1,20 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzGridModule } from 'ng-zorro-antd/grid';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzTypographyModule } from 'ng-zorro-antd/typography';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
-import { NzSpaceModule } from 'ng-zorro-antd/space';
-import { NzTagModule } from 'ng-zorro-antd/tag';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { DividerModule } from 'primeng/divider';
+import { TagModule } from 'primeng/tag';
 
 @Component({
   selector: 'app-homepage',
   standalone: true,
   imports: [
     CommonModule,
-    NzButtonModule,
-    NzCardModule,
-    NzGridModule,
-    NzIconModule,
-    NzTypographyModule,
-    NzDividerModule,
-    NzSpaceModule,
-    NzTagModule
+    ButtonModule,
+    CardModule,
+    DividerModule,
+    TagModule
   ],
   templateUrl: './homepage.component.html',
   styleUrls: ['./homepage.component.scss']
@@ -41,7 +33,7 @@ export class HomepageComponent {
       description: 'Search, view, and manage Azure AD users and service principals with advanced filtering and bulk operations.'
     },
     {
-      icon: 'safety-certificate',
+      icon: 'shield',
       title: 'Permission Control',
       description: 'Assign and revoke storage account roles with precision, ensuring proper access control across your organization.'
     },
@@ -51,7 +43,7 @@ export class HomepageComponent {
       description: 'Create, modify, and remove resource locks to prevent accidental changes to critical Azure resources.'
     },
     {
-      icon: 'audit',
+      icon: 'file-text',
       title: 'Audit & Compliance',
       description: 'Comprehensive audit logs track all permission changes with detailed activity monitoring for compliance.'
     },
@@ -69,12 +61,12 @@ export class HomepageComponent {
 
   securityFeatures = [
     {
-      icon: 'safety',
+      icon: 'shield',
       title: 'Client-Side Only',
       text: 'Application runs entirely in your browser with no external servers'
     },
     {
-      icon: 'eye-invisible',
+      icon: 'eye-slash',
       title: 'No Data Collection',
       text: 'We don\'t collect, store, or transmit your personal information'
     },
@@ -84,7 +76,7 @@ export class HomepageComponent {
       text: 'Audit logs and preferences stored locally on your device'
     },
     {
-      icon: 'api',
+      icon: 'cog',
       title: 'Direct Azure Integration',
       text: 'Communicates exclusively with Microsoft Graph and Azure APIs'
     }

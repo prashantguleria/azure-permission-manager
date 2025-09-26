@@ -4,14 +4,16 @@ import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@a
 
 import { routes } from './app.routes';
 import { provideClientHydration } from '@angular/platform-browser';
-import { provideNzIcons } from './icons-provider';
-import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
 import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
 import { FormsModule } from '@angular/forms';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { NzModalService } from 'ng-zorro-antd/modal';
-import { NzMessageService } from 'ng-zorro-antd/message';
+import { providePrimeNG } from 'primeng/config';
+import { MessageService } from 'primeng/api';
+import { DialogService } from 'primeng/dynamicdialog';
+import { ConfirmationService } from 'primeng/api';
+// @ts-ignore
+import Aura from '@primeuix/themes/aura';
 
 // MSAL imports
 import { MsalModule, MsalService, MsalGuard, MsalInterceptor, MsalBroadcastService, MsalRedirectComponent } from '@azure/msal-angular';
@@ -24,12 +26,13 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideClientHydration(),
-    provideNzIcons(),
-    provideNzI18n(en_US),
     importProvidersFrom(FormsModule),
-    NzModalService,
-    NzMessageService,
     provideAnimationsAsync(),
+    providePrimeNG({
+      theme: {
+        preset: Aura
+      }
+    }),
     provideHttpClient(withInterceptorsFromDi()),
     importProvidersFrom(MsalModule.forRoot(msalInstance, {
       interactionType: InteractionType.Redirect,
@@ -55,6 +58,9 @@ export const appConfig: ApplicationConfig = {
       provide: HTTP_INTERCEPTORS,
       useClass: MsalInterceptor,
       multi: true
-    }
+    },
+    MessageService,
+    DialogService,
+    ConfirmationService
   ]
 };

@@ -4,22 +4,18 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil, switchMap, catchError, of, Subscription } from 'rxjs';
 
-import { NzLayoutModule } from 'ng-zorro-antd/layout';
-import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
-import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzAvatarModule } from 'ng-zorro-antd/avatar';
-import { NzTypographyModule } from 'ng-zorro-antd/typography';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzGridModule } from 'ng-zorro-antd/grid';
-import { NzSpaceModule } from 'ng-zorro-antd/space';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { TableModule } from 'primeng/table';
+import { InputTextModule } from 'primeng/inputtext';
+import { ButtonModule } from 'primeng/button';
+import { TagModule } from 'primeng/tag';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { MessageService } from 'primeng/api';
+import { AvatarModule } from 'primeng/avatar';
+import { CardModule } from 'primeng/card';
+import { TooltipModule } from 'primeng/tooltip';
+import { ToastModule } from 'primeng/toast';
+import { CheckboxModule } from 'primeng/checkbox';
+import { PaginatorModule } from 'primeng/paginator';
 
 import { AzureApiService } from '../../services/azure-api.service';
 import { AuthService } from '../../services/auth.service';
@@ -34,22 +30,19 @@ import { User, UserSearchResult, Principal, PrincipalSearchResult } from '../../
     CommonModule,
     FormsModule,
     RouterModule,
-    NzLayoutModule,
-    NzBreadCrumbModule,
-    NzInputModule,
-    NzButtonModule,
-    NzTableModule,
-    NzTagModule,
-    NzIconModule,
-    NzSpinModule,
-    NzEmptyModule,
-    NzAvatarModule,
-    NzTypographyModule,
-    NzCardModule,
-    NzGridModule,
-    NzSpaceModule,
-    NzToolTipModule
+    TableModule,
+    InputTextModule,
+    ButtonModule,
+    TagModule,
+    ProgressSpinnerModule,
+    AvatarModule,
+    CardModule,
+    TooltipModule,
+    ToastModule,
+    CheckboxModule,
+    PaginatorModule
   ],
+  providers: [MessageService],
   templateUrl: './user-management.component.html',
   styleUrl: './user-management.component.scss'
 })
@@ -80,7 +73,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
     private azureApiService: AzureApiService,
     private authService: AuthService,
     private router: Router,
-    private message: NzMessageService,
+    private messageService: MessageService,
     public utilityService: UtilityService,
     private cdr: ChangeDetectorRef
   ) {}
@@ -121,7 +114,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
             .pipe(
               catchError(error => {
                 console.error('Search error:', error);
-                this.message.error('Failed to search principals');
+                this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to search principals' });
                 return of({ users: [], totalCount: 0, hasMore: false } as UserSearchResult);
               })
             );
@@ -170,7 +163,7 @@ export class UserManagementComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         catchError(error => {
           console.error('Load principals error:', error);
-          this.message.error('Failed to load principals');
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load principals' });
           return of({ users: [], totalCount: 0, hasMore: false } as UserSearchResult);
         })
       )
@@ -220,8 +213,8 @@ export class UserManagementComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onPageSizeChange(pageSize: number): void {
-    this.pageSize = pageSize;
+  onPageSizeChange(pageSize: number | undefined): void {
+    this.pageSize = pageSize ?? 10;
     this.pageIndex = 1;
     this.paginateUsers();
     this.cdr.markForCheck();

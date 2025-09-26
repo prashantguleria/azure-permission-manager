@@ -69,7 +69,7 @@ To use all features, your account needs:
 ### Frontend Technology
 - **Angular 17**: Modern, reactive web framework
 - **TypeScript**: Type-safe development
-- **Ng-Zorro (Ant Design)**: Professional UI components
+- **PrimeNG**: Professional UI components with modern design
 - **SCSS**: Advanced styling capabilities
 
 ### Azure Integration

@@ -1,28 +1,27 @@
 <!-- Main Layout for authenticated pages -->
 <div *ngIf="showMainLayout; else standaloneLayout">
-  <nz-layout class="app-layout">
+  <div class="app-layout">
     <!-- Top Navbar -->
     <div class="top-navbar">
       <div class="navbar-content">
         <!-- Left section: Burger menu and branding -->
         <div class="navbar-left">
           <span class="burger-menu" (click)="isCollapsed = !isCollapsed">
-            <span nz-icon [nzType]="isCollapsed ? 'menu-unfold' : 'menu-fold'"></span>
+            <i class="pi" [class]="isCollapsed ? 'pi-bars' : 'pi-times'"></i>
           </span>
           <div class="brand-section">
-            <span nz-icon nzType="safety-certificate" nzTheme="outline" class="brand-logo"></span>
+            <i class="pi pi-shield brand-logo"></i>
             <span class="brand-name">Azure User Role Manager</span>
           </div>
         </div>
         
         <!-- Right section: User info + Logout -->
         <div class="navbar-right" *ngIf="currentUser">
-          <nz-avatar [nzText]="utilityService.getUserInitials(currentUser.name)" nzSize="small"></nz-avatar>
+          <p-avatar [label]="utilityService.getUserInitials(currentUser.name)" size="normal" shape="circle"></p-avatar>
           <span class="user-name">{{ currentUser.name || 'User' }}</span>
-          <button nz-button nzType="text" nzSize="small" (click)="logout()" class="logout-btn">
-            <span nz-icon nzType="logout" nzTheme="outline"></span>
+          <p-button icon="pi pi-sign-out" (onClick)="logout()" [text]="true" size="small" class="logout-btn">
             Logout
-          </button>
+          </p-button>
         </div>
       </div>
     </div>
@@ -30,65 +29,48 @@
     <!-- Main Content Area with Fixed Sidebar -->
     <div class="main-content-wrapper">
       <!-- Sidebar -->
-      <nz-sider class="menu-sidebar"
-        nzCollapsible
-        [nzWidth]="isCollapsed ? '80px' : '256px'"
-        nzBreakpoint="md"
-        [(nzCollapsed)]="isCollapsed"
-        [nzTrigger]="null">
-        <ul nz-menu nzTheme="dark" nzMode="inline" [nzInlineCollapsed]="isCollapsed">
-          <li nz-menu-item nzMatchRouter>
-            <a routerLink="/app/tenants">
-              <span nz-icon nzType="bank" nzTheme="outline"></span>
-              <span>Tenants</span>
+      <div class="menu-sidebar" [style.width]="isCollapsed ? '80px' : '256px'">
+        <div class="sidebar-menu">
+          <div class="menu-item" routerLinkActive="active">
+            <a routerLink="/app/tenants" class="menu-link">
+              <i class="pi pi-building"></i>
+              <span *ngIf="!isCollapsed">Tenants</span>
             </a>
-          </li>
-          <li nz-menu-item nzMatchRouter>
-            <a routerLink="/app/user-management">
-              <span nz-icon nzType="user" nzTheme="outline"></span>
-              <span>User Management</span>
+          </div>
+          <div class="menu-item" routerLinkActive="active">
+            <a routerLink="/app/user-management" class="menu-link">
+              <i class="pi pi-users"></i>
+              <span *ngIf="!isCollapsed">User Management</span>
             </a>
-          </li>
-          <li nz-menu-item nzMatchRouter>
-            <a routerLink="/app/storage-accounts">
-              <span nz-icon nzType="hdd" nzTheme="outline"></span>
-              <span>Storage Accounts</span>
+          </div>
+          <div class="menu-item" routerLinkActive="active">
+            <a routerLink="/app/storage-accounts" class="menu-link">
+              <i class="pi pi-database"></i>
+              <span *ngIf="!isCollapsed">Storage Accounts</span>
             </a>
-          </li>
-          <li nz-menu-item nzMatchRouter>
-            <a routerLink="/app/audit-logs">
-              <span nz-icon nzType="audit" nzTheme="outline"></span>
-              <span>Audit Logs</span>
+          </div>
+          <div class="menu-item" routerLinkActive="active">
+            <a routerLink="/app/audit-logs" class="menu-link">
+              <i class="pi pi-file-edit"></i>
+              <span *ngIf="!isCollapsed">Audit Logs</span>
             </a>
-          </li>
-
-        </ul>
-      </nz-sider>
+          </div>
+        </div>
+      </div>
       
       <!-- Main Content -->
-      <nz-content class="main-content" [style.margin-left]="isCollapsed ? '80px' : '256px'">
+      <div class="main-content" [style.margin-left]="isCollapsed ? '80px' : '256px'">
         <div class="inner-content">
           <!-- Breadcrumbs moved here -->
           <div class="breadcrumb-container" *ngIf="breadcrumbs.length > 0">
-            <nz-breadcrumb class="page-breadcrumb">
-              <nz-breadcrumb-item *ngFor="let crumb of breadcrumbs; let last = last">
-                <a *ngIf="!last && crumb.link" [routerLink]="crumb.link">
-                  <span nz-icon [nzType]="crumb.icon" nzTheme="outline" *ngIf="crumb.icon"></span>
-                  {{ crumb.label }}
-                </a>
-                <span *ngIf="last">
-                  <span nz-icon [nzType]="crumb.icon" nzTheme="outline" *ngIf="crumb.icon"></span>
-                  {{ crumb.label }}
-                </span>
-              </nz-breadcrumb-item>
-            </nz-breadcrumb>
+            <p-breadcrumb [model]="breadcrumbItems" class="page-breadcrumb"></p-breadcrumb>
           </div>
           
           <router-outlet></router-outlet>
         </div>
-      </nz-content>
+      </div>
     </div>
-  </nz-layout>
+  </div>
 </div>
 
 <!-- Standalone Layout for login and tenant selection -->

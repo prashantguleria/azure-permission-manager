@@ -86,6 +86,28 @@ export class UtilityService {
   }
 
   /**
+   * Get role type severity for PrimeNG display
+   * @param roleType - Role type string
+   * @returns Severity string for PrimeNG components
+   */
+  getRoleTypeSeverity(roleType: string | undefined): 'success' | 'info' | 'warning' | 'danger' | 'secondary' {
+    if (!roleType) {
+      return 'secondary';
+    }
+    
+    switch (roleType.toLowerCase()) {
+      case 'builtin':
+        return 'info';
+      case 'custom':
+        return 'success';
+      case 'privileged':
+        return 'danger';
+      default:
+        return 'secondary';
+    }
+  }
+
+  /**
    * Get status color based on enabled state
    * @param isEnabled - Whether the user/item is enabled
    * @returns Color string for the status

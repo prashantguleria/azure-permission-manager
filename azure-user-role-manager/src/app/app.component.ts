@@ -1,13 +1,12 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd, RouterModule } from '@angular/router';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzLayoutModule } from 'ng-zorro-antd/layout';
-import { NzMenuModule } from 'ng-zorro-antd/menu';
-import { NzAvatarModule } from 'ng-zorro-antd/avatar';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzGridModule } from 'ng-zorro-antd/grid';
-import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { MenubarModule } from 'primeng/menubar';
+import { AvatarModule } from 'primeng/avatar';
+import { ButtonModule } from 'primeng/button';
+import { BreadcrumbModule } from 'primeng/breadcrumb';
+
+import { MenuItem } from 'primeng/api';
 import { AuthService } from './services/auth.service';
 import { Subject, takeUntil, filter } from 'rxjs';
 import { AccountInfo } from '@azure/msal-browser';
@@ -16,7 +15,7 @@ import { UtilityService } from './services/utility.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterModule, NzIconModule, NzLayoutModule, NzMenuModule, NzAvatarModule, NzButtonModule, NzGridModule, NzBreadCrumbModule],
+  imports: [CommonModule, RouterOutlet, RouterModule, MenubarModule, AvatarModule, ButtonModule, BreadcrumbModule],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
@@ -26,6 +25,7 @@ export class AppComponent implements OnInit, OnDestroy {
   showMainLayout = false;
   currentPageTitle: string = '';
   breadcrumbs: Array<{label: string, link?: string, icon?: string}> = [];
+  breadcrumbItems: MenuItem[] = [];
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -143,6 +143,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private updatePageInfo(url: string): void {
     // Reset breadcrumbs
     this.breadcrumbs = [];
+    this.breadcrumbItems = [];
     
     // Set page title and breadcrumbs based on route
     if (url.includes('/user-management')) {
@@ -151,6 +152,10 @@ export class AppComponent implements OnInit, OnDestroy {
         { label: 'Dashboard', link: '/app/dashboard', icon: 'home' },
         { label: 'User Management', icon: 'user' }
       ];
+      this.breadcrumbItems = [
+        { label: 'Dashboard', icon: 'pi pi-home', routerLink: '/app/dashboard' },
+        { label: 'User Management', icon: 'pi pi-users' }
+      ];
     } else if (url.includes('/user-detail')) {
       this.currentPageTitle = 'User Details';
       this.breadcrumbs = [
@@ -158,14 +163,23 @@ export class AppComponent implements OnInit, OnDestroy {
         { label: 'User Management', link: '/app/user-management', icon: 'user' },
         { label: 'User Details', icon: 'profile' }
       ];
+      this.breadcrumbItems = [
+        { label: 'Dashboard', icon: 'pi pi-home', routerLink: '/app/dashboard' },
+        { label: 'User Management', icon: 'pi pi-users', routerLink: '/app/user-management' },
+        { label: 'User Details', icon: 'pi pi-user' }
+      ];
     } else if (url.includes('/dashboard')) {
       this.currentPageTitle = 'Dashboard';
       this.breadcrumbs = [
         { label: 'Dashboard', icon: 'home' }
       ];
+      this.breadcrumbItems = [
+        { label: 'Dashboard', icon: 'pi pi-home' }
+      ];
     } else {
       this.currentPageTitle = 'Azure User Role Manager';
       this.breadcrumbs = [];
+      this.breadcrumbItems = [];
     }
   }
 }

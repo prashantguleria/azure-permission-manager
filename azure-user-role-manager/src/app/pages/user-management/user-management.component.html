@@ -1,155 +1,163 @@
-<!-- Content using NG-ZORRO Grid System -->
-<div nz-row [nzGutter]="[16, 16]" class="page-content">
-  <div nz-col [nzSpan]="24">
+<!-- Content using PrimeFlex Grid System -->
+<div class="grid p-4">
+  <div class="col-12">
     <!-- Search Section -->
-    <nz-card class="search-card" nzTitle="Search Users">
+    <p-card header="Search Users" styleClass="search-card mb-4">
       <div class="search-section">
-        <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton" class="search-input">
+        <div class="p-inputgroup">
+          <span class="p-inputgroup-addon">
+            <i class="pi pi-search"></i>
+          </span>
           <input
             type="text"
-            nz-input
+            pInputText
             placeholder="Search by name, email, or username..."
             [(ngModel)]="searchQuery"
             (input)="onSearchInput($event)"
             [disabled]="loading"
+            class="flex-1"
           />
-        </nz-input-group>
-        <ng-template #suffixIconButton>
-          <button nz-button nzType="primary" nzSearch (click)="onSearch(searchQuery)" [nzLoading]="loading">
-            <span nz-icon nzType="search" nzTheme="outline"></span>
-          </button>
-        </ng-template>
+          <p-button
+            label="Search"
+            icon="pi pi-search"
+            (onClick)="onSearch(searchQuery)"
+            [loading]="loading"
+            styleClass="p-button-primary"
+          ></p-button>
+        </div>
       </div>
-    </nz-card>
+    </p-card>
   </div>
   
-  <div nz-col [nzSpan]="24">
-
+  <div class="col-12">
     <!-- Users Table -->
-    <nz-card class="table-card">
-        <div class="table-header">
-          <div class="table-title">
-            <h3>Users ({{ totalCount }})</h3>
-            <nz-tag *ngIf="selectedUsers.size > 0" [nzColor]="'blue'">
-              {{ selectedUsers.size }} selected
-            </nz-tag>
-          </div>
+    <p-card styleClass="table-card">
+      <ng-template pTemplate="header">
+        <div class="table-header flex justify-content-between align-items-center">
+          <h3 class="m-0">Users ({{ totalCount }})</h3>
+          <p-tag *ngIf="selectedUsers.size > 0" severity="info" [value]="selectedUsers.size + ' selected'"></p-tag>
         </div>
+      </ng-template>
 
-        <nz-table
-          #userTable
-          [nzData]="users"
-          [nzLoading]="loading"
-          [nzShowPagination]="true"
-          [nzFrontPagination]="false"
-          [nzTotal]="totalCount"
-          [nzPageSize]="pageSize"
-          [nzPageIndex]="pageIndex"
-          [nzShowSizeChanger]="true"
-          [nzPageSizeOptions]="[10, 25, 50, 100]"
-          (nzPageIndexChange)="onPageChange($event)"
-          (nzPageSizeChange)="onPageSizeChange($event)"
-          nzSize="middle"
-          class="users-table"
-        >
-          <thead>
-            <tr>
-              <th
-                nzShowCheckbox
-                [(nzChecked)]="allChecked"
-                [nzIndeterminate]="indeterminate"
-                (nzCheckedChange)="onAllChecked($event)"
-                nzWidth="50px"
-              ></th>
-              <th nzWidth="60px">Avatar</th>
-              <th nzSortKey="displayName">Display Name</th>
-              <th nzSortKey="email">Email</th>
-              <th nzSortKey="userPrincipalName">Username</th>
-              <th nzWidth="100px">Status</th>
-              <th nzWidth="120px">Created Date</th>
-              <th nzWidth="160px" nzAlign="center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let user of users; trackBy: utilityService.trackById">
-              <td
-                nzShowCheckbox
-                [nzChecked]="selectedUsers.has(user.id)"
-                (nzCheckedChange)="onItemChecked(user.id, $event)"
-              ></td>
-              <td>
-                <nz-avatar
-                  [nzText]="utilityService.getUserInitials(user.displayName)"
-                  nzSize="small"
-                  [style.background-color]="'#1890ff'"
-                ></nz-avatar>
-              </td>
-              <td>
-                <div class="user-info">
-                  <div class="user-name">{{ user.displayName }}</div>
-                  <div class="user-details" *ngIf="user.department || user.jobTitle">
-                    <span *ngIf="user.jobTitle" class="job-title">{{ user.jobTitle }}</span>
-                    <span *ngIf="user.department" class="department">{{ user.department }}</span>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span class="email">{{ user.email }}</span>
-              </td>
-              <td>
-                <span class="username">{{ user.userPrincipalName }}</span>
-              </td>
-              <td>
-                <nz-tag [nzColor]="utilityService.getStatusColor(user.isEnabled)">
-                  {{ utilityService.getStatusText(user.isEnabled) }}
-                </nz-tag>
-              </td>
-              <td>
-                <span class="date">{{ utilityService.formatDate(user.createdDate) }}</span>
-              </td>
-              <td nzAlign="center">
-                <nz-space nzSize="small">
-                  <button
-                    *nzSpaceItem
-                    nz-button
-                    nzType="primary"
-                    nzSize="small"
-                    (click)="viewUserDetail(user.id)"
-                    nz-tooltip
-                    nzTooltipTitle="View Details"
-                  >
-                    <span nz-icon nzType="eye" nzTheme="outline"></span>
-                  </button>
-                  <button
-                    *nzSpaceItem
-                    nz-button
-                    nzType="default"
-                    nzSize="small"
-                    (click)="viewUserPermissions(user)"
-                    nz-tooltip
-                    nzTooltipTitle="View Permissions"
-                  >
-                    <span nz-icon nzType="safety-certificate" nzTheme="outline"></span>
-                  </button>
-                </nz-space>
-              </td>
-            </tr>
-          </tbody>
-        </nz-table>
-
-      <!-- Empty State -->
-      <nz-empty
-        *ngIf="!loading && users.length === 0"
-        nzNotFoundImage="simple"
-        [nzNotFoundContent]="searchQuery ? 'No users found matching your search' : 'No users available'"
+      <p-table
+        [value]="users"
+        [loading]="loading"
+        [paginator]="false"
+        styleClass="p-datatable-sm users-table"
       >
-        <div nz-empty-footer>
-          <button nz-button nzType="primary" (click)="refreshUsers()">
-            <span nz-icon nzType="reload" nzTheme="outline"></span>
-            Refresh
-          </button>
-        </div>
-      </nz-empty>
-    </nz-card>
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 50px">
+              <p-checkbox
+                [(ngModel)]="allChecked"
+                [indeterminate]="indeterminate"
+                (onChange)="onAllChecked($event.checked)"
+              ></p-checkbox>
+            </th>
+            <th style="width: 60px">Avatar</th>
+            <th pSortableColumn="displayName">Display Name <p-sortIcon field="displayName"></p-sortIcon></th>
+            <th pSortableColumn="email">Email <p-sortIcon field="email"></p-sortIcon></th>
+            <th pSortableColumn="userPrincipalName">Username <p-sortIcon field="userPrincipalName"></p-sortIcon></th>
+            <th style="width: 100px">Status</th>
+            <th style="width: 120px">Created Date</th>
+            <th style="width: 160px" class="text-center">Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-user>
+          <tr>
+            <td>
+              <p-checkbox
+                [ngModel]="selectedUsers.has(user.id)"
+                (onChange)="onItemChecked(user.id, $event.checked)"
+              ></p-checkbox>
+            </td>
+            <td>
+              <p-avatar
+                [label]="utilityService.getUserInitials(user.displayName)"
+                size="normal"
+                styleClass="bg-primary"
+              ></p-avatar>
+            </td>
+            <td>
+              <div class="user-info">
+                <div class="user-name font-semibold">{{ user.displayName }}</div>
+                <div class="user-details text-sm text-color-secondary" *ngIf="user.department || user.jobTitle">
+                  <span *ngIf="user.jobTitle" class="job-title">{{ user.jobTitle }}</span>
+                  <span *ngIf="user.department" class="department">{{ user.department }}</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="email">{{ user.email }}</span>
+            </td>
+            <td>
+              <span class="username">{{ user.userPrincipalName }}</span>
+            </td>
+            <td>
+              <p-tag
+                [severity]="user.isEnabled ? 'success' : 'danger'"
+                [value]="utilityService.getStatusText(user.isEnabled)"
+              ></p-tag>
+            </td>
+            <td>
+              <span class="date">{{ utilityService.formatDate(user.createdDate) }}</span>
+            </td>
+            <td class="text-center">
+              <div class="table-actions">
+                <p-button
+                  icon="pi pi-eye"
+                  size="small"
+                  severity="info"
+                  (onClick)="viewUserDetail(user.id)"
+                  pTooltip="View Details"
+                  tooltipPosition="top"
+                ></p-button>
+                <p-button
+                  icon="pi pi-shield"
+                  size="small"
+                  severity="secondary"
+                  (onClick)="viewUserPermissions(user)"
+                  pTooltip="View Permissions"
+                  tooltipPosition="top"
+                ></p-button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="8" class="text-center p-4">
+              <div class="flex flex-column align-items-center gap-3">
+                <i class="pi pi-users" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
+                <div class="text-lg font-medium">{{ searchQuery ? 'No users found matching your search' : 'No users available' }}</div>
+                <p-button
+                  label="Refresh"
+                  icon="pi pi-refresh"
+                  (onClick)="refreshUsers()"
+                  severity="secondary"
+                ></p-button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      
+      <!-- Pagination -->
+      <ng-template pTemplate="footer">
+        <p-paginator
+          [rows]="pageSize"
+          [totalRecords]="totalCount"
+          [first]="(pageIndex - 1) * pageSize"
+          [rowsPerPageOptions]="[10, 25, 50, 100]"
+          (onPageChange)="onPageChange(($event.page ?? 0) + 1); onPageSizeChange($event.rows ?? 10)"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+        ></p-paginator>
+      </ng-template>
+    </p-card>
   </div>
 </div>
+
+<!-- Toast for messages -->
+<p-toast></p-toast>
