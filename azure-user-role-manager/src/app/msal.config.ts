@@ -5,8 +5,8 @@ export const msalConfig = {
   auth: {
     clientId: '310e9afa-5210-4f0e-b63c-189dd6ad9227', // Replace with your Azure AD app registration client ID
     authority: 'https://login.microsoftonline.com/common', // Use 'common' for multi-tenant support
-    redirectUri: window.location.origin,
-    postLogoutRedirectUri: window.location.origin,
+    redirectUri: document.baseURI,
+    postLogoutRedirectUri: document.baseURI,
     knownAuthorities: [], // Will be populated dynamically for tenant-specific authorities
     cloudDiscoveryMetadata: '', // Optional: for custom cloud environments
     authorityMetadata: '' // Optional: for custom authority metadata

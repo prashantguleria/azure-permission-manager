@@ -2,6 +2,8 @@
 
 A client-side Angular application for managing Azure AD users, role assignments, and resource permissions across multiple tenants. Runs entirely in the browser — no backend server, no data collection, no third-party infrastructure.
 
+**🔗 [Live App → prashantguleria.github.io/azure-permission-manager](https://prashantguleria.github.io/azure-permission-manager/)**
+
 ![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)
 ![PrimeNG](https://img.shields.io/badge/PrimeNG-21-4FC08D)
