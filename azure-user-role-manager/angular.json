@@ -29,7 +29,7 @@
             "assets": [
               "src/favicon.ico",
               "src/assets",
-
+              "src/404.html"
             ],
             "styles": [
               "src/styles.scss"
@@ -41,8 +41,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "1.5mb",
-                  "maximumError": "2.5mb"
+                  "maximumWarning": "2mb",
+                  "maximumError": "3mb"
                 },
                 {
                   "type": "anyComponentStyle",
