@@ -8,7 +8,6 @@ export const tenantGuard: CanActivateFn = (route, state) => {
 
   // First check if user is authenticated
   if (!authService.isAuthenticated()) {
-    console.log('User not authenticated, redirecting to login');
     router.navigate(['/app/login']);
     return false;
   }
@@ -18,20 +17,20 @@ export const tenantGuard: CanActivateFn = (route, state) => {
   const currentTenantId = authService.getCurrentTenantId();
   
   if (!selectedTenant || !currentTenantId) {
-    console.log('No tenant selected, redirecting to tenant selection');
     router.navigate(['/app/tenants']);
     return false;
   }
 
   try {
     const tenant = JSON.parse(selectedTenant);
-    // Verify that the selected tenant matches the current authenticated tenant
-    if (tenant.id !== currentTenantId) {
-      console.log('Tenant mismatch, redirecting to tenant selection');
+    if (!tenant || !tenant.id) {
       localStorage.removeItem('selectedTenant');
       router.navigate(['/app/tenants']);
       return false;
     }
+    // If there's a mismatch between stored tenant and MSAL active account tenant,
+    // trust the stored tenant — this can happen on refresh when MSAL picks a
+    // different cached account. The auth service will resolve the correct account.
   } catch (error) {
     console.error('Error parsing selected tenant:', error);
     localStorage.removeItem('selectedTenant');

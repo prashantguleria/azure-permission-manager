@@ -1,100 +1,73 @@
-<div class="tenant-layout">
-  <!-- Content -->
-  <div class="content">
-    <div class="page-content flex flex-column gap-4">
-      <div class="col-12">
-      <div class="page-header">
-        <h1 class="page-title">Select Tenant</h1>
-        <p class="page-description text-color-secondary">
-          Choose the Azure Active Directory tenant you want to manage
-        </p>
-      </div>
+<div class="tenant-page">
+  <div class="tenant-container">
+    <!-- Header -->
+    <div class="tenant-header">
+      <h1 class="tenant-title">Select Tenant</h1>
+      <p class="tenant-subtitle">Choose the Azure Active Directory tenant you want to manage</p>
+    </div>
 
-      <!-- Search Section -->
-      <div class="search-section">
-        <div class="p-inputgroup">
-          <input 
-            type="text" 
-            pInputText
-            placeholder="Search tenants by name or domain..."
-            [(ngModel)]="searchTerm"
-            (input)="onSearch()"
-            class="w-full"
-          />
-          <span class="p-inputgroup-addon">
-            <i class="pi pi-search"></i>
-          </span>
-        </div>
-      </div>
-
-      <!-- Loading State -->
-      <div *ngIf="isLoading" class="loading-container">
-        <div class="flex flex-column align-items-center justify-content-center p-4">
-          <p-progressSpinner></p-progressSpinner>
-          <div class="loading-content mt-3">
-            <p>Loading available tenants...</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tenants Grid -->
-      <div *ngIf="!isLoading" class="tenants-grid">
-        <div *ngIf="filteredTenants.length === 0" class="empty-state">
-          <div class="flex flex-column align-items-center justify-content-center p-6">
-            <i class="pi pi-inbox text-6xl text-color-secondary mb-3"></i>
-            <p class="text-color-secondary">{{ searchTerm ? 'No tenants found matching your search' : 'No tenants available' }}</p>
-          </div>
-        </div>
-
-        <p-card 
-          *ngFor="let tenant of filteredTenants" 
-          class="tenant-card cursor-pointer"
-          [class.current-tenant]="tenant.isDefault"
-          (click)="selectTenant(tenant)">
-          
-          <div class="tenant-info">
-            <div class="tenant-header flex align-items-center justify-content-between mb-3">
-              <div class="flex align-items-center gap-3">
-                <div class="tenant-avatar">
-                  <i class="pi pi-building text-2xl"></i>
-                </div>
-                <div class="tenant-details">
-                  <h3 class="tenant-name m-0 mb-1">{{ tenant.displayName }}</h3>
-                  <p class="tenant-domain m-0 text-color-secondary">{{ tenant.defaultDomain }}</p>
-                </div>
-              </div>
-              <div class="tenant-badges flex gap-2">
-                <p-tag *ngIf="tenant.isDefault" severity="success" class="flex align-items-center gap-1">
-                  <i class="pi pi-check-circle"></i>
-                  Current
-                </p-tag>
-                <p-tag severity="secondary">{{ tenant.countryLetterCode }}</p-tag>
-              </div>
-            </div>
-            
-            <div class="tenant-meta flex gap-4">
-              <div class="meta-item flex align-items-center gap-2">
-                <i class="pi pi-globe"></i>
-                <span>{{ tenant.countryLetterCode }}</span>
-              </div>
-              <div class="meta-item flex align-items-center gap-2">
-                <i class="pi pi-link"></i>
-                <span>{{ tenant.defaultDomain }}</span>
-              </div>
-            </div>
-          </div>
-
-          <ng-template pTemplate="footer">
-            <div class="flex align-items-center justify-content-center gap-2">
-              <i *ngIf="!tenant.isDefault" class="pi pi-refresh"></i>
-              <i *ngIf="tenant.isDefault" class="pi pi-arrow-right"></i>
-              {{ tenant.isDefault ? 'Continue' : 'Switch Tenant' }}
-            </div>
-          </ng-template>
-        </p-card>
-      </div>
+    <!-- Search -->
+    <div class="search-wrapper">
+      <div class="search-input-group">
+        <i class="pi pi-search search-icon"></i>
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search tenants by name or domain..."
+          [ngModel]="searchTerm()"
+          (ngModelChange)="onSearch($event)"
+        />
       </div>
     </div>
+
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="loading-state">
+        <i class="pi pi-spin pi-spinner loading-spinner"></i>
+        <p class="loading-text">Loading available tenants...</p>
+      </div>
+    }
+
+    <!-- Tenant List -->
+    @if (!isLoading()) {
+      @if (filteredTenants().length === 0) {
+        <div class="empty-state">
+          <i class="pi pi-inbox"></i>
+          <p>{{ searchTerm() ? 'No tenants found matching your search' : 'No tenants available' }}</p>
+        </div>
+      } @else {
+        <div class="tenant-list">
+          @for (tenant of filteredTenants(); track tenant.id) {
+            <button
+              class="tenant-card"
+              [class.tenant-card--current]="tenant.isDefault"
+              (click)="selectTenant(tenant)"
+            >
+              <div class="tenant-card__icon">
+                <i class="pi pi-building"></i>
+              </div>
+
+              <div class="tenant-card__info">
+                <span class="tenant-card__name">{{ tenant.displayName }}</span>
+                <span class="tenant-card__domain">{{ tenant.defaultDomain }}</span>
+              </div>
+
+              <div class="tenant-card__badges">
+                @if (tenant.isDefault) {
+                  <span class="badge badge-success">
+                    <i class="pi pi-check-circle"></i>
+                    Current
+                  </span>
+                }
+                <span class="badge badge-neutral">{{ tenant.countryLetterCode }}</span>
+              </div>
+
+              <i class="pi pi-chevron-right tenant-card__chevron"></i>
+            </button>
+          }
+        </div>
+      }
+    }
   </div>
 </div>
 

@@ -1,233 +1,292 @@
-.tenant-layout {
-  height: 100vh;
-}
-
-.content {
-  padding: 24px;
+.tenant-page {
   min-height: 100vh;
-}
-
-.page-content {
-  margin: 0 auto;
-  padding: 48px 24px;
-  border-radius: 12px;
-}
-
-.page-header {
-  text-align: center;
-  margin-bottom: 48px;
-  
-  .page-title {
-    font-size: 32px;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-  
-  .page-description {
-    font-size: 16px;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-}
-
-.search-section {
-  margin-bottom: 32px;
-  
-  .p-inputgroup {
-    max-width: 400px;
-    margin: 0 auto;
-  }
-}
-
-.loading-container {
+  background: var(--color-bg);
+  padding: var(--space-16) var(--space-6) var(--space-8);
   display: flex;
   justify-content: center;
+}
+
+.tenant-container {
+  width: 100%;
+  max-width: 720px;
+}
+
+// ── Header ──────────────────────────────────
+
+.tenant-header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.tenant-title {
+  font-family: var(--font-family);
+  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-2);
+}
+
+.tenant-subtitle {
+  font-family: var(--font-family);
+  font-weight: 400;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+// ── Search ──────────────────────────────────
+
+.search-wrapper {
+  margin-bottom: var(--space-6);
+}
+
+.search-input-group {
+  position: relative;
+  display: flex;
   align-items: center;
-  min-height: 200px;
-  border-radius: 8px;
-  
-  .loading-content {
-    text-align: center;
-    
-    p {
-      margin-top: 16px;
-      font-size: 14px;
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--space-4);
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--space-4) 0 calc(var(--space-4) + 20px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+
+  &::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+  }
+}
+
+// ── Loading State ───────────────────────────
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) 0;
+  gap: var(--space-4);
+}
+
+.loading-spinner {
+  font-size: 32px;
+  color: var(--color-primary);
+}
+
+.loading-text {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+// ── Empty State ─────────────────────────────
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) 0;
+  gap: var(--space-4);
+  text-align: center;
+
+  i {
+    font-size: 48px;
+    color: var(--color-text-tertiary);
+  }
+
+  p {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+}
+
+// ── Tenant List ─────────────────────────────
+
+.tenant-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+// ── Tenant Card ─────────────────────────────
+
+.tenant-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  text-align: left;
+  font-family: var(--font-family);
+
+  &:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-md);
+  }
+
+  &--current {
+    border: 2px solid var(--color-primary);
+
+    &:hover {
+      border-color: var(--color-primary-hover);
     }
   }
 }
 
-.tenants-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 24px;
-  margin-top: 24px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 48px 24px;
-  border-radius: 8px;
-}
-
-.tenant-card {
-  transition: all 0.3s ease;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.tenant-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--p-card-shadow-hover, 0 4px 25px 0 rgba(0, 0, 0, 0.1));
-}
-
-.tenant-info {
-  padding: 4px 0;
-}
-
-.tenant-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.tenant-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
+.tenant-card__icon {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-lg);
   flex-shrink: 0;
+
+  i {
+    font-size: 18px;
+    color: var(--color-text-secondary);
+  }
+
+  .tenant-card--current & {
+    background: var(--color-primary-light);
+
+    i {
+      color: var(--color-primary);
+    }
+  }
 }
 
-.tenant-avatar i {
-  font-size: 20px;
-  color: var(--p-surface-600);
-}
-
-.tenant-details {
+.tenant-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 
-.tenant-name {
-  font-size: 18px;
+.tenant-card__name {
   font-weight: 600;
-  margin: 0 0 4px 0;
+  font-size: 16px;
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tenant-domain {
-  font-size: 14px;
-  margin: 0;
+.tenant-card__domain {
+  font-weight: 400;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tenant-badges {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
-}
-
-.tenant-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.meta-item {
+.tenant-card__badges {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: var(--space-2);
+  flex-shrink: 0;
 }
 
-/* Responsive design */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+
+  i {
+    font-size: 12px;
+  }
+}
+
+.badge-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.badge-neutral {
+  background: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+}
+
+.tenant-card__chevron {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+
+  .tenant-card:hover & {
+    color: var(--color-text-secondary);
+  }
+}
+
+// ── Responsive ──────────────────────────────
+
 @media (max-width: 768px) {
-  .header-content {
-    padding: 0 16px;
+  .tenant-page {
+    padding: var(--space-8) var(--space-4) var(--space-6);
   }
-  
-  .app-name {
-    display: none;
+
+  .tenant-title {
+    font-size: var(--font-size-xl);
   }
-  
-  .content {
-    padding: 16px;
+
+  .tenant-card {
+    padding: var(--space-4) var(--space-4);
   }
-  
-  .page-title {
-    font-size: 28px;
-  }
-  
-  .tenants-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  
-  .tenant-header {
+
+  .tenant-card__badges {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 12px;
-  }
-  
-  .tenant-badges {
-    align-items: center;
-    flex-direction: row;
+    gap: var(--space-1);
   }
 }
 
 @media (max-width: 480px) {
-  .header-content {
-    padding: 0 12px;
+  .tenant-header {
+    margin-bottom: var(--space-6);
   }
-  
-  .user-name {
-    display: none;
+
+  .tenant-card__icon {
+    width: 36px;
+    height: 36px;
+
+    i {
+      font-size: 16px;
+    }
   }
-  
-  .page-header {
-    margin-bottom: 24px;
-  }
-  
-  .search-section {
-    margin-bottom: 24px;
-  }
-}
-
-/* Current tenant styling */
-.tenant-card.current-tenant {
-  border: 2px solid var(--p-primary-color);
-  background: var(--p-primary-50);
-}
-
-.tenant-card.current-tenant:hover {
-  border-color: var(--p-primary-600);
-  background: var(--p-primary-100);
-}
-
-.tenant-card.current-tenant .tenant-avatar {
-  background: var(--p-primary-color);
-  color: var(--p-primary-contrast-color);
-}
-
-/* Card footer styling */
-.tenant-card :deep(.p-card-footer) {
-  padding: 1rem;
-  background: var(--p-surface-50);
-  border-top: 1px solid var(--p-surface-200);
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.tenant-card:hover :deep(.p-card-footer) {
-  background: var(--p-primary-50);
-  color: var(--p-primary-color);
 }

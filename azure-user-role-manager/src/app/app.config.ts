@@ -1,9 +1,8 @@
-import { ApplicationConfig, importProvidersFrom } from '@angular/core';
+import { ApplicationConfig, provideZonelessChangeDetection, importProvidersFrom } from '@angular/core';
 import { provideRouter, withPreloading, PreloadAllModules } from '@angular/router';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 import { routes } from './app.routes';
-import { provideClientHydration } from '@angular/platform-browser';
 import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
 import { FormsModule } from '@angular/forms';
@@ -16,7 +15,7 @@ import { ConfirmationService } from 'primeng/api';
 import Aura from '@primeuix/themes/aura';
 
 // MSAL imports
-import { MsalModule, MsalService, MsalGuard, MsalInterceptor, MsalBroadcastService, MsalRedirectComponent } from '@azure/msal-angular';
+import { MsalModule, MsalService, MsalGuard, MsalInterceptor, MsalBroadcastService } from '@azure/msal-angular';
 import { InteractionType } from '@azure/msal-browser';
 import { msalInstance } from './msal.config';
 
@@ -24,13 +23,16 @@ registerLocaleData(en);
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideZonelessChangeDetection(),
     provideRouter(routes, withPreloading(PreloadAllModules)),
-    provideClientHydration(),
     importProvidersFrom(FormsModule),
     provideAnimationsAsync(),
     providePrimeNG({
       theme: {
-        preset: Aura
+        preset: Aura,
+        options: {
+          darkModeSelector: '.dark-mode'
+        }
       }
     }),
     provideHttpClient(withInterceptorsFromDi()),

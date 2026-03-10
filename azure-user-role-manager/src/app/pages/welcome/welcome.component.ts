@@ -1,15 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 
 @Component({
   selector: 'app-welcome',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './welcome.component.html',
-  styleUrls: ['./welcome.component.scss']
+  styleUrl: './welcome.component.scss'
 })
-export class WelcomeComponent implements OnInit {
-
-  constructor() { }
-
-  ngOnInit() { }
-
-}
+export class WelcomeComponent {}

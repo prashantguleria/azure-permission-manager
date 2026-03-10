@@ -1,2 +1,12 @@
+# System files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
 .trae/
-azure-user-role-manager/pnpm-lock.yaml
+.vscode/*
+!.vscode/settings.json
+
+# Lock files from other package managers
+pnpm-lock.yaml

@@ -1,163 +1,155 @@
 <div class="homepage-container">
-  <!-- Hero Section -->
+  <!-- Navigation -->
+  <nav class="nav-bar">
+    <div class="nav-brand">
+      <div class="brand-icon"><i class="pi pi-shield"></i></div>
+      <span class="brand-name">Azure Permission Manager</span>
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#security">Security</a>
+      <a href="#architecture">Architecture</a>
+    </div>
+    <button class="nav-cta" (click)="navigateToApp()">
+      Launch App <i class="pi pi-arrow-right"></i>
+    </button>
+  </nav>
+
+  <!-- Hero -->
   <section class="hero-section">
-    <div class="hero-content">
-      <div class="hero-text">
-        <h1 class="hero-title">
-          <i class="pi pi-shield hero-icon"></i>
-          Azure User Role Manager
-        </h1>
-        <h2 class="hero-subtitle">Secure Azure Permission Management Made Simple</h2>
-        <p class="hero-description">
-          Professional, client-side web application designed to help organizations manage
-          Azure Active Directory permissions and storage account access with complete security and transparency.
-        </p>
-        <div class="hero-actions">
-          <p-button (onClick)="navigateToApp()" class="cta-button" size="large" severity="primary">
-            <i class="pi pi-arrow-right"></i>
-            Launch Application
-          </p-button>
-        </div>
-      </div>
+    <div class="hero-pill">
+      <div class="pill-dot"></div>
+      <span>Enterprise-grade Azure security management</span>
+    </div>
+    <div class="hero-text">
+      <h1 class="hero-title">Manage Azure permissions with clarity</h1>
+      <p class="hero-description">
+        A professional, client-side application for managing Azure AD permissions
+        and storage account access. Your data never leaves your browser.
+      </p>
+    </div>
+    <div class="hero-actions">
+      <button class="btn-cta" (click)="navigateToApp()">
+        Get Started <i class="pi pi-arrow-right"></i>
+      </button>
+      <a class="btn-secondary" href="#architecture">View Architecture</a>
     </div>
   </section>
 
-  <!-- Security Banner -->
-  <section class="security-banner">
-    <div class="security-content">
-      <div class="security-highlight">
-        <i class="pi pi-shield security-icon"></i>
-        <div class="security-text">
-          <h3>100% Secure & Private</h3>
-          <p>No data ever stored on external servers. All processing happens locally in your browser.</p>
-        </div>
-      </div>
+  <!-- Trust Bar -->
+  <div class="trust-bar">
+    <div class="trust-item">
+      <i class="pi pi-verified"></i>
+      <span>100% Client-side</span>
     </div>
-  </section>
-
-  <!-- Features Section -->
-  <section class="features-section">
-    <div class="section-content">
-      <div class="section-header">
-        <h2>Powerful Features for Enterprise Security</h2>
-        <p class="section-description">
-          Comprehensive tools designed for modern Azure environments with enterprise-grade security.
-        </p>
-      </div>
-
-      <div class="p-grid features-grid">
-        <div class="p-col-12 p-md-6 p-lg-4" *ngFor="let feature of features">
-          <p-card class="feature-card">
-            <div class="feature-content">
-              <div class="feature-icon">
-                <i class="pi pi-{{feature.icon}}"></i>
-              </div>
-              <h3 class="feature-title">{{ feature.title }}</h3>
-              <p class="feature-description">{{ feature.description }}</p>
-            </div>
-          </p-card>
-        </div>
-      </div>
+    <div class="trust-item">
+      <i class="pi pi-lock"></i>
+      <span>No data stored externally</span>
     </div>
-  </section>
+    <div class="trust-item">
+      <i class="pi pi-bolt"></i>
+      <span>Real-time Azure API</span>
+    </div>
+    <div class="trust-item">
+      <i class="pi pi-globe"></i>
+      <span>Multi-tenant support</span>
+    </div>
+  </div>
 
-  <!-- Security & Privacy Section -->
-  <section class="privacy-section">
-    <div class="section-content">
-      <div class="section-header">
-        <h2>Your Data Stays Yours</h2>
-        <p class="section-description">
-          Built with privacy-first principles and complete transparency in data handling.
-        </p>
-      </div>
+  <!-- Features -->
+  <section class="features-section" id="features">
+    <div class="section-header">
+      <p class="section-label">Capabilities</p>
+      <h2 class="section-title">Everything you need to secure Azure</h2>
+    </div>
 
-      <div class="p-grid security-grid">
-        <div class="p-col-12 p-md-6" *ngFor="let item of securityFeatures">
-          <div class="security-item">
-            <div class="security-item-icon">
-              <i class="pi pi-{{item.icon}}"></i>
-            </div>
-            <div class="security-item-content">
-              <h4>{{ item.title }}</h4>
-              <p>{{ item.text }}</p>
-            </div>
+    <div class="features-grid">
+      @for (feature of features; track feature.title) {
+        <div class="feature-card">
+          <div class="feature-icon" [class]="feature.iconClass">
+            <i class="pi" [class]="'pi-' + feature.icon"></i>
           </div>
+          <h3 class="feature-title">{{ feature.title }}</h3>
+          <p class="feature-description">{{ feature.description }}</p>
         </div>
-      </div>
+      }
+    </div>
+  </section>
 
-      <div class="privacy-highlights">
-        <p-card class="privacy-card">
-          <div class="privacy-content">
-            <h3>Complete Control Over Your Data</h3>
-            <div class="privacy-points">
-              <div class="privacy-point">
-                <i class="pi pi-check-circle check-icon"></i>
-                <span>All audit logs stored in your browser's local storage</span>
-              </div>
-              <div class="privacy-point">
-                <i class="pi pi-check-circle check-icon"></i>
-                <span>Clear your data anytime with a single click</span>
-              </div>
-              <div class="privacy-point">
-                <i class="pi pi-check-circle check-icon"></i>
-                <span>No tracking, analytics, or third-party data sharing</span>
-              </div>
-              <div class="privacy-point">
-                <i class="pi pi-check-circle check-icon"></i>
-                <span>Direct communication with Microsoft Azure APIs only</span>
-              </div>
-            </div>
+  <!-- Security & Privacy -->
+  <section class="security-section" id="security">
+    <div class="security-left">
+      <div>
+        <p class="section-label">Privacy &amp; Security</p>
+        <h2 class="section-title">Your data stays yours. Always.</h2>
+      </div>
+      <p class="security-description">
+        Built with privacy-first principles. No servers, no databases, no data collection.
+        Everything runs in your browser and communicates directly with Microsoft Azure APIs.
+      </p>
+      <div class="check-list">
+        @for (point of privacyPoints; track point) {
+          <div class="check-item">
+            <div class="check-icon"><i class="pi pi-check"></i></div>
+            <span>{{ point }}</span>
           </div>
-        </p-card>
+        }
+      </div>
+    </div>
+    <div class="security-right">
+      <div class="security-cards-row">
+        @for (feature of securityFeatures.slice(0, 2); track feature.title) {
+          <div class="security-card">
+            <i class="pi" [class]="'pi-' + feature.icon"></i>
+            <h4 class="card-title">{{ feature.title }}</h4>
+            <p class="card-desc">{{ feature.text }}</p>
+          </div>
+        }
+      </div>
+      <div class="security-cards-row">
+        @for (feature of securityFeatures.slice(2, 4); track feature.title) {
+          <div class="security-card">
+            <i class="pi" [class]="'pi-' + feature.icon"></i>
+            <h4 class="card-title">{{ feature.title }}</h4>
+            <p class="card-desc">{{ feature.text }}</p>
+          </div>
+        }
       </div>
     </div>
   </section>
 
-  <!-- Technical Excellence Section -->
-  <section class="technical-section">
-    <div class="section-content">
-      <div class="section-header">
-        <h2>Built for Enterprise</h2>
-        <p class="section-description">
-          Modern architecture with industry-standard security protocols.
-        </p>
-      </div>
-
-      <div class="tech-highlights">
-        <div class="tech-row">
-          <div class="tech-item">
-            <p-tag severity="info" value="Angular 20+"></p-tag>
-            <p-tag severity="success" value="TypeScript"></p-tag>
-            <p-tag severity="secondary" value="PrimeNG"></p-tag>
-          </div>
-        </div>
-        <div class="tech-row">
-          <div class="tech-item">
-            <p-tag severity="warning" value="OAuth 2.0"></p-tag>
-            <p-tag severity="danger" value="Microsoft Graph API"></p-tag>
-            <p-tag severity="info" value="Azure Management API"></p-tag>
-          </div>
-        </div>
-      </div>
+  <!-- Tech Stack -->
+  <section class="tech-section" id="architecture">
+    <p class="section-label">Built With</p>
+    <h2 class="section-title">Modern enterprise architecture</h2>
+    <div class="tech-tags">
+      <span class="tech-tag tag-red">Angular 21</span>
+      <span class="tech-tag tag-blue">TypeScript</span>
+      <span class="tech-tag tag-purple">PrimeNG</span>
+      <span class="tech-tag tag-orange">OAuth 2.0</span>
+      <span class="tech-tag tag-blue">Microsoft Graph API</span>
+      <span class="tech-tag tag-green">Azure Management API</span>
     </div>
   </section>
 
-  <!-- Call to Action -->
+  <!-- CTA -->
   <section class="cta-section">
-    <div class="cta-content">
-      <h2>Ready to Secure Your Azure Environment?</h2>
-      <p>Start managing your Azure permissions with confidence, knowing your data stays private and secure.</p>
-      <p-button (onClick)="navigateToApp()" class="cta-button" size="large" severity="primary">
-        <i class="pi pi-rocket"></i>
-        Get Started Now
-      </p-button>
-    </div>
+    <h2 class="cta-title">Ready to secure your Azure environment?</h2>
+    <p class="cta-description">
+      Start managing permissions with confidence. Your data stays private,
+      your infrastructure stays secure.
+    </p>
+    <button class="btn-cta-white" (click)="navigateToApp()">
+      Get Started Now <i class="pi pi-arrow-right"></i>
+    </button>
   </section>
 
   <!-- Footer -->
   <footer class="homepage-footer">
-    <div class="footer-content">
-      <p>&copy; 2025 Azure User Role Manager - Secure, Private, Professional Azure Permission Management</p>
+    <div class="footer-brand">
+      <div class="brand-icon"><i class="pi pi-shield"></i></div>
+      <span>Azure Permission Manager</span>
     </div>
+    <p class="footer-copy">&copy; 2025 — Secure, Private, Professional Azure Permission Management</p>
   </footer>
 </div>

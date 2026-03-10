@@ -1,442 +1,525 @@
 <div class="storage-accounts-container">
-  <!-- Header Section -->
+  <!-- Header -->
   <div class="page-header">
-    <div class="header-content">
-      <div class="header-left">
-        <h1>Storage Accounts</h1>
-        <p class="subtitle">Manage Azure Storage Account permissions and access</p>
-      </div>
-      <div class="header-actions">
-        <p-button label="Refresh" icon="pi pi-refresh" (onClick)="refreshData()" [loading]="loading"></p-button>
-        <p-button label="Export" icon="pi pi-download" (onClick)="exportData()" [disabled]="loading || filteredStorageAccounts.length === 0" severity="secondary"></p-button>
-      </div>
+    <div>
+      <h1 class="page-title">Storage Accounts</h1>
+      <p class="page-subtitle">Manage Azure Storage Account permissions and access</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-secondary" (click)="refreshData()" [disabled]="loading()">
+        <i class="pi pi-refresh"></i> Refresh
+      </button>
+      <button class="btn btn-secondary" (click)="exportData()" [disabled]="loading() || filteredStorageAccounts().length === 0">
+        <i class="pi pi-download"></i> Export
+      </button>
     </div>
   </div>
 
   <!-- Subscription Selector -->
   <div class="subscription-selector-container">
-    <app-subscription-selector 
-      [selectedSubscription]="selectedSubscription"
+    <app-subscription-selector
+      [selectedSubscription]="selectedSubscription()"
       (subscriptionSelected)="onSubscriptionSelected($event)">
     </app-subscription-selector>
   </div>
 
   <!-- Summary Cards -->
-  <div class="summary-section" *ngIf="!loading">
-    <div class="summary-cards">
-      <p-card class="summary-card">
-        <div class="statistic">
-          <div class="statistic-title">Total Storage Accounts</div>
-          <div class="statistic-value">{{ totalStorageAccounts }} <span class="statistic-suffix">accounts</span></div>
-        </div>
-      </p-card>
-      <p-card class="summary-card">
-        <div class="statistic">
-          <div class="statistic-title">With Permissions</div>
-          <div class="statistic-value">{{ accountsWithPermissions }} <span class="statistic-suffix">accounts</span></div>
-        </div>
-      </p-card>
-      <p-card class="summary-card">
-        <div class="statistic">
-          <div class="statistic-title">Total Users</div>
-          <div class="statistic-value">{{ totalUsers }} <span class="statistic-suffix">users</span></div>
-        </div>
-      </p-card>
-      <p-card class="summary-card">
-        <div class="statistic">
-          <div class="statistic-title">Locked Resources</div>
-          <div class="statistic-value">{{ lockedAccounts }} <span class="statistic-suffix">accounts</span></div>
-        </div>
-      </p-card>
+  @if (loading()) {
+    <div class="summary-section">
+      <div class="summary-cards">
+        @for (i of [1,2,3,4]; track i) {
+          <div class="stat-card">
+            <div class="statistic">
+              <p-skeleton width="100px" height="12px" styleClass="mb-2" />
+              <p-skeleton width="60px" height="28px" />
+            </div>
+          </div>
+        }
+      </div>
     </div>
-  </div>
+  }
+  @if (!loading()) {
+    <div class="summary-section">
+      <div class="summary-cards">
+        <div class="stat-card">
+          <div class="statistic">
+            <div class="statistic-title">Total Storage Accounts</div>
+            <div class="statistic-value">{{ totalStorageAccounts() }} <span class="statistic-suffix">accounts</span></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="statistic">
+            <div class="statistic-title">With Permissions</div>
+            <div class="statistic-value">{{ accountsWithPermissions() }} <span class="statistic-suffix">accounts</span></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="statistic">
+            <div class="statistic-title">Total Users</div>
+            <div class="statistic-value">{{ totalUsers() }} <span class="statistic-suffix">users</span></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="statistic">
+            <div class="statistic-title">Locked Resources</div>
+            <div class="statistic-value">{{ lockedAccounts() }} <span class="statistic-suffix">accounts</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Permissions Loading Indicator -->
+  @if (permissionsLoading() && !loading()) {
+    <div class="permissions-loading-banner">
+      <p-progressSpinner [style]="{width: '18px', height: '18px'}"></p-progressSpinner>
+      <span>Loading permissions for all storage accounts...</span>
+    </div>
+  }
 
   <!-- High Privilege Alert -->
-  <p-message 
-    *ngIf="highPrivilegeAssignments > 0"
-    severity="warn" 
-    [closable]="true"
-    class="privilege-alert">
-    <ng-template pTemplate="content">
-      <div class="p-message-content">
-        <i class="pi pi-exclamation-triangle"></i>
-        <div>
-          <div class="p-message-summary">High Privilege Access Detected</div>
-          <div class="p-message-detail">{{ highPrivilegeAssignments }} high-privilege role assignments found across storage accounts</div>
-        </div>
+  @if (highPrivilegeAssignments() > 0) {
+    <div class="privilege-alert">
+      <i class="pi pi-exclamation-triangle"></i>
+      <div>
+        <strong>High Privilege Access Detected</strong>
+        <span>{{ highPrivilegeAssignments() }} high-privilege role assignments found across storage accounts</span>
       </div>
-    </ng-template>
-  </p-message>
+    </div>
+  }
 
   <!-- Filters Section -->
-  <p-card class="filters-card" *ngIf="!loading">
-    <div class="filters-content">
+  @if (loading()) {
+    <div class="table-card filters-card">
       <div class="filter-row">
-        <div class="filter-item">
-          <label class="filter-label">Search:</label>
-          <p-inputGroup>
-            <p-inputGroupAddon>
-              <i class="pi pi-search"></i>
-            </p-inputGroupAddon>
-            <input 
-              pInputText 
-              placeholder="Search storage accounts, users, roles..." 
-              [(ngModel)]="searchTerm"
-              (input)="applyFilters()"/>
-          </p-inputGroup>
-        </div>
-
-        <div class="filter-item" *ngIf="resourceGroups.length > 0">
-          <label class="filter-label">Resource Group:</label>
-          <p-select 
-            [(ngModel)]="selectedResourceGroup" 
-            (onChange)="applyFilters()"
-            placeholder="All Resource Groups"
-            [showClear]="true"
-            class="filter-select"
-            appendTo="body"
-            [options]="resourceGroupOptions">
-          </p-select>
-        </div>
-
-        <div class="filter-item" *ngIf="locations.length > 0">
-          <label class="filter-label">Location:</label>
-          <p-select 
-            [(ngModel)]="selectedLocation" 
-            (onChange)="applyFilters()"
-            placeholder="All locations"
-            [showClear]="true"
-            class="filter-select"
-            appendTo="body"
-            [options]="locationOptions">
-          </p-select>
-        </div>
-
-        <div class="filter-item">
-          <label class="filter-label">Access Level:</label>
-          <p-select 
-            [(ngModel)]="selectedAccessLevel" 
-            (onChange)="applyFilters()"
-            placeholder="All access levels"
-            [showClear]="true"
-            class="filter-select"
-            appendTo="body"
-            [options]="[
-              {label: 'Owner', value: 'Owner'},
-              {label: 'Contributor', value: 'Contributor'},
-              {label: 'Reader', value: 'Reader'},
-              {label: 'Storage Account Contributor', value: 'Storage Account Contributor'}
-            ]">
-          </p-select>
-        </div>
-
+        @for (i of [1,2,3,4]; track i) {
+          <div class="filter-item">
+            <p-skeleton width="60px" height="12px" styleClass="mb-1" />
+            <p-skeleton width="100%" height="36px" borderRadius="6px" />
+          </div>
+        }
         <div class="filter-actions">
-          <p-button 
-            label="Clear" 
-            icon="pi pi-times" 
-            (onClick)="clearFilters()" 
-            severity="secondary" 
-            size="small">
-          </p-button>
+          <p-skeleton width="70px" height="36px" borderRadius="6px" />
         </div>
       </div>
     </div>
-  </p-card>
+  }
+  @if (!loading()) {
+    <div class="table-card filters-card">
+        <div class="filter-row">
+          <div class="filter-item">
+            <label class="filter-label">Search:</label>
+            <p-inputGroup>
+              <p-inputGroupAddon>
+                <i class="pi pi-search"></i>
+              </p-inputGroupAddon>
+              <input
+                pInputText
+                placeholder="Search storage accounts, users, roles..."
+                [ngModel]="searchTerm()"
+                (ngModelChange)="searchTerm.set($event); applyFilters()"/>
+            </p-inputGroup>
+          </div>
 
-  <!-- Loading State -->
-  <div class="loading-container" *ngIf="loading">
-    <app-skeleton-loader type="table" [rows]="8"></app-skeleton-loader>
-  </div>
+          @if (resourceGroups().length > 0) {
+            <div class="filter-item">
+              <label class="filter-label">Resource Group:</label>
+              <p-select
+                [ngModel]="selectedResourceGroup()"
+                (ngModelChange)="selectedResourceGroup.set($event); applyFilters()"
+                placeholder="All Resource Groups"
+                [showClear]="true"
+                class="filter-select"
+                appendTo="body"
+                [options]="resourceGroupOptions()">
+              </p-select>
+            </div>
+          }
+
+          @if (locations().length > 0) {
+            <div class="filter-item">
+              <label class="filter-label">Location:</label>
+              <p-select
+                [ngModel]="selectedLocation()"
+                (ngModelChange)="selectedLocation.set($event); applyFilters()"
+                placeholder="All locations"
+                [showClear]="true"
+                class="filter-select"
+                appendTo="body"
+                [options]="locationOptions()">
+              </p-select>
+            </div>
+          }
+
+          <div class="filter-item">
+            <label class="filter-label">Access Level:</label>
+            <p-select
+              [ngModel]="selectedAccessLevel()"
+              (ngModelChange)="selectedAccessLevel.set($event); applyFilters()"
+              placeholder="All access levels"
+              [showClear]="true"
+              class="filter-select"
+              appendTo="body"
+              [options]="[
+                {label: 'Owner', value: 'Owner'},
+                {label: 'Contributor', value: 'Contributor'},
+                {label: 'Reader', value: 'Reader'},
+                {label: 'Storage Account Contributor', value: 'Storage Account Contributor'}
+              ]">
+            </p-select>
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn btn-secondary btn-sm" (click)="clearFilters()">
+              <i class="pi pi-times"></i> Clear
+            </button>
+          </div>
+        </div>
+    </div>
+  }
+
+  <!-- Loading State: Table Skeleton -->
+  @if (loading()) {
+    <div class="skeleton-table-card">
+      <!-- Skeleton table header -->
+      <div class="skeleton-thead">
+        <div class="skeleton-th" style="width: 50px"><p-skeleton width="18px" height="18px" borderRadius="4px" /></div>
+        <div class="skeleton-th" style="width: 50px"><p-skeleton width="14px" height="14px" /></div>
+        <div class="skeleton-th" style="flex: 2"><p-skeleton width="120px" height="13px" /></div>
+        <div class="skeleton-th" style="flex: 1"><p-skeleton width="100px" height="13px" /></div>
+        <div class="skeleton-th" style="flex: 1"><p-skeleton width="70px" height="13px" /></div>
+        <div class="skeleton-th" style="width: 80px"><p-skeleton width="40px" height="13px" /></div>
+        <div class="skeleton-th" style="width: 90px"><p-skeleton width="80px" height="13px" /></div>
+        <div class="skeleton-th" style="width: 140px"><p-skeleton width="60px" height="13px" /></div>
+      </div>
+      <!-- Skeleton table rows -->
+      @for (i of [1,2,3,4,5,6,7,8,9,10]; track i) {
+        <div class="skeleton-trow">
+          <div class="skeleton-td" style="width: 50px"><p-skeleton width="18px" height="18px" borderRadius="4px" /></div>
+          <div class="skeleton-td" style="width: 50px"><p-skeleton width="12px" height="12px" /></div>
+          <div class="skeleton-td" style="flex: 2">
+            <p-skeleton [width]="(60 + i * 3) + '%'" height="14px" styleClass="mb-1" />
+            <p-skeleton width="80%" height="10px" />
+          </div>
+          <div class="skeleton-td" style="flex: 1"><p-skeleton [width]="(50 + i * 4) + '%'" height="14px" /></div>
+          <div class="skeleton-td" style="flex: 1"><p-skeleton [width]="(40 + i * 5) + '%'" height="14px" /></div>
+          <div class="skeleton-td" style="width: 80px"><p-skeleton width="55px" height="22px" borderRadius="12px" /></div>
+          <div class="skeleton-td" style="width: 90px"><p-skeleton width="28px" height="22px" borderRadius="12px" /></div>
+          <div class="skeleton-td" style="width: 140px">
+            <div style="display:flex;gap:6px">
+              <p-skeleton width="28px" height="28px" borderRadius="6px" />
+              <p-skeleton width="28px" height="28px" borderRadius="6px" />
+              <p-skeleton width="28px" height="28px" borderRadius="6px" />
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
 
   <!-- Error State -->
-  <div class="error-container" *ngIf="error && !loading">
-    <p-message severity="error" 
-      [text]="'Error Loading Storage Accounts: ' + error">
-    </p-message>
-    <div style="margin-top: 12px;">
-      <p-button 
-        label="Retry" 
-        icon="pi pi-refresh" 
-        (onClick)="refreshData()"
-        size="small">
-      </p-button>
+  @if (error() && !loading()) {
+    <div class="error-container">
+      <p-message severity="error"
+        [text]="'Error Loading Storage Accounts: ' + error()">
+      </p-message>
+      <div class="error-retry">
+        <button class="btn btn-primary btn-sm" (click)="refreshData()">
+          <i class="pi pi-refresh"></i> Retry
+        </button>
+      </div>
     </div>
-  </div>
+  }
 
   <!-- Bulk Actions -->
-  <div class="bulk-actions-container" *ngIf="!loading && !error && filteredStorageAccounts.length > 0">
-    <p-card class="bulk-actions-card">
-      <div class="bulk-actions-content">
-        <div class="selection-info">
-          <span class="selected-count">{{ getSelectedAccountsCount() }} of {{ filteredStorageAccounts.length }} selected</span>
-          <p-button label="Select All" (onClick)="selectAllAccounts()" *ngIf="getSelectedAccountsCount() < filteredStorageAccounts.length" severity="secondary" size="small"></p-button>
-          <p-button label="Clear Selection" (onClick)="clearSelection()" *ngIf="getSelectedAccountsCount() > 0" severity="secondary" size="small"></p-button>
-        </div>
-        <div class="bulk-actions" *ngIf="getSelectedAccountsCount() > 0">
-          <p-button label="Add Permissions" icon="pi pi-plus" (onClick)="bulkAddPermissions()" [disabled]="getSelectedAccountsCount() === 0"></p-button>
-          <p-button label="Remove Permissions" icon="pi pi-trash" (onClick)="bulkRemovePermissions()" [disabled]="getSelectedAccountsCount() === 0" severity="danger"></p-button>
+  @if (!loading() && !error() && filteredStorageAccounts().length > 0) {
+    <div class="bulk-actions-container">
+      <div class="table-card bulk-actions-card">
+        <div class="bulk-actions-content">
+          <div class="selection-info">
+            <span class="selected-count">{{ getSelectedAccountsCount() }} of {{ filteredStorageAccounts().length }} selected</span>
+            @if (getSelectedAccountsCount() < filteredStorageAccounts().length) {
+              <button class="btn btn-secondary btn-sm" (click)="selectAllAccounts()">Select All</button>
+            }
+            @if (getSelectedAccountsCount() > 0) {
+              <button class="btn btn-secondary btn-sm" (click)="clearSelection()">Clear Selection</button>
+            }
+          </div>
+          @if (getSelectedAccountsCount() > 0) {
+            <div class="bulk-actions">
+              <button class="btn btn-primary" (click)="bulkAddPermissions()" [disabled]="getSelectedAccountsCount() === 0">
+                <i class="pi pi-plus"></i> Add Permissions
+              </button>
+              <button class="btn btn-danger" (click)="bulkRemovePermissions()" [disabled]="getSelectedAccountsCount() === 0">
+                <i class="pi pi-trash"></i> Remove Permissions
+              </button>
+            </div>
+          }
         </div>
       </div>
-    </p-card>
-  </div>
+    </div>
+  }
 
   <!-- Storage Accounts Table -->
-  <div class="table-container" *ngIf="!loading && !error && filteredStorageAccounts.length > 0">
-    <p-table 
-      #storageAccountsTable 
-      [value]="filteredStorageAccounts" 
-      [rows]="pageSize"
-      [first]="pageIndex * pageSize"
-      [totalRecords]="filteredStorageAccounts.length"
-      [paginator]="true"
-      [rowsPerPageOptions]="[10, 20, 50, 100]"
-      [showCurrentPageReport]="true"
-      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
-      (onPage)="onPageChange($event)"
-      dataKey="id"
-      [expandedRowKeys]="expandedRows"
-      styleClass="p-datatable-sm storage-accounts-table">
-      <ng-template pTemplate="header">
-        <tr>
-          <th style="width: 50px">
-            <p-checkbox [(ngModel)]="allSelected" [indeterminate]="indeterminate" (onChange)="onAllChecked($event)"></p-checkbox>
-          </th>
-          <th style="width: 50px"></th>
-          <th>Storage Account</th>
-          <th>Resource Group</th>
-          <th>Location</th>
-          <th>SKU</th>
-          <th style="width: 120px">Actions</th>
-        </tr>
-      </ng-template>
-      <ng-template pTemplate="body" let-account let-expanded="expanded" let-rowIndex="rowIndex">
-        <!-- Main row -->
-        <tr>
-          <td>
-            <p-checkbox [(ngModel)]="account.selected" (onChange)="onItemChecked(account, $event)"></p-checkbox>
-          </td>
-          <td>
-            <p-button 
-              [icon]="account.expanded ? 'pi pi-minus' : 'pi pi-plus'" 
-              (onClick)="toggleExpand(account)" 
-              severity="secondary" 
-              [text]="true" 
-              size="small">
-            </p-button>
-          </td>
-          <td>
-            <div class="account-info">
-              <div class="account-name">
-                {{ account.name }}
-                <!-- Lock indicator -->
-                 <span 
-                   *ngIf="account.hasLocks && !account.loadingLocks" 
-                   class="lock-indicator"
-                   [pTooltip]="account.lockCount === 1 ? '1 active lock' : account.lockCount + ' active locks'">
-                   <i class="pi pi-lock" style="color: #faad14; margin-left: 8px;"></i>
-                   <span class="lock-count">{{ account.lockCount }}</span>
-                 </span>
-                <p-progressSpinner 
-                  *ngIf="account.loadingLocks" 
-                  [style]="{width: '16px', height: '16px', 'margin-left': '8px'}">
-                </p-progressSpinner>
-              </div>
-              <div class="account-id">{{ account.id }}</div>
-            </div>
-          </td>
-          <td>{{ account.resourceGroup }}</td>
-          <td>{{ account.location }}</td>
-          <td>
-            <p-tag>{{ account.sku || 'N/A' }}</p-tag>
-          </td>
-
-          <td>
-            <div class="table-actions">
-              <p-button icon="pi pi-eye" (onClick)="viewAccountDetails(account)" pTooltip="View Details" severity="secondary" [text]="true" size="small"></p-button>
-              <p-button icon="pi pi-users" (onClick)="managePermissions(account)" pTooltip="Manage Permissions" severity="secondary" [text]="true" size="small"></p-button>
-              <p-button 
-                *ngIf="account.hasLocks && !account.loadingLocks" 
-                icon="pi pi-lock" 
-                (onClick)="toggleLocks(account)" 
-                [pTooltip]="'View ' + account.lockCount + (account.lockCount === 1 ? ' lock' : ' locks')" 
-                severity="secondary" 
-                [text]="true" 
-                size="small"
-                [loading]="account.locksLoading">
-              </p-button>
-              <p-button icon="pi pi-download" (onClick)="exportAccountData(account)" pTooltip="Export Data" severity="secondary" [text]="true" size="small"></p-button>
-            </div>
-          </td>
-        </tr>
-      </ng-template>
-      <ng-template pTemplate="rowexpansion" let-account>
+  @if (!loading() && !error() && filteredStorageAccounts().length > 0) {
+    <div class="table-container">
+      <p-table
+        #storageAccountsTable
+        [value]="filteredStorageAccounts()"
+        [rows]="pageSize()"
+        [first]="(pageIndex() - 1) * pageSize()"
+        [totalRecords]="filteredStorageAccounts().length"
+        [paginator]="true"
+        [rowsPerPageOptions]="[10, 20, 50, 100]"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+        (onPage)="onPageChange($event)"
+        dataKey="id"
+        [expandedRowKeys]="expandedRowsObj"
+        (onRowExpand)="onRowExpand($event)"
+        (onRowCollapse)="onRowCollapse($event)"
+        styleClass="p-datatable-sm storage-accounts-table">
+        <ng-template #header>
           <tr>
-            <td colspan="7">
-              <div class="expanded-content">
-                <div *ngIf="account.loadingPermissions" class="loading-permissions">
-                  <p-progressSpinner [style]="{width: '24px', height: '24px'}">
-                  </p-progressSpinner>
-                  <p>Loading permissions...</p>
+            <th style="width: 50px">
+              <p-checkbox [ngModel]="allSelected()" [binary]="true" (onChange)="onAllChecked($event)"></p-checkbox>
+            </th>
+            <th style="width: 50px"></th>
+            <th>Storage Account</th>
+            <th>Resource Group</th>
+            <th>Location</th>
+            <th>SKU</th>
+            <th>Permissions</th>
+            <th style="width: 120px">Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-account let-expanded="expanded" let-rowIndex="rowIndex">
+          <!-- Main row -->
+          <tr>
+            <td>
+              <p-checkbox [ngModel]="account.selected" [binary]="true" (onChange)="onItemChecked(account, $event)"></p-checkbox>
+            </td>
+            <td>
+              <p-button type="button" [pRowToggler]="account" [text]="true" [rounded]="true" severity="secondary" [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" />
+            </td>
+            <td>
+              <div class="account-info">
+                <div class="account-name">
+                  {{ account.name }}
+                  @if (account.hasLocks) {
+                    <span
+                      class="lock-indicator"
+                      [pTooltip]="account.lockCount === 1 ? '1 active lock' : account.lockCount + ' active locks'">
+                      <i class="pi pi-lock lock-icon"></i>
+                      <span class="lock-count">{{ account.lockCount }}</span>
+                    </span>
+                  }
                 </div>
-                
-                <div *ngIf="!account.loadingPermissions">
-                  <!-- Locks Section -->
-                  <div class="locks-section" *ngIf="account.locks && account.locks.length > 0 && account.locksExpanded">
-                    <div class="section-header">
-                      <h4><i class="pi pi-lock" style="color: #ff4d4f; margin-right: 8px;"></i>Resource Locks</h4>
-                      <p-tag severity="warning">{{ account.locks.length }} lock(s)</p-tag>
-                    </div>
-                    <p-message severity="warn" [style]="{'margin-bottom': '12px'}" 
-                      text="Locks prevent permission modifications. Delete locks will be temporarily removed during permission operations and recreated afterward.">
-                    </p-message>
-                    <div class="locks-list">
-                      <div class="lock-item" *ngFor="let lock of account.locks">
-                        <div class="lock-info">
-                          <strong>{{ lock.name }}</strong>
-                          <span class="lock-type" [ngClass]="{'delete-lock': lock.properties?.level === 'CanNotDelete', 'readonly-lock': lock.properties?.level === 'ReadOnly'}">
-                            {{ lock.properties?.level }}
-                          </span>
-                        </div>
-                        <div class="lock-description" *ngIf="lock.properties?.notes">
-                          {{ lock.properties.notes }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="permissions-section">
-                    <div class="section-header">
-                      <h4>Users with Access (Grouped by Role) - {{ (account.permissions && account.permissions.length) || 0 }} total</h4>
-                      <div class="section-actions">
-                        <p-button label="Add Permission" icon="pi pi-plus" (onClick)="addPermission(account)" size="small"></p-button>
-                      </div>
-                    </div>
-                  
-                    <div *ngIf="account.permissions && account.permissions.length > 0; else noPermissions">
-                      <!-- Role Groups -->
-                      <div class="role-groups">
-                        <div *ngFor="let role of getGroupedPermissionKeys(account.permissions)" class="role-group">
-                          <div class="role-header">
-                            <h5>
-                              <p-tag [severity]="getRoleColor(role)" class="role-tag">{{ role }}</p-tag>
-                              <span class="user-count">({{ getPermissionsForRole(account.permissions, role).length }} users)</span>
-                            </h5>
-                          </div>
-                          
-                          <p-table [value]="getPermissionsForRole(account.permissions, role)" [paginator]="false" styleClass="p-datatable-sm role-permissions-table">
-                            <ng-template pTemplate="header">
-                              <tr>
-                                <th>User/Principal</th>
-                                <th>Type</th>
-                                <th>Assigned Date</th>
-                                <th>Actions</th>
-                              </tr>
-                            </ng-template>
-                            <ng-template pTemplate="body" let-permission>
-                              <tr>
-                                <td>
-                                  <div class="user-info">
-                                    <div class="user-name">
-                                      <strong 
-                                        [ngClass]="{
-                                          'deleted-user': !permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal',
-                                          'error-user': permission.properties.principalDisplayName === 'Error loading user'
-                                        }">
-                                        {{ permission.properties.principalDisplayName || 'Unknown Principal' }}
-                                      </strong>
-                                      <p-tag 
-                                        *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'" 
-                                        severity="danger" 
-                                        pTooltip="This user may have been deleted from Azure AD">
-                                        Deleted
-                                      </p-tag>
-                                      <p-tag 
-                                        *ngIf="permission.properties.principalDisplayName === 'Error loading user'" 
-                                        severity="warning" 
-                                        pTooltip="Error loading user details">
-                                        Error
-                                      </p-tag>
-                                    </div>
-                                    <div class="user-email" *ngIf="permission.properties.principalEmail">
-                                      {{ permission.properties.principalEmail }}
-                                    </div>
-                                    <div class="user-id">ID: {{ permission.properties.principalId }}</div>
-                                    <div class="user-warning" *ngIf="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'">
-                                      <i class="pi pi-exclamation-triangle" style="color: #ff4d4f; margin-right: 4px;"></i>
-                                      <small>User no longer exists in Azure AD</small>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <p-tag [severity]="getPrincipalTypeColor(permission.properties.principalType)">
-                                    {{ permission.properties.principalType }}
-                                  </p-tag>
-                                </td>
-                                <td>{{ permission.properties.createdOn | date:'short' }}</td>
-                                <td>
-                                  <div class="table-actions">
-                                    <p-button icon="pi pi-eye" (onClick)="viewPermissionDetails(permission)" pTooltip="View Details" severity="secondary" [text]="true" size="small"></p-button>
-                                    <p-button icon="pi pi-trash" (onClick)="removePermission(account, permission)" pTooltip="Remove Access" severity="danger" [text]="true" size="small"></p-button>
-                                  </div>
-                                </td>
-                              </tr>
-                            </ng-template>
-                          </p-table>
-                        </div>
-                      </div>
-                    </div>
-                  
-                    <ng-template #noPermissions>
-                      <div class="p-empty-state">
-                        <i class="pi pi-users" style="font-size: 3rem; color: #6c757d;"></i>
-                        <p>No role assignments found for this storage account</p>
-                        <p-button label="Add Permission" icon="pi pi-plus" (onClick)="addPermission(account)"></p-button>
-                      </div>
-                    </ng-template>
-                  </div>
-                </div>
+                <div class="account-id">{{ account.id }}</div>
+              </div>
+            </td>
+            <td>{{ account.resourceGroup }}</td>
+            <td>{{ account.location }}</td>
+            <td>
+              <p-tag>{{ account.sku || 'N/A' }}</p-tag>
+            </td>
+            <td>
+              @if (permissionsLoading() && (!account.permissions || account.permissions.length === 0)) {
+                <p-progressSpinner [style]="{width: '16px', height: '16px'}"></p-progressSpinner>
+              } @else {
+                <p-tag [value]="(account.permissions?.length || 0) + ''" [severity]="getUsersCountColor(account.permissions?.length || 0)">
+                </p-tag>
+              }
+            </td>
+            <td>
+              <div class="table-actions">
+                <button class="btn btn-icon btn-ghost" (click)="viewAccountDetails(account)" pTooltip="View Details">
+                  <i class="pi pi-eye"></i>
+                </button>
+                <button class="btn btn-icon btn-ghost" (click)="managePermissions(account)" pTooltip="Manage Permissions">
+                  <i class="pi pi-users"></i>
+                </button>
+                @if (account.hasLocks && !account.loadingLocks) {
+                  <button
+                    class="btn btn-icon btn-ghost"
+                    (click)="toggleLocks(account)"
+                    [pTooltip]="'View ' + account.lockCount + (account.lockCount === 1 ? ' lock' : ' locks')"
+                    [disabled]="account.locksLoading">
+                    <i class="pi pi-lock"></i>
+                  </button>
+                }
+                <button class="btn btn-icon btn-ghost" (click)="utilityService.openInPortal(utilityService.getPortalResourceUrl(account.id))" pTooltip="Open in Azure Portal">
+                  <i class="pi pi-external-link"></i>
+                </button>
+                <button class="btn btn-icon btn-ghost" (click)="exportAccountData(account)" pTooltip="Export Data">
+                  <i class="pi pi-download"></i>
+                </button>
               </div>
             </td>
           </tr>
         </ng-template>
-    </p-table>
-  </div>
+        <ng-template #expandedrow let-account>
+            <tr>
+              <td colspan="8">
+                <div class="expanded-content">
+                  @if (account.loadingPermissions || (permissionsLoading() && (!account.permissions || account.permissions.length === 0))) {
+                    <div class="loading-permissions">
+                      <p-progressSpinner [style]="{width: '24px', height: '24px'}">
+                      </p-progressSpinner>
+                      <p>Loading permissions...</p>
+                    </div>
+                  }
+
+                  @if (!account.loadingPermissions && !(permissionsLoading() && (!account.permissions || account.permissions.length === 0))) {
+                    <!-- Locks Section -->
+                    @if (account.locks && account.locks.length > 0 && account.locksExpanded) {
+                      <div class="locks-section">
+                        <div class="section-header">
+                          <h4><i class="pi pi-lock locks-header-icon"></i>Resource Locks</h4>
+                          <p-tag severity="warn">{{ account.locks.length }} lock(s)</p-tag>
+                        </div>
+                        <p-message severity="warn" [style]="{'margin-bottom': '12px'}"
+                          text="Locks prevent permission modifications. Delete locks will be temporarily removed during permission operations and recreated afterward.">
+                        </p-message>
+                        <div class="locks-list">
+                          @for (lock of account.locks; track lock.id) {
+                            <div class="lock-item">
+                              <div class="lock-info">
+                                <strong>{{ lock.name }}</strong>
+                                <span class="lock-type" [class.delete-lock]="lock.properties?.level === 'CanNotDelete'" [class.readonly-lock]="lock.properties?.level === 'ReadOnly'">
+                                  {{ lock.properties?.level }}
+                                </span>
+                              </div>
+                              @if (lock.properties?.notes) {
+                                <div class="lock-description">
+                                  {{ lock.properties.notes }}
+                                </div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+
+                    <div class="permissions-section">
+                      <div class="section-header">
+                        <h4>Role Assignments <span class="section-count">{{ (account.permissions && account.permissions.length) || 0 }}</span></h4>
+                        <button class="btn btn-primary btn-sm" (click)="addPermission(account)">
+                          <i class="pi pi-plus"></i> Add
+                        </button>
+                      </div>
+
+                      @if (account.permissions && account.permissions.length > 0) {
+                        <p-table [value]="account.permissions" [paginator]="account.permissions.length > 10" [rows]="10" styleClass="p-datatable-sm permissions-flat-table" [sortField]="'properties.roleDefinitionName'" [sortOrder]="1">
+                          <ng-template #header>
+                            <tr>
+                              <th pSortableColumn="properties.principalDisplayName">Principal <p-sortIcon field="properties.principalDisplayName" /></th>
+                              <th pSortableColumn="properties.principalType" style="width: 100px">Type <p-sortIcon field="properties.principalType" /></th>
+                              <th pSortableColumn="properties.roleDefinitionName" style="width: 180px">Role <p-sortIcon field="properties.roleDefinitionName" /></th>
+                              <th pSortableColumn="properties.createdOn" style="width: 120px">Assigned <p-sortIcon field="properties.createdOn" /></th>
+                              <th style="width: 80px"></th>
+                            </tr>
+                          </ng-template>
+                          <ng-template #body let-permission>
+                            <tr>
+                              <td>
+                                <div class="principal-cell">
+                                  <span class="principal-name" [class.deleted-user]="!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal'" [class.error-user]="permission.properties.principalDisplayName === 'Error loading user'">
+                                    {{ permission.properties.principalDisplayName || 'Unknown Principal' }}
+                                  </span>
+                                  @if (!permission.properties.principalDisplayName || permission.properties.principalDisplayName === 'Unknown Principal') {
+                                    <p-tag severity="danger" value="Deleted" [style]="{'font-size': '10px', 'padding': '1px 6px'}" />
+                                  }
+                                  @if (permission.properties.principalEmail) {
+                                    <span class="principal-email">{{ permission.properties.principalEmail }}</span>
+                                  }
+                                </div>
+                              </td>
+                              <td>
+                                <p-tag [value]="permission.properties.principalType" [severity]="getPrincipalTypeColor(permission.properties.principalType)" [style]="{'font-size': '11px'}" />
+                              </td>
+                              <td>
+                                <p-tag [value]="permission.properties.roleDefinitionName" [severity]="getRoleColor(permission.properties.roleDefinitionName)" [style]="{'font-size': '11px'}" />
+                              </td>
+                              <td class="date-cell">{{ permission.properties.createdOn | date:'mediumDate' }}</td>
+                              <td>
+                                <div class="table-actions">
+                                  <button class="btn btn-icon btn-ghost" (click)="viewPermissionDetails(permission)" pTooltip="View Details">
+                                    <i class="pi pi-eye"></i>
+                                  </button>
+                                  <button class="btn btn-icon btn-ghost btn-danger-ghost" (click)="removePermission(account, permission)" pTooltip="Remove">
+                                    <i class="pi pi-trash"></i>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          </ng-template>
+                          <ng-template #emptymessage>
+                            <tr><td colspan="5" class="text-center">No assignments</td></tr>
+                          </ng-template>
+                        </p-table>
+                      } @else {
+                        <div class="empty-permissions">
+                          <span>No role assignments found</span>
+                          <button class="btn btn-primary btn-sm" (click)="addPermission(account)">
+                            <i class="pi pi-plus"></i> Add Permission
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+      </p-table>
+    </div>
+  }
 
   <!-- Empty State -->
-  <div class="empty-state" *ngIf="!loading && !error && filteredStorageAccounts.length === 0">
-    <div class="p-empty-state">
-      <i class="pi pi-database" style="font-size: 3rem; color: #6c757d;"></i>
-      <h3>No Storage Accounts Found</h3>
-      <p *ngIf="searchTerm || selectedResourceGroup || selectedLocation || selectedAccessLevel; else noDataTemplate">
-        No storage accounts match your current filters. Try adjusting your search criteria.
-      </p>
-      <ng-template #noDataTemplate>
-        <p>No storage accounts found in the selected subscription.</p>
-      </ng-template>
-      <div class="empty-actions">
-        <p-button label="Clear Filters" icon="pi pi-times" (onClick)="clearFilters()" *ngIf="searchTerm || selectedResourceGroup || selectedLocation || selectedAccessLevel"></p-button>
-        <p-button label="Refresh" icon="pi pi-refresh" (onClick)="refreshData()"></p-button>
+  @if (!loading() && !error() && filteredStorageAccounts().length === 0) {
+    <div class="empty-state">
+      <div class="p-empty-state">
+        <i class="pi pi-database empty-icon"></i>
+        <h3>No Storage Accounts Found</h3>
+        @if (searchTerm() || selectedResourceGroup() || selectedLocation() || selectedAccessLevel()) {
+          <p>
+            No storage accounts match your current filters. Try adjusting your search criteria.
+          </p>
+        } @else {
+          <p>No storage accounts found in the selected subscription.</p>
+        }
+        <div class="empty-actions">
+          @if (searchTerm() || selectedResourceGroup() || selectedLocation() || selectedAccessLevel()) {
+            <button class="btn btn-secondary" (click)="clearFilters()">
+              <i class="pi pi-times"></i> Clear Filters
+            </button>
+          }
+          <button class="btn btn-primary" (click)="refreshData()">
+            <i class="pi pi-refresh"></i> Refresh
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  }
 </div>
 
 <!-- Bulk Permission Modal -->
 <app-bulk-permission-modal
-  [visible]="showBulkPermissionModal"
-  [selectedAccounts]="selectedStorageAccounts"
-  [subscriptionId]="selectedSubscription?.subscriptionId || ''"
-  [loading]="bulkModalLoading"
+  [visible]="showBulkPermissionModal()"
+  [selectedAccounts]="selectedStorageAccounts()"
+  [subscriptionId]="selectedSubscription()?.subscriptionId || ''"
+  [loading]="bulkModalLoading()"
   (permissionRequest)="onBulkPermissionRequest($event)"
-  (visibleChange)="showBulkPermissionModal = $event">
+  (visibleChange)="showBulkPermissionModal.set($event)">
 </app-bulk-permission-modal>
 
 <!-- Bulk Remove Modal -->
 <app-bulk-remove-modal
-  [visible]="showBulkRemoveModal"
-  [selectedAccounts]="selectedStorageAccounts"
-  [roleAssignments]="roleAssignmentsForRemoval"
-  [loading]="bulkModalLoading"
-  (visibleChange)="showBulkRemoveModal = $event"
+  [visible]="showBulkRemoveModal()"
+  [selectedAccounts]="selectedStorageAccounts()"
+  [roleAssignments]="roleAssignmentsForRemoval()"
+  [loading]="bulkModalLoading()"
+  (visibleChange)="showBulkRemoveModal.set($event)"
   (removeRequest)="onBulkRemoveRequest($event)">
 </app-bulk-remove-modal>

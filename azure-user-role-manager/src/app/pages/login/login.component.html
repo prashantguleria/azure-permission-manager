@@ -1,52 +1,84 @@
 <div class="login-container">
-  <div class="login-card-wrapper">
-    <p-card class="login-card">
-      <div class="login-header">
-        <div class="logo-section">
-          <i class="pi pi-shield logo-icon"></i>
-          <h1 class="app-title">Azure User Role Manager</h1>
+  <div class="login-card">
+    <!-- Header -->
+    <div class="login-header">
+      <div class="logo-badge">
+        <i class="pi pi-shield"></i>
+      </div>
+      <h1 class="app-title">Azure User Role Manager</h1>
+      <p class="app-description">
+        Manage user roles and permissions across your Azure Active Directory tenants
+      </p>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Content -->
+    <div class="login-content">
+      <h2 class="sign-in-heading">Sign in to continue</h2>
+      <p class="sign-in-subtext">
+        Use your Azure Active Directory credentials to access the role management portal
+      </p>
+
+      <!-- Authentication message display -->
+      @if (authenticationMessage()) {
+        <div class="auth-message"
+             [class.error-message]="authenticationMessage().includes('failed')"
+             [class.info-message]="!authenticationMessage().includes('failed')">
+          @if (authenticationMessage().includes('failed')) {
+            <i class="pi pi-exclamation-triangle"></i>
+          } @else {
+            <i class="pi pi-info-circle"></i>
+          }
+          <span>{{ authenticationMessage() }}</span>
         </div>
-        <p class="app-description">
-          Manage user roles and permissions across your Azure Active Directory tenants
-        </p>
+      }
+
+      <!-- Actions -->
+      <div class="login-actions">
+        <button class="btn-microsoft" [disabled]="isLoading()" (click)="login()">
+          @if (isLoading()) {
+            <p-progressSpinner
+              [style]="{ width: '20px', height: '20px' }"
+              strokeWidth="4"
+              animationDuration="0.8s">
+            </p-progressSpinner>
+            <span>Signing in...</span>
+          } @else {
+            <i class="pi pi-microsoft"></i>
+            <span>Sign in with Microsoft</span>
+          }
+        </button>
+
+        @if (showManualLoginPrompt() && !isLoading()) {
+          <button class="btn-retry" (click)="retryLogin()">
+            <i class="pi pi-refresh"></i>
+            <span>Retry Authentication</span>
+          </button>
+        }
       </div>
 
-      <p-divider></p-divider>
-
-      <div class="login-content">
-        <div class="login-info">
-          <h3>Sign in to continue</h3>
-          <p class="text-secondary">
-            Use your Azure Active Directory credentials to access the role management portal
-          </p>
-        </div>
-
-        <div class="login-actions">
-          <p-button 
-            label="Sign in with Microsoft"
-            icon="pi pi-sign-in"
-            styleClass="w-full"
-            size="large"
-            [loading]="isLoading"
-            (onClick)="login()">
-          </p-button>
-        </div>
-
-        <div class="login-features">
-          <div class="feature-item">
+      <!-- Features -->
+      <div class="login-features">
+        <div class="feature-item">
+          <div class="feature-icon">
             <i class="pi pi-lock"></i>
-            <span>Secure Azure AD Authentication</span>
           </div>
-          <div class="feature-item">
+          <span>Secure Azure AD Authentication</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">
             <i class="pi pi-users"></i>
-            <span>Multi-tenant Support</span>
           </div>
-          <div class="feature-item">
+          <span>Multi-tenant Support</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">
             <i class="pi pi-file-check"></i>
-            <span>Comprehensive Audit Logging</span>
           </div>
+          <span>Comprehensive Audit Logging</span>
         </div>
       </div>
-    </p-card>
+    </div>
   </div>
 </div>

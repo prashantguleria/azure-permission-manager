@@ -1,0 +1,321 @@
+<div class="resource-permissions-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Resource Permissions</h1>
+      <p class="page-subtitle">Manage subscription and resource group level permissions</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-secondary" (click)="refreshData()" [disabled]="loading()">
+        <i class="pi pi-refresh"></i> Refresh
+      </button>
+      <button class="btn btn-secondary" (click)="exportData()" [disabled]="loading() || (totalSubscriptionPermissions() === 0 && totalResourceGroupPermissions() === 0)">
+        <i class="pi pi-download"></i> Export
+      </button>
+    </div>
+  </div>
+
+  <!-- Subscription Selector -->
+  <div class="subscription-selector-container">
+    <app-subscription-selector
+      [selectedSubscription]="selectedSubscription()"
+      (subscriptionSelected)="onSubscriptionSelected($event)">
+    </app-subscription-selector>
+  </div>
+
+  <!-- Summary Cards -->
+  @if (!loading() && selectedSubscription()) {
+    <div class="summary-cards">
+      <div class="stat-card">
+        <div class="statistic">
+          <div class="statistic-title">Subscription Permissions</div>
+          <div class="statistic-value">{{ totalSubscriptionPermissions() }}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="statistic">
+          <div class="statistic-title">Resource Groups</div>
+          <div class="statistic-value">{{ totalResourceGroups() }}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="statistic">
+          <div class="statistic-title">Resource Group Permissions</div>
+          <div class="statistic-value">{{ totalResourceGroupPermissions() }}</div>
+        </div>
+      </div>
+      <div class="stat-card stat-card--alert">
+        <div class="statistic">
+          <div class="statistic-title">High Privilege</div>
+          <div class="statistic-value">{{ highPrivilegeCount() }}</div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- High Privilege Alert -->
+  @if (highPrivilegeCount() > 0 && !loading()) {
+    <div class="privilege-alert">
+      <i class="pi pi-exclamation-triangle"></i>
+      <div>
+        <strong>High Privilege Access Detected</strong>
+        <span>{{ highPrivilegeCount() }} high-privilege role assignments (Owner, Contributor, User Access Administrator) found</span>
+      </div>
+    </div>
+  }
+
+  <!-- Filters -->
+  @if (!loading() && selectedSubscription()) {
+    <div class="table-card filters-card">
+      <div class="filter-row">
+        <div class="filter-item">
+          <label class="filter-label">Search:</label>
+          <p-inputGroup>
+            <p-inputGroupAddon>
+              <i class="pi pi-search"></i>
+            </p-inputGroupAddon>
+            <input
+              pInputText
+              placeholder="Search roles, principals, resource groups..."
+              [ngModel]="searchTerm()"
+              (ngModelChange)="searchTerm.set($event); applyFilters()"/>
+          </p-inputGroup>
+        </div>
+
+        @if (roleFilterOptions().length > 0) {
+          <div class="filter-item">
+            <label class="filter-label">Role:</label>
+            <p-select
+              [ngModel]="selectedRoleFilter()"
+              (ngModelChange)="selectedRoleFilter.set($event); applyFilters()"
+              placeholder="All Roles"
+              [showClear]="true"
+              class="filter-select"
+              appendTo="body"
+              [options]="roleFilterOptions()">
+            </p-select>
+          </div>
+        }
+
+        <div class="filter-actions">
+          <button class="btn btn-secondary btn-sm" (click)="clearFilters()">
+            <i class="pi pi-times"></i> Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-container">
+      <p-progressSpinner
+        styleClass="w-4rem h-4rem"
+        strokeWidth="8"
+        animationDuration=".5s">
+      </p-progressSpinner>
+      <p class="loading-text">Loading permissions...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error() && !loading()) {
+    <div class="error-container">
+      <div class="alert alert-danger">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>{{ error() }}</span>
+      </div>
+      <button class="btn btn-primary btn-sm" (click)="refreshData()">
+        <i class="pi pi-refresh"></i> Retry
+      </button>
+    </div>
+  }
+
+  <!-- Tab Navigation -->
+  @if (!loading() && !error() && selectedSubscription()) {
+    <div class="tab-navigation">
+      <button
+        class="tab-btn"
+        [class.active]="activeTab() === 'subscription'"
+        (click)="onTabChange('subscription')">
+        <i class="pi pi-cloud"></i>
+        Subscription Permissions
+        <span class="tab-count">{{ totalSubscriptionPermissions() }}</span>
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeTab() === 'resourceGroups'"
+        (click)="onTabChange('resourceGroups')">
+        <i class="pi pi-th-large"></i>
+        Resource Groups
+        <span class="tab-count">{{ totalResourceGroups() }}</span>
+      </button>
+    </div>
+
+    <!-- Subscription Permissions Tab -->
+    @if (activeTab() === 'subscription') {
+      <div class="table-card">
+        <p-table
+          [value]="filteredSubscriptionPermissions()"
+          [paginator]="true"
+          [rows]="20"
+          [rowsPerPageOptions]="[10, 20, 50, 100]"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+          styleClass="p-datatable-sm">
+          <ng-template #header>
+            <tr>
+              <th pSortableColumn="roleName">Role <p-sortIcon field="roleName"></p-sortIcon></th>
+              <th pSortableColumn="principalId">Principal <p-sortIcon field="principalId"></p-sortIcon></th>
+              <th pSortableColumn="principalType">Type <p-sortIcon field="principalType"></p-sortIcon></th>
+              <th pSortableColumn="createdOn">Created <p-sortIcon field="createdOn"></p-sortIcon></th>
+              <th style="width: 80px">Actions</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-perm>
+            <tr>
+              <td>
+                <p-tag [value]="perm.roleName" [severity]="getRoleColor(perm.roleName)"></p-tag>
+              </td>
+              <td>
+                <div class="principal-info">
+                  <div class="principal-name">{{ perm.principalName }}</div>
+                  @if (perm.principalEmail) {
+                    <div class="principal-email">{{ perm.principalEmail }}</div>
+                  }
+                  <div class="principal-id">{{ perm.principalId }}</div>
+                </div>
+              </td>
+              <td>
+                <p-tag [value]="perm.principalType" [severity]="getPrincipalTypeColor(perm.principalType)"></p-tag>
+              </td>
+              <td>{{ perm.createdOn | date:'short' }}</td>
+              <td>
+                <button class="btn btn-icon btn-ghost btn-danger-ghost" (click)="removePermission(perm)" pTooltip="Remove">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="5" class="text-center">
+                <div class="empty-state-inline">
+                  <i class="pi pi-info-circle"></i>
+                  <span>No subscription-level permissions found</span>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+
+    <!-- Resource Groups Tab -->
+    @if (activeTab() === 'resourceGroups') {
+      <div class="table-card">
+        <p-table
+          [value]="filteredResourceGroups()"
+          [paginator]="true"
+          [rows]="20"
+          [rowsPerPageOptions]="[10, 20, 50, 100]"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+          dataKey="id"
+          [expandedRowKeys]="expandedRows"
+          (onRowExpand)="onRowExpand($event)"
+          (onRowCollapse)="onRowCollapse($event)"
+          styleClass="p-datatable-sm">
+          <ng-template #header>
+            <tr>
+              <th style="width: 50px"></th>
+              <th pSortableColumn="name">Resource Group <p-sortIcon field="name"></p-sortIcon></th>
+              <th pSortableColumn="location">Location <p-sortIcon field="location"></p-sortIcon></th>
+              <th>Permissions</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-rg let-expanded="expanded">
+            <tr>
+              <td>
+                <p-button type="button" [pRowToggler]="rg" [text]="true" [rounded]="true" severity="secondary" [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" />
+              </td>
+              <td>
+                <div class="rg-info">
+                  <div class="rg-name">{{ rg.name }}</div>
+                  <div class="rg-id">{{ rg.id }}</div>
+                </div>
+              </td>
+              <td>{{ rg.location }}</td>
+              <td>
+                <p-tag
+                  [value]="rg.permissions.length + ' assignments'"
+                  [severity]="rg.permissions.length > 0 ? 'info' : 'secondary'">
+                </p-tag>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #expandedrow let-rg>
+            <tr>
+              <td colspan="4">
+                <div class="expanded-content">
+                  @if (rg.permissions.length > 0) {
+                    <p-table [value]="rg.permissions" [paginator]="false" styleClass="p-datatable-sm nested-table">
+                      <ng-template #header>
+                        <tr>
+                          <th>Role</th>
+                          <th>Principal</th>
+                          <th>Type</th>
+                          <th>Created</th>
+                          <th style="width: 80px">Actions</th>
+                        </tr>
+                      </ng-template>
+                      <ng-template #body let-perm>
+                        <tr>
+                          <td>
+                            <p-tag [value]="perm.properties.roleDefinitionName" [severity]="getRoleColor(perm.properties.roleDefinitionName)"></p-tag>
+                          </td>
+                          <td>
+                            <div class="principal-info">
+                              <div class="principal-name">{{ perm.properties.principalDisplayName || 'Unknown' }}</div>
+                              <div class="principal-id">{{ perm.properties.principalId }}</div>
+                            </div>
+                          </td>
+                          <td>
+                            <p-tag [value]="perm.properties.principalType" [severity]="getPrincipalTypeColor(perm.properties.principalType)"></p-tag>
+                          </td>
+                          <td>{{ perm.properties.createdOn | date:'short' }}</td>
+                          <td>
+                            <button class="btn btn-icon btn-ghost btn-danger-ghost" (click)="removeResourceGroupPermission(rg, perm)" pTooltip="Remove">
+                              <i class="pi pi-trash"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      </ng-template>
+                    </p-table>
+                  } @else {
+                    <div class="empty-state-inline">
+                      <i class="pi pi-info-circle"></i>
+                      <span>No direct role assignments on this resource group</span>
+                    </div>
+                  }
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="4" class="text-center">
+                <div class="empty-state-inline">
+                  <i class="pi pi-info-circle"></i>
+                  <span>No resource groups found</span>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+  }
+
+  <p-confirmDialog></p-confirmDialog>
+</div>

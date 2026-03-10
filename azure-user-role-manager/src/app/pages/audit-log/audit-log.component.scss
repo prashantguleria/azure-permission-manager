@@ -1,19 +1,47 @@
 // ═══════════════════════════════════════════
-// Audit Logs (App-level) — Component Styles
+// Audit Log — Component Styles
 // Uses shared design tokens from styles.scss
 // ═══════════════════════════════════════════
 
 // Page Header
 .page-header {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+
+  .page-title-section {
+    flex: 1;
+
+    .page-title {
+      margin: 0 0 var(--space-2) 0;
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--color-text);
+    }
+
+    .page-description {
+      margin: 0;
+      font-size: var(--font-size-base);
+      line-height: 1.5;
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .page-actions {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
 }
 
-.header-left {
+.export-group {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 // Filters Card
@@ -36,14 +64,12 @@
     }
   }
 
-  .filters-body {
-    padding: var(--space-5);
-  }
-
-  .filters-grid {
+  .filters-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 2fr 1fr 1fr auto;
     gap: var(--space-4);
+    align-items: end;
+    padding: var(--space-5);
 
     .filter-item {
       display: flex;
@@ -51,7 +77,6 @@
       gap: var(--space-2);
 
       .filter-label {
-        display: block;
         font-weight: 500;
         font-size: var(--font-size-sm);
         color: var(--color-text-secondary);
@@ -59,11 +84,30 @@
       }
     }
 
-    .filter-actions {
-      .filter-buttons {
+    .filter-search {
+      .search-input-wrapper {
+        position: relative;
         display: flex;
-        gap: var(--space-2);
+        align-items: center;
+
+        .search-icon {
+          position: absolute;
+          left: var(--space-3);
+          color: var(--color-text-tertiary);
+          font-size: 14px;
+          pointer-events: none;
+        }
+
+        .search-input {
+          padding-left: calc(var(--space-3) + 14px + var(--space-2));
+          width: 100%;
+        }
       }
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: var(--space-2);
     }
   }
 }
@@ -94,7 +138,7 @@
   }
 }
 
-// PrimeNG Table Overrides
+// Table Content Styles
 .audit-table {
   ::ng-deep {
     .p-datatable {
@@ -121,7 +165,7 @@
       .p-datatable-tbody > tr > td {
         vertical-align: top;
         border-color: var(--color-border);
-        padding: var(--space-3) var(--space-3);
+        padding: var(--space-4) var(--space-3);
       }
     }
   }
@@ -129,75 +173,60 @@
 
 // Column widths
 .col-timestamp { width: 180px; }
+.col-activity { width: 140px; }
 .col-user { width: 200px; }
-.col-action { width: 150px; }
+.col-resource { width: 180px; }
 .col-type { width: 120px; }
-.col-resource { width: 300px; }
-.col-details { min-width: 200px; }
+.col-result { width: 100px; }
+.col-details { width: 300px; }
+.col-ip { width: 140px; }
 
-// Table Content Styles
 .timestamp {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
-.user-cell {
+.user-info {
+  .user-name {
+    font-weight: 500;
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+    margin-bottom: 2px;
+  }
+
+  .user-email {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+}
+
+.resource-name {
   font-weight: 500;
-  font-size: var(--font-size-sm);
   color: var(--color-text);
 }
 
-.target-user {
+.resource-type {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.details {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  max-width: 300px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ip-address {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  margin-top: var(--space-1);
-
-  .target-email {
-    color: var(--color-text-tertiary);
-  }
-}
-
-.resource-type {
-  text-transform: capitalize;
-  color: var(--color-success);
-  font-size: var(--font-size-sm);
-}
-
-.resource-details {
-  .resource-id {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: var(--font-size-xs);
-    color: var(--color-text-secondary);
-    word-break: break-all;
-    margin-bottom: var(--space-1);
-
-    strong {
-      color: var(--color-text);
-      font-weight: 600;
-    }
-  }
-
-  .resource-name {
-    font-size: var(--font-size-xs);
-    color: var(--color-primary);
-    font-weight: 500;
-
-    strong {
-      color: var(--color-text);
-      font-weight: 600;
-    }
-  }
-}
-
-.details-cell {
-  .details-text {
-    font-size: var(--font-size-xs);
-    color: var(--color-text-secondary);
-    line-height: 1.4;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
 }
 
 // Empty State
@@ -218,33 +247,89 @@
     font-size: var(--font-size-lg);
     font-weight: 500;
     color: var(--color-text-secondary);
-    margin: 0;
-  }
-
-  .empty-description {
-    font-size: var(--font-size-base);
-    color: var(--color-text-tertiary);
-    margin: 0;
   }
 }
 
 // Responsive
-@media (max-width: 992px) {
-  .filters-card .filters-grid {
-    grid-template-columns: repeat(2, 1fr);
+@media (max-width: 1024px) {
+  .page-header {
+    flex-direction: column;
+    gap: var(--space-4);
+    align-items: stretch;
+
+    .page-actions {
+      justify-content: flex-end;
+    }
+  }
+
+  .filters-card .filters-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+
+    .filter-actions {
+      justify-content: flex-end;
+    }
   }
 }
 
 @media (max-width: 768px) {
-  .filters-card .filters-grid {
-    grid-template-columns: 1fr;
+  .page-header {
+    padding: var(--space-4);
+
+    .page-title {
+      font-size: var(--font-size-xl);
+    }
+
+    .page-actions {
+      flex-wrap: wrap;
+    }
   }
 
   .audit-table ::ng-deep {
     .p-datatable-thead > tr > th,
     .p-datatable-tbody > tr > td {
-      padding: var(--space-2);
+      padding: var(--space-3) var(--space-2);
       font-size: var(--font-size-xs);
     }
   }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    padding: var(--space-3);
+
+    .page-title {
+      font-size: var(--font-size-lg);
+    }
+
+    .page-description {
+      font-size: var(--font-size-sm);
+    }
+  }
+}
+
+// Animation
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-header,
+.filters-card,
+.table-card {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.filters-card {
+  animation-delay: 0.1s;
+}
+
+.table-card {
+  animation-delay: 0.2s;
 }

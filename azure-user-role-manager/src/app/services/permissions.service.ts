@@ -88,33 +88,82 @@ export class PermissionsService {
   }
 
   /**
-   * Get directory roles for a user
+   * Get directory roles for a user.
+   * Uses both memberOf (for home-tenant users) and roleManagement/directory/roleAssignments
+   * (for guest/external users) to ensure complete results.
    */
   getDirectoryRoles(userId?: string): Observable<DirectoryRole[]> {
-    const endpoint = userId ? `/users/${userId}/memberOf` : '/me/memberOf';
-    
     return this.getGraphHeaders().pipe(
-      switchMap(headers => 
-        this.http.get<any>(`${this.graphApiUrl}${endpoint}`, {
-          headers,
-          params: new HttpParams()
-            .set('$select', 'id,displayName,description,roleTemplateId')
-        })
-      ),
-      map(response => 
-        response.value
-          .filter((item: any) => item.roleTemplateId) // Directory roles have roleTemplateId
-          .map((role: any) => ({
-            id: role.id,
-            displayName: role.displayName,
-            description: role.description,
-            roleTemplateId: role.roleTemplateId,
-            isBuiltIn: true // Directory roles are typically built-in
-          }))
-      ),
+      switchMap(headers => {
+        const memberOfEndpoint = userId ? `/users/${userId}/memberOf` : '/me/memberOf';
+
+        const memberOf$ = this.http.get<any>(`${this.graphApiUrl}${memberOfEndpoint}`, { headers }).pipe(
+          map(response =>
+            response.value
+              .filter((item: any) => item['@odata.type'] === '#microsoft.graph.directoryRole' || item.roleTemplateId)
+              .map((role: any) => ({
+                id: role.id,
+                displayName: role.displayName,
+                description: role.description,
+                roleTemplateId: role.roleTemplateId,
+                isBuiltIn: true
+              }))
+          ),
+          catchError(error => {
+            console.error('Failed to get directory roles via memberOf:', error);
+            return of([] as DirectoryRole[]);
+          })
+        );
+
+        // For a specific user, also check roleManagement/directory/roleAssignments
+        // This catches roles for guest/external users in the current tenant
+        if (userId) {
+          const roleAssignments$ = this.http.get<any>(
+            `${this.graphApiUrl}/roleManagement/directory/roleAssignments`,
+            {
+              headers,
+              params: new HttpParams()
+                .set('$filter', `principalId eq '${userId}'`)
+                .set('$expand', 'roleDefinition')
+            }
+          ).pipe(
+            map(response =>
+              (response.value || []).map((assignment: any) => ({
+                id: assignment.roleDefinition?.id || assignment.roleDefinitionId,
+                displayName: assignment.roleDefinition?.displayName || 'Unknown Role',
+                description: assignment.roleDefinition?.description || '',
+                roleTemplateId: assignment.roleDefinition?.templateId || assignment.roleDefinitionId,
+                isBuiltIn: assignment.roleDefinition?.isBuiltIn ?? true
+              }))
+            ),
+            catchError(error => {
+              console.error('Failed to get directory role assignments:', error);
+              return of([] as DirectoryRole[]);
+            })
+          );
+
+          // Merge both sources, deduplicate by roleTemplateId
+          return forkJoin([memberOf$, roleAssignments$]).pipe(
+            map(([fromMemberOf, fromRoleAssignments]) => {
+              const seen = new Set<string>();
+              const merged: DirectoryRole[] = [];
+              for (const role of [...fromMemberOf, ...fromRoleAssignments]) {
+                const key = role.roleTemplateId || role.id;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  merged.push(role);
+                }
+              }
+              return merged;
+            })
+          );
+        }
+
+        return memberOf$;
+      }),
       catchError(error => {
         console.error('Failed to get directory roles:', error);
-        return throwError(() => this.handleError(error));
+        return of([] as DirectoryRole[]);
       })
     );
   }
@@ -134,20 +183,24 @@ export class PermissionsService {
         })
       ),
       switchMap(response => {
-        const assignments = response.value;
-        
+        const assignments = response.value || [];
+
+        if (assignments.length === 0) {
+          return of([]);
+        }
+
         // Enrich with app role details
-        const enrichmentPromises = assignments.map((assignment: any) => 
+        const enrichmentPromises = assignments.map((assignment: any) =>
           this.enrichAppRoleAssignment(assignment)
         );
-        
+
         return forkJoin(enrichmentPromises).pipe(
           catchError(() => of(assignments)) // Fallback to basic data if enrichment fails
         );
       }),
       catchError(error => {
         console.error('Failed to get app role assignments:', error);
-        return throwError(() => this.handleError(error));
+        return of([] as AppRoleAssignment[]);
       })
     );
   }
@@ -218,18 +271,21 @@ export class PermissionsService {
       .pipe(
         switchMap(response => {
           const assignments = response.value || [];
-          
+
+          if (assignments.length === 0) {
+            return of([]);
+          }
+
           // Enrich with role definition names
-          const enrichmentPromises = assignments.map(assignment => 
+          const enrichmentPromises = assignments.map(assignment =>
             this.enrichRoleAssignment(assignment, headers)
           );
-          
+
           return forkJoin(enrichmentPromises).pipe(
             catchError(() => of(assignments)) // Fallback to basic data
           );
         }),
-        catchError(error => {
-          console.warn(`Failed to get role assignments for subscription ${subscriptionId}:`, error);
+        catchError(() => {
           return of([]);
         })
       );
@@ -624,11 +680,16 @@ export class PermissionsService {
 
   // Storage Account Permission Management
 
-  removeStorageAccountPermission(assignmentId: string, storageAccountId: string): Observable<any> {
-    return this.azureApiService.removeStorageAccountRoleAssignment(assignmentId).pipe(
-      tap(() => {
-        // Clear cache to refresh data
-        this.clearStorageAccountCache(storageAccountId);
+  removeStorageAccountPermission(assignmentId: string, storageAccountId: string, subscriptionId: string): Observable<any> {
+    return this.azureApiService.removeStorageAccountRoleAssignment(assignmentId, subscriptionId).pipe(
+      tap((response) => {
+        // Handle successful deletion (204 No Content or 200 OK)
+        if (response && response.success) {
+          // Clear cache to refresh data
+          this.clearStorageAccountCache(storageAccountId);
+          // Clear general cache to force UI refresh
+          this.clearCache();
+        }
       }),
       catchError(error => {
         console.error('Failed to remove storage account permission:', error);
@@ -657,13 +718,154 @@ export class PermissionsService {
     });
     
     keysToRemove.forEach(key => {
-      console.log('🗑️ Clearing cache key:', key);
       this.cache.delete(key);
     });
   }
 
   clearCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Search Azure resources across all subscriptions using the Resources API
+   */
+  searchResources(query: string): Observable<any[]> {
+    return this.getManagementHeaders().pipe(
+      switchMap(headers => {
+        // First get subscriptions to search across
+        return this.http.get<any>(`${this.managementApiUrl}/subscriptions?api-version=2022-12-01`, { headers }).pipe(
+          switchMap(subResponse => {
+            const subscriptions = subResponse.value || [];
+            if (subscriptions.length === 0) return of([]);
+
+            // Search resources in each subscription
+            const searchObservables = subscriptions.map((sub: any) => {
+              const url = `${this.managementApiUrl}/subscriptions/${sub.subscriptionId}/resources`;
+              const params = new HttpParams()
+                .set('api-version', '2021-04-01')
+                .set('$filter', `substringof('${query}', name)`)
+                .set('$top', '20');
+
+              return this.http.get<{ value: any[] }>(url, { headers, params }).pipe(
+                map(response => (response.value || []).map((r: any) => ({
+                  id: r.id,
+                  name: r.name,
+                  type: this.friendlyResourceType(r.type),
+                  rawType: r.type,
+                  resourceGroup: this.extractResourceGroupFromId(r.id),
+                  subscriptionId: sub.subscriptionId,
+                  location: r.location
+                }))),
+                catchError(() => of([]))
+              );
+            });
+
+            return forkJoin(searchObservables as Observable<any[]>[]).pipe(
+              map((results) => {
+                const all = (results as any[][]).flat();
+                // Filter client-side for case-insensitive match
+                const lowerQuery = query.toLowerCase();
+                return all.filter((r: any) => r.name.toLowerCase().includes(lowerQuery)).slice(0, 50);
+              })
+            );
+          })
+        );
+      }),
+      catchError(error => {
+        console.error('Failed to search resources:', error);
+        return of([]);
+      })
+    );
+  }
+
+  /**
+   * Get role definitions applicable to a resource scope
+   */
+  getRoleDefinitionsForScope(scope: string): Observable<any[]> {
+    return this.getManagementHeaders().pipe(
+      switchMap(headers => {
+        const url = `${this.managementApiUrl}${scope}/providers/Microsoft.Authorization/roleDefinitions`;
+        const params = new HttpParams().set('api-version', '2022-04-01');
+
+        return this.http.get<{ value: any[] }>(url, { headers, params }).pipe(
+          map(response => {
+            const roles = (response.value || []).map((rd: any) => ({
+              id: rd.id,
+              name: rd.properties.roleName,
+              description: rd.properties.description,
+              type: rd.properties.type === 'BuiltInRole' ? 'builtin' : 'custom'
+            }));
+
+            // Sort: common roles first, then alphabetically
+            const commonRoles = ['Owner', 'Contributor', 'Reader', 'User Access Administrator',
+              'Storage Blob Data Owner', 'Storage Blob Data Contributor', 'Storage Blob Data Reader',
+              'Storage Account Contributor', 'Storage Account Key Operator Service Role'];
+
+            return roles.sort((a: any, b: any) => {
+              const aCommonIdx = commonRoles.indexOf(a.name);
+              const bCommonIdx = commonRoles.indexOf(b.name);
+              if (aCommonIdx !== -1 && bCommonIdx !== -1) return aCommonIdx - bCommonIdx;
+              if (aCommonIdx !== -1) return -1;
+              if (bCommonIdx !== -1) return 1;
+              return a.name.localeCompare(b.name);
+            });
+          })
+        );
+      }),
+      catchError(error => {
+        console.error('Failed to get role definitions for scope:', error);
+        return of([]);
+      })
+    );
+  }
+
+  private friendlyResourceType(type: string): string {
+    const typeMap: Record<string, string> = {
+      'Microsoft.Storage/storageAccounts': 'Storage Account',
+      'Microsoft.Compute/virtualMachines': 'Virtual Machine',
+      'Microsoft.Web/sites': 'App Service',
+      'Microsoft.Sql/servers': 'SQL Server',
+      'Microsoft.Sql/servers/databases': 'SQL Database',
+      'Microsoft.KeyVault/vaults': 'Key Vault',
+      'Microsoft.Network/virtualNetworks': 'Virtual Network',
+      'Microsoft.Network/networkSecurityGroups': 'Network Security Group',
+      'Microsoft.Network/publicIPAddresses': 'Public IP Address',
+      'Microsoft.Network/loadBalancers': 'Load Balancer',
+      'Microsoft.ContainerService/managedClusters': 'AKS Cluster',
+      'Microsoft.DocumentDB/databaseAccounts': 'Cosmos DB',
+      'Microsoft.Cache/Redis': 'Redis Cache',
+      'Microsoft.ServiceBus/namespaces': 'Service Bus',
+      'Microsoft.EventHub/namespaces': 'Event Hub',
+    };
+    return typeMap[type] || type.split('/').pop() || type;
+  }
+
+  /**
+   * Get all resource groups for a subscription
+   */
+  getResourceGroups(subscriptionId: string): Observable<any[]> {
+    const cacheKey = `resource_groups_${subscriptionId}`;
+    const cached = this.getFromCache<any[]>(cacheKey);
+    if (cached) {
+      return of(cached);
+    }
+
+    return this.getManagementHeaders().pipe(
+      switchMap(headers => {
+        const url = `${this.managementApiUrl}/subscriptions/${subscriptionId}/resourcegroups`;
+        const params = new HttpParams().set('api-version', '2022-09-01');
+        return this.http.get<{ value: any[] }>(url, { headers, params });
+      }),
+      map(response => {
+        const groups = response.value || [];
+        this.setCache(cacheKey, groups, 5 * 60 * 1000);
+        return groups;
+      }),
+      catchError(error => {
+        console.error('Failed to get resource groups:', error);
+        return of([]);
+      })
+    );
   }
 
   // Storage Account Methods
@@ -760,8 +962,7 @@ export class PermissionsService {
               storageAccount: account,
               roleAssignments
             } as StorageAccountPermission)),
-            catchError(error => {
-              console.warn(`Failed to get role assignments for ${account.name}:`, error);
+            catchError(() => {
               return of({
                 storageAccount: account,
                 roleAssignments: []
@@ -781,6 +982,178 @@ export class PermissionsService {
       scan((acc: StorageAccountPermission[], batch: StorageAccountPermission[]) => [...acc, ...batch], []),
       // Only emit the final result
       takeLast(1)
+    );
+  }
+
+  /**
+   * Fetch ALL role assignments at subscription level in a single API call,
+   * then distribute them to matching storage accounts client-side.
+   * This drastically reduces network calls (1 call vs N per-account calls).
+   */
+  getSubscriptionRoleAssignments(subscriptionId: string): Observable<any[]> {
+    const cacheKey = `subscription_role_assignments_${subscriptionId}`;
+    const cached = this.getFromCache<any[]>(cacheKey);
+    if (cached) {
+      return of(cached);
+    }
+
+    return this.getManagementHeaders().pipe(
+      switchMap(headers => {
+        const url = `${this.managementApiUrl}/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleAssignments`;
+        const params = new HttpParams().set('api-version', '2022-04-01');
+
+        return this.http.get<{ value: any[] }>(url, { headers, params }).pipe(
+          timeout(30000)
+        );
+      }),
+      map(response => {
+        const assignments = response.value || [];
+        this.setCache(cacheKey, assignments, 5 * 60 * 1000);
+        return assignments;
+      }),
+      catchError(error => {
+        console.error('Failed to get subscription-level role assignments:', error);
+        return of([]);
+      })
+    );
+  }
+
+  /**
+   * Fetch ALL role definitions at subscription level in a single API call.
+   * Results are cached and used to resolve role names without per-assignment lookups.
+   */
+  getSubscriptionRoleDefinitions(subscriptionId: string): Observable<Map<string, RoleDefinition>> {
+    const cacheKey = `subscription_role_definitions_${subscriptionId}`;
+    const cached = this.getFromCache<Map<string, RoleDefinition>>(cacheKey);
+    if (cached) {
+      return of(cached);
+    }
+
+    return this.getManagementHeaders().pipe(
+      switchMap(headers => {
+        const url = `${this.managementApiUrl}/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleDefinitions`;
+        const params = new HttpParams().set('api-version', '2022-04-01');
+
+        return this.http.get<{ value: RoleDefinition[] }>(url, { headers, params }).pipe(
+          timeout(30000)
+        );
+      }),
+      map(response => {
+        const definitions = response.value || [];
+        const definitionMap = new Map<string, RoleDefinition>();
+        definitions.forEach(def => {
+          definitionMap.set(def.id, def);
+        });
+        this.setCache(cacheKey, definitionMap, 10 * 60 * 1000);
+        return definitionMap;
+      }),
+      catchError(error => {
+        console.error('Failed to get subscription-level role definitions:', error);
+        return of(new Map<string, RoleDefinition>());
+      })
+    );
+  }
+
+  /**
+   * Batch-load permissions for all storage accounts using subscription-level APIs.
+   * Makes only 2 API calls (role assignments + role definitions) instead of N*3 per-account calls.
+   * Returns a map of storageAccountId -> enriched role assignments.
+   */
+  batchLoadStorageAccountPermissions(
+    subscriptionId: string,
+    storageAccountIds: string[]
+  ): Observable<Map<string, StorageAccountRoleAssignment[]>> {
+    return forkJoin({
+      assignments: this.getSubscriptionRoleAssignments(subscriptionId),
+      roleDefinitions: this.getSubscriptionRoleDefinitions(subscriptionId)
+    }).pipe(
+      switchMap(({ assignments, roleDefinitions }) => {
+        // Build a set of storage account ID prefixes for fast scope matching
+        const storageAccountIdSet = new Set(storageAccountIds.map(id => id.toLowerCase()));
+
+        // Filter assignments whose scope matches any storage account
+        const storageAssignments = assignments.filter(a => {
+          const scope = (a.properties?.scope || '').toLowerCase();
+          return storageAccountIdSet.has(scope) ||
+            // Also match assignments scoped to parent (resource group, subscription)
+            // that would apply to storage accounts
+            storageAccountIds.some(saId => saId.toLowerCase().startsWith(scope));
+        });
+
+        // Collect unique principal IDs for batch enrichment
+        const uniquePrincipalIds = [...new Set(storageAssignments.map(a => a.properties.principalId))];
+
+        // Batch-fetch principal details (with deduplication from existing cache)
+        const principalRequests = uniquePrincipalIds.map(pid =>
+          this.getPrincipalDetails(pid).pipe(
+            map(details => ({ id: pid, details })),
+            catchError(() => of({ id: pid, details: { displayName: `Unknown (${pid.substring(0, 8)}...)`, principalType: 'Unknown' } }))
+          )
+        );
+
+        const principalLookup$ = principalRequests.length > 0
+          ? forkJoin(principalRequests)
+          : of([]);
+
+        return principalLookup$.pipe(
+          map(principalResults => {
+            // Build principal lookup map
+            const principalMap = new Map<string, any>();
+            principalResults.forEach(p => principalMap.set(p.id, p.details));
+
+            // Group enriched assignments by storage account
+            const resultMap = new Map<string, StorageAccountRoleAssignment[]>();
+            storageAccountIds.forEach(id => resultMap.set(id, []));
+
+            storageAssignments.forEach(assignment => {
+              const scope = assignment.properties.scope || '';
+              const roleDefId = assignment.properties.roleDefinitionId || '';
+              const roleDef = roleDefinitions.get(roleDefId);
+              const principal = principalMap.get(assignment.properties.principalId);
+
+              const enriched: StorageAccountRoleAssignment = {
+                id: assignment.id,
+                name: assignment.name,
+                type: assignment.type,
+                properties: {
+                  roleDefinitionId: roleDefId,
+                  roleDefinitionName: roleDef?.properties?.roleName || 'Unknown Role',
+                  principalId: assignment.properties.principalId,
+                  principalType: assignment.properties.principalType || principal?.principalType || 'Unknown',
+                  principalDisplayName: principal?.displayName || `Unknown (${assignment.properties.principalId.substring(0, 8)}...)`,
+                  principalEmail: principal?.mail || principal?.userPrincipalName,
+                  scope: scope,
+                  createdOn: assignment.properties.createdOn,
+                  updatedOn: assignment.properties.updatedOn
+                }
+              };
+
+              // Assign to matching storage account(s)
+              const matchingAccounts = storageAccountIds.filter(saId =>
+                saId.toLowerCase() === scope.toLowerCase() ||
+                saId.toLowerCase().startsWith(scope.toLowerCase())
+              );
+
+              matchingAccounts.forEach(saId => {
+                const existing = resultMap.get(saId) || [];
+                existing.push(enriched);
+                resultMap.set(saId, existing);
+              });
+            });
+
+            // Cache individual account results for later use
+            resultMap.forEach((assignments, saId) => {
+              this.setCache(`storage_account_assignments_${saId}`, assignments, 5 * 60 * 1000);
+            });
+
+            return resultMap;
+          })
+        );
+      }),
+      catchError(error => {
+        console.error('Failed to batch-load storage account permissions:', error);
+        return of(new Map<string, StorageAccountRoleAssignment[]>());
+      })
     );
   }
 
@@ -938,8 +1311,7 @@ export class PermissionsService {
               .pipe(
                 timeout(10000), // 10 second timeout for role definition requests
                 tap(roleDef => this.setCache(roleDefCacheKey, roleDef)),
-                catchError((error) => {
-                  console.warn(`Failed to get role definition ${assignment.properties.roleDefinitionId}:`, error.status);
+                catchError(() => {
                   return of(null);
                 })
               );
@@ -974,13 +1346,17 @@ export class PermissionsService {
         this.setCache(cacheKey, enrichedAssignment);
         return enrichedAssignment;
       }),
-      catchError((error) => {
-        console.warn(`Failed to enrich assignment ${assignment.id}:`, error);
+      catchError(() => {
         const fallbackAssignment = this.mapToStorageAccountRoleAssignment(assignment);
         this.setCache(cacheKey, fallbackAssignment);
         return of(fallbackAssignment);
       })
     );
+  }
+
+  /** Resolve a single principal's display details from Graph API (cached) */
+  resolvePrincipal(principalId: string): Observable<any> {
+    return this.getPrincipalDetails(principalId);
   }
 
   private getPrincipalDetails(principalId: string): Observable<any> {
@@ -1105,11 +1481,8 @@ export class PermissionsService {
         }
         // Handle timeout errors
         if (error.name === 'TimeoutError') {
-          console.warn(`Graph API request timed out for ${endpoint}`);
           return throwError(() => new Error('Request timed out'));
         }
-        // Log other errors as they might indicate real issues
-        console.warn(`Graph API request failed for ${endpoint}:`, error.status, error.message);
         return throwError(() => error);
       })
     );
@@ -1268,12 +1641,14 @@ export class PermissionsService {
   bulkRemoveStorageAccountPermissions(assignments: Array<{
     assignmentId: string;
     storageAccountId: string;
+    subscriptionId: string;
   }>): Observable<any[]> {
     return this.queueOperation(() => {
       const operations = assignments.map(assignment => 
         this.removeStorageAccountPermissionWithLockHandling(
           assignment.assignmentId,
-          assignment.storageAccountId
+          assignment.storageAccountId,
+          assignment.subscriptionId
         ).pipe(
           map(result => ({ success: true, result, assignment })),
           catchError(error => of({ success: false, error, assignment }))
@@ -1323,7 +1698,6 @@ export class PermissionsService {
     // Clear pending requests
     this.pendingPrincipalRequests.clear();
     
-    console.log('Principal cache and pending requests cleared');
   }
 
   /**
@@ -1371,8 +1745,7 @@ export class PermissionsService {
       const url = `${this.managementApiUrl}${lock.id}?api-version=2020-05-01`;
       return this.http.delete(url, { headers }).pipe(
         timeout(10000), // 10 second timeout for lock operations
-        catchError(error => {
-          console.warn(`Failed to remove lock ${lock.name}:`, error);
+        catchError(() => {
           return of(null);
         })
       );
@@ -1396,8 +1769,7 @@ export class PermissionsService {
       
       return this.http.put(url, body, { headers }).pipe(
         timeout(10000), // 10 second timeout for lock operations
-        catchError(error => {
-          console.warn(`Failed to recreate lock ${lock.name}:`, error);
+        catchError(() => {
           return of(null);
         })
       );
@@ -1448,12 +1820,10 @@ export class PermissionsService {
     return this.getManagementHeaders().pipe(
       switchMap(headers => {
         const url = `${this.managementApiUrl}${assignmentId}?api-version=2022-04-01`;
-        console.log('🗑️ Making DELETE request to:', url);
-        
+
         return this.http.delete(url, { headers }).pipe(
           timeout(15000), // 15 second timeout for delete operations
           tap(() => {
-            console.log('✅ Role assignment deleted successfully');
             // Clear cache for storage account permissions
             this.clearStorageAccountCache(assignmentId);
             
@@ -1483,29 +1853,19 @@ export class PermissionsService {
   /**
     * Remove storage account permission with automatic lock handling
     */
-   removeStorageAccountPermissionWithLockHandling(assignmentId: string, storageAccountId: string): Observable<any> {
-     console.log('🔧 Starting permission removal with lock handling for assignment:', assignmentId);
-     
+   removeStorageAccountPermissionWithLockHandling(assignmentId: string, storageAccountId: string, subscriptionId: string): Observable<any> {
      // Don't use queueOperation for ScopeLocked errors - handle them directly
-     return this.removeStorageAccountRoleAssignment(assignmentId).pipe(
+     return this.azureApiService.removeStorageAccountRoleAssignment(assignmentId, subscriptionId).pipe(
        catchError(error => {
-         console.log('❌ Permission removal failed with error:', error);
-         console.log('Error details:', {
-           status: error.status,
-           code: error.error?.code,
-           message: error.error?.message || error.message
-         });
-         
          // Check if it's a ScopeLocked error
          if (this.lockManagementService.isScopeLockedError(error)) {
-           console.log('🔒 ScopeLocked error detected, delegating to lock management service');
            // Use Observable-based lock handling
            const resourceId = this.lockManagementService.extractResourceIdFromError(error);
            if (resourceId) {
              return this.lockManagementService.handleScopeLockedErrorObservable(
                error,
                resourceId,
-               () => this.removeStorageAccountRoleAssignment(assignmentId),
+               () => this.azureApiService.removeStorageAccountRoleAssignment(assignmentId, subscriptionId),
                'permission removal'
              );
            } else {
@@ -1515,9 +1875,8 @@ export class PermissionsService {
          }
          
          // For other errors, use the queue with retry logic
-         console.log('⚠️ Non-ScopeLocked error, using queue with retry logic');
          return this.queueOperation(() => {
-           return this.removeStorageAccountRoleAssignment(assignmentId);
+           return this.azureApiService.removeStorageAccountRoleAssignment(assignmentId, subscriptionId);
          });
        })
      );
@@ -1571,7 +1930,6 @@ export class PermissionsService {
        catchError(error => {
          // Don't retry ScopeLocked errors - they need special handling
          if (this.lockManagementService.isScopeLockedError(error)) {
-           console.log('🔒 ScopeLocked error in retry logic - not retrying, re-throwing for proper handling');
            throw error;
          }
          
@@ -1582,7 +1940,6 @@ export class PermissionsService {
                                 error.message?.includes('only one modification');
          
          if (isConflictError && maxAttempts > 1) {
-           console.log(`Conflict detected, retrying in ${this.RETRY_DELAY}ms... (${maxAttempts - 1} attempts left)`);
            return new Observable<T>(observer => {
              setTimeout(() => {
                this.executeWithRetry(operation, maxAttempts - 1).subscribe(observer);

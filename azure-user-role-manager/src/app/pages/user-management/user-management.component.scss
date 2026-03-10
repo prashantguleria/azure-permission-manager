@@ -1,233 +1,379 @@
-// Search Card Styles
-.search-card {
-  .search-section {
-    .p-input-icon-right {
-      i {
-        right: 0.75rem;
-        color: var(--text-color-secondary);
-      }
-    }
+// ═══════════════════════════════════════════
+// User Management — Component Styles
+// Uses shared design tokens from styles.scss
+// ═══════════════════════════════════════════
+
+// Page Header
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.user-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+// Search Bar
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.search-input-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .search-icon {
+    position: absolute;
+    left: var(--space-3);
+    color: var(--color-text-tertiary);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  .search-input {
+    padding-left: calc(var(--space-3) + 14px + var(--space-2));
   }
 }
 
-// Table Card Styles
+.search-btn {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 var(--space-5);
+}
+
+// Table Card
 .table-card {
-  .table-header {
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--surface-border);
-    
-    h3 {
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--text-color);
-    }
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.table-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table-card-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+// Loading Overlay
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 10;
+  border-radius: var(--radius-lg);
+
+  .dark-mode & {
+    background: rgba(13, 17, 23, 0.7);
   }
 }
 
-// Table Styles
+// PrimeNG Table Overrides
 .users-table {
-  min-width: 800px;
-  
   ::ng-deep {
     .p-datatable {
-      .p-datatable-header {
-        background: var(--surface-section);
-        border: 1px solid var(--surface-border);
-        font-weight: 600;
-      }
-      
       .p-datatable-thead > tr > th {
+        background: var(--color-bg);
+        border-color: var(--color-border);
         font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-text-secondary);
         white-space: nowrap;
-        background: var(--surface-section);
-        border-color: var(--surface-border);
+        padding: var(--space-3) var(--space-4);
       }
-      
+
       .p-datatable-tbody > tr {
-        transition: all 0.2s ease;
-        
+        transition: background var(--transition-fast);
+
         &:hover {
-          background: var(--surface-hover);
+          background: var(--color-surface-hover);
         }
       }
-      
+
       .p-datatable-tbody > tr > td {
         vertical-align: middle;
-        max-width: 200px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        border-color: var(--surface-border);
+        border-color: var(--color-border);
+        padding: var(--space-3) var(--space-4);
       }
     }
   }
+}
 
-  .user-info {
-    .user-name {
-      margin-bottom: 0.125rem;
-    }
+// Column widths
+.col-checkbox {
+  width: 48px;
+}
 
-    .user-details {
-      display: flex;
-      gap: 0.5rem;
-      font-size: 0.75rem;
+.col-user {
+  min-width: 220px;
+}
 
-      .job-title {
-        &::after {
-          content: '•';
-          margin-left: 0.5rem;
-        }
-      }
-    }
+.col-email {
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.col-username {
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.col-status {
+  width: 100px;
+}
+
+.col-created {
+  width: 130px;
+}
+
+.col-actions {
+  width: 100px;
+  text-align: center;
+}
+
+// User Cell (avatar + info)
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.avatar-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Mono text (email, username)
+.mono-text {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 220px;
+}
+
+// Date text
+.date-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+// Action Buttons
+.table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-primary);
   }
 
-  .email {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.8125rem;
-  }
-
-  .username {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.8125rem;
-  }
-
-  .date {
-    font-size: 0.8125rem;
+  i {
+    font-size: 15px;
   }
 }
 
-// Loading and Empty States
-::ng-deep {
-  .p-datatable-loading-overlay {
-    background: rgba(255, 255, 255, 0.8);
-  }
-  
-  .p-datatable-emptymessage {
-    padding: 2.5rem 1.25rem;
+// Empty State (override global if needed)
+.empty-state {
+  padding: var(--space-12) var(--space-8);
+
+  .empty-title {
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    color: var(--color-text-secondary);
   }
 }
 
-// Responsive Design
+// Pagination Footer
+.table-pagination-footer {
+  border-top: 1px solid var(--color-border);
+
+  ::ng-deep {
+    .p-paginator {
+      background: transparent;
+      border: none;
+      padding: var(--space-2) var(--space-4);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// Responsive
+// ═══════════════════════════════════════════
+
+@media (max-width: 992px) {
+  .search-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-btn {
+    align-self: flex-start;
+  }
+
+  .table-card-header {
+    padding: var(--space-3) var(--space-4);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+}
+
 @media (max-width: 768px) {
-  .search-card {
-    .search-section {
-      flex-direction: column;
-      gap: 0.75rem;
-      
-      .p-input-icon-right {
-        width: 100%;
-      }
-    }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
   }
 
-  .table-card {
-    overflow-x: auto;
-    
-    ::ng-deep .p-card-body {
-      padding: 0.75rem;
-    }
+  .col-email,
+  .col-username {
+    display: none;
   }
 
-  .users-table {
-    min-width: 600px;
-    font-size: 0.75rem;
-    
-    ::ng-deep {
-      .p-datatable-thead > tr > th,
-      .p-datatable-tbody > tr > td {
-        padding: 0.5rem 0.25rem;
-        max-width: 150px;
-      }
-    }
-
-    .user-info {
-      .user-details {
-        flex-direction: column;
-        gap: 0.125rem;
-
-        .job-title {
-          &::after {
-            display: none;
-          }
-        }
-      }
+  // Hide email/username columns at table level
+  .users-table ::ng-deep {
+    .p-datatable-thead > tr > th:nth-child(3),
+    .p-datatable-tbody > tr > td:nth-child(3),
+    .p-datatable-thead > tr > th:nth-child(4),
+    .p-datatable-tbody > tr > td:nth-child(4) {
+      display: none;
     }
   }
 }
 
 @media (max-width: 576px) {
-  .users-table {
-    ::ng-deep {
-      .p-datatable-thead > tr > th:nth-child(4),
-      .p-datatable-tbody > tr > td:nth-child(4),
-      .p-datatable-thead > tr > th:nth-child(5),
-      .p-datatable-tbody > tr > td:nth-child(5) {
-        display: none;
-      }
+  .page-container {
+    padding: var(--space-4);
+  }
+
+  .avatar-circle {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+
+  .user-name {
+    font-size: var(--font-size-sm);
+  }
+
+  // Also hide created column on very small screens
+  .users-table ::ng-deep {
+    .p-datatable-thead > tr > th:nth-child(6),
+    .p-datatable-tbody > tr > td:nth-child(6) {
+      display: none;
     }
   }
 }
 
-// Custom scrollbar for table
-::ng-deep {
-  .p-datatable-scrollable-body {
-    &::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: var(--surface-ground);
-      border-radius: 3px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: var(--surface-border);
-      border-radius: 3px;
-
-      &:hover {
-        background: var(--text-color-secondary);
-      }
-    }
+// Custom scrollbar for table overflow
+.table-card {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-}
 
-// Additional Responsive Design
-@media (max-width: 992px) {
-  .search-card {
-    ::ng-deep .p-card-body {
-      padding: 1rem;
-    }
-    
-    .search-section {
-      flex-direction: column;
-      align-items: stretch;
-    }
+  &::-webkit-scrollbar-track {
+    background: var(--color-bg);
+    border-radius: 3px;
   }
-  
-  .table-card {
-    .table-header {
-      padding: 1rem;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.75rem;
-    }
-  }
-}
 
-@media (max-width: 480px) {
-  .search-card {
-    ::ng-deep .p-card-body {
-      padding: 0.75rem;
-    }
-  }
-  
-  .table-card {
-    .table-header {
-      padding: 0.75rem;
-      
-      h3 {
-        font-size: 0.875rem;
-      }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+
+    &:hover {
+      background: var(--color-text-tertiary);
     }
   }
 }

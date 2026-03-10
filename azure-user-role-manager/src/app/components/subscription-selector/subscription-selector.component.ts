@@ -1,19 +1,18 @@
-import { Component, OnInit, Output, EventEmitter, Input, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, output, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { SelectModule } from 'primeng/select';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { MessageService } from 'primeng/api';
 import { MessageModule } from 'primeng/message';
+import { MessageService } from 'primeng/api';
 import { PermissionsService } from '../../services/permissions.service';
 import { Subscription } from '../../models/permissions.model';
-import { Subject, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-subscription-selector',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     FormsModule,
     SelectModule,
     ProgressSpinnerModule,
@@ -23,203 +22,207 @@ import { Subject, takeUntil } from 'rxjs';
     <div class="subscription-selector">
       <div class="selector-header">
         <span class="selector-label">Subscription</span>
-        <span *ngIf="required" class="required-indicator">*</span>
+        @if (required()) {
+          <span class="required-indicator">*</span>
+        }
       </div>
-      
+
       <div class="selector-content">
-        <p-select 
+        <p-select
           class="subscription-select"
-          [placeholder]="placeholder"
+          [placeholder]="placeholder()"
           [(ngModel)]="selectedSubscriptionId"
           (onChange)="onSubscriptionChange($event.value)"
-          [disabled]="loading"
+          [disabled]="loading()"
           [showClear]="true"
-          [options]="subscriptions"
+          [options]="subscriptions()"
           optionLabel="displayName"
           optionValue="subscriptionId">
-          <ng-template pTemplate="selectedItem" let-selectedOption>
-            <div *ngIf="selectedOption">
-              {{ getSubscriptionLabel(selectedOption) }}
-            </div>
+          <ng-template #selectedItem let-selectedOption>
+            @if (selectedOption) {
+              <div>{{ getSubscriptionLabel(selectedOption) }}</div>
+            }
           </ng-template>
-          <ng-template pTemplate="item" let-subscription>
-            <div>
-              {{ getSubscriptionLabel(subscription) }}
-            </div>
+          <ng-template #item let-subscription>
+            <div>{{ getSubscriptionLabel(subscription) }}</div>
           </ng-template>
         </p-select>
-        
-        <p-progressSpinner *ngIf="loading" class="loading-spinner" [style]="{width: '20px', height: '20px'}"></p-progressSpinner>
+
+        @if (loading()) {
+          <p-progressSpinner class="loading-spinner" [style]="{width: '20px', height: '20px'}" />
+        }
       </div>
-      
-      <div class="subscription-info" *ngIf="selectedSubscription && !loading">
-        <div class="info-item">
-          <span class="info-label">Selected:</span>
-          <span class="info-value">{{ selectedSubscription.displayName }}</span>
+
+      @if (selectedSub() && !loading()) {
+        <div class="subscription-info">
+          <div class="info-item">
+            <span class="info-label">Selected:</span>
+            <span class="info-value">{{ selectedSub()!.displayName }}</span>
+          </div>
+          @if (selectedSub()!.state) {
+            <div class="info-item">
+              <span class="info-label">Status:</span>
+              <span class="info-value" [class]="'status-' + selectedSub()!.state!.toLowerCase()">{{ selectedSub()!.state }}</span>
+            </div>
+          }
         </div>
-        <div class="info-item" *ngIf="selectedSubscription.state">
-          <span class="info-label">Status:</span>
-          <span class="info-value" [class]="'status-' + selectedSubscription.state.toLowerCase()">{{ selectedSubscription.state }}</span>
-        </div>
-      </div>
-      
-      <p-message 
-        *ngIf="!loading && subscriptions.length === 0 && !error"
-        severity="warn"
-        text="No subscriptions available. You do not have access to any Azure subscriptions or they have not been loaded yet.">
-      </p-message>
-      
-      <p-message 
-        *ngIf="error"
-        severity="error"
-        [text]="getErrorMessage()">
-      </p-message>
+      }
+
+      @if (!loading() && subscriptions().length === 0 && !error()) {
+        <p-message
+          severity="warn"
+          text="No subscriptions available. You do not have access to any Azure subscriptions or they have not been loaded yet." />
+      }
+
+      @if (error()) {
+        <p-message
+          severity="error"
+          [text]="getErrorMessage()" />
+      }
     </div>
   `,
   styles: [`
     .subscription-selector {
-      margin-bottom: 16px;
+      margin-bottom: var(--space-4);
     }
-    
+
     .selector-header {
       display: flex;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: var(--space-2);
     }
-    
+
     .selector-label {
       font-weight: 500;
-      color: #262626;
-      margin-right: 4px;
+      color: var(--color-text);
+      margin-right: var(--space-1);
     }
-    
+
     .required-indicator {
-      color: #ff4d4f;
+      color: var(--color-danger);
       font-weight: bold;
     }
-    
+
     .selector-content {
       position: relative;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--space-2);
     }
-    
+
     .subscription-select {
       flex: 1;
       min-width: 300px;
     }
-    
+
     .loading-spinner {
-      margin-left: 8px;
+      margin-left: var(--space-2);
     }
-    
+
     .subscription-info {
-      margin-top: 8px;
-      padding: 8px 12px;
-      background-color: #f6f8fa;
-      border-radius: 4px;
-      border-left: 3px solid #1890ff;
+      margin-top: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      background-color: var(--color-info-bg);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--color-primary);
     }
-    
+
     .info-item {
       display: flex;
       align-items: center;
-      margin-bottom: 4px;
+      margin-bottom: var(--space-1);
     }
-    
+
     .info-item:last-child {
       margin-bottom: 0;
     }
-    
+
     .info-label {
       font-weight: 500;
-      color: #595959;
-      margin-right: 8px;
+      color: var(--color-text-secondary);
+      margin-right: var(--space-2);
       min-width: 60px;
     }
-    
+
     .info-value {
-      color: #262626;
+      color: var(--color-text);
     }
-    
+
     .status-enabled {
-      color: #52c41a;
+      color: var(--color-success);
       font-weight: 500;
     }
-    
+
     .status-disabled {
-      color: #ff4d4f;
+      color: var(--color-danger);
       font-weight: 500;
     }
-    
+
     .status-warned {
-      color: #faad14;
+      color: var(--color-warning);
       font-weight: 500;
     }
   `]
 })
-export class SubscriptionSelectorComponent implements OnInit, OnDestroy {
-  @Input() placeholder: string = 'Select a subscription';
-  @Input() required: boolean = true;
-  @Input() preselectedSubscriptionId?: string;
-  @Input() selectedSubscription: Subscription | null = null;
-  @Output() subscriptionSelected = new EventEmitter<Subscription | null>();
-  @Output() subscriptionChanged = new EventEmitter<string | null>();
+export class SubscriptionSelectorComponent {
+  readonly placeholder = input('Select a subscription');
+  readonly required = input(true);
+  readonly preselectedSubscriptionId = input<string | undefined>(undefined);
+  readonly selectedSubscription = input<Subscription | null>(null);
+  readonly subscriptionSelected = output<Subscription | null>();
+  readonly subscriptionChanged = output<string | null>();
 
-  subscriptions: Subscription[] = [];
+  private readonly permissionsService = inject(PermissionsService);
+  private readonly messageService = inject(MessageService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly subscriptions = signal<Subscription[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly selectedSub = signal<Subscription | null>(null);
+
   selectedSubscriptionId: string | null = null;
-  loading = false;
-  error: string | null = null;
-  
-  private destroy$ = new Subject<void>();
 
-  constructor(
-    private permissionsService: PermissionsService,
-    private messageService: MessageService
-  ) {}
-
-  ngOnInit(): void {
+  constructor() {
     this.loadSubscriptions();
-    
+
     // Set preselected subscription if provided
-    if (this.preselectedSubscriptionId) {
-      this.selectedSubscriptionId = this.preselectedSubscriptionId;
-    } else if (this.selectedSubscription) {
-      this.selectedSubscriptionId = this.selectedSubscription.subscriptionId;
+    const preselected = this.preselectedSubscriptionId();
+    const selected = this.selectedSubscription();
+    if (preselected) {
+      this.selectedSubscriptionId = preselected;
+    } else if (selected) {
+      this.selectedSubscriptionId = selected.subscriptionId;
+      this.selectedSub.set(selected);
     }
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
   private loadSubscriptions(): void {
-    this.loading = true;
-    this.error = null;
-    
+    this.loading.set(true);
+    this.error.set(null);
+
     this.permissionsService.getRBACPermissions()
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
-          this.subscriptions = result.subscriptions.filter(sub => sub.state === 'Enabled');
-          this.loading = false;
-          
+          this.subscriptions.set(result.subscriptions.filter(sub => sub.state === 'Enabled'));
+          this.loading.set(false);
+
           // Auto-select if there's a preselected ID or only one subscription
-          if (this.preselectedSubscriptionId) {
-            const preselected = this.subscriptions.find(sub => sub.subscriptionId === this.preselectedSubscriptionId);
+          const preselectedId = this.preselectedSubscriptionId();
+          if (preselectedId) {
+            const preselected = this.subscriptions().find(sub => sub.subscriptionId === preselectedId);
             if (preselected) {
               this.onSubscriptionChange(preselected.subscriptionId);
             }
-          } else if (this.subscriptions.length === 1) {
-            this.onSubscriptionChange(this.subscriptions[0].subscriptionId);
+          } else if (this.subscriptions().length === 1) {
+            this.onSubscriptionChange(this.subscriptions()[0].subscriptionId);
           }
         },
         error: (error) => {
           console.error('Failed to load subscriptions:', error);
-          this.error = 'Failed to load subscriptions';
-          this.loading = false;
+          this.error.set('Failed to load subscriptions');
+          this.loading.set(false);
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
@@ -231,14 +234,13 @@ export class SubscriptionSelectorComponent implements OnInit, OnDestroy {
 
   onSubscriptionChange(subscriptionId: string | null): void {
     this.selectedSubscriptionId = subscriptionId;
-    
-    if (subscriptionId) {
-      this.selectedSubscription = this.subscriptions.find(sub => sub.subscriptionId === subscriptionId) || null;
-    } else {
-      this.selectedSubscription = null;
-    }
-    
-    this.subscriptionSelected.emit(this.selectedSubscription);
+
+    const sub = subscriptionId
+      ? this.subscriptions().find(s => s.subscriptionId === subscriptionId) || null
+      : null;
+    this.selectedSub.set(sub);
+
+    this.subscriptionSelected.emit(sub);
     this.subscriptionChanged.emit(subscriptionId);
   }
 
@@ -255,6 +257,6 @@ export class SubscriptionSelectorComponent implements OnInit, OnDestroy {
   }
 
   getErrorMessage(): string {
-    return `Failed to load subscriptions: ${this.error}. Please try refreshing the page.`;
+    return `Failed to load subscriptions: ${this.error()}. Please try refreshing the page.`;
   }
 }

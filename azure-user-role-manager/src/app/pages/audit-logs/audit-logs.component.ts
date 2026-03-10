@@ -1,16 +1,23 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  Component,
+  signal,
+  computed,
+  inject,
+  DestroyRef,
+  afterNextRender,
+  ChangeDetectionStrategy
+} from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
-import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
 import { DatePickerModule } from 'primeng/datepicker';
 import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
-import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil, forkJoin, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { AppAuditService } from '../../services/app-audit.service';
@@ -29,33 +36,35 @@ export interface EnrichedAuditLog extends AppAuditLog {
 @Component({
   selector: 'app-audit-logs',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
+    DatePipe,
     FormsModule,
     TableModule,
-    ButtonModule,
     TagModule,
     DialogModule,
     ToastModule,
     DatePickerModule,
     SelectModule,
     InputTextModule,
-    CardModule,
     ProgressSpinnerModule
   ],
   providers: [MessageService],
   templateUrl: './audit-logs.component.html',
-  styleUrls: ['./audit-logs.component.scss']
+  styleUrl: './audit-logs.component.scss'
 })
+export class AuditLogsComponent {
+  private readonly auditService = inject(AppAuditService);
+  private readonly azureApiService = inject(AzureApiService);
+  private readonly message = inject(MessageService);
+  private readonly destroyRef = inject(DestroyRef);
 
-export class AuditLogsComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
-  
-  auditLogs: AppAuditLog[] = [];
-  filteredLogs: EnrichedAuditLog[] = [];
-  loading = false;
+  // Data signals
+  readonly auditLogs = signal<AppAuditLog[]>([]);
+  readonly filteredLogs = signal<EnrichedAuditLog[]>([]);
+  readonly loading = signal(false);
   private userCache = new Map<string, User>();
-  
+
   // Filter properties
   filter: AuditLogFilter = {
     startDate: undefined,
@@ -64,7 +73,7 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
     targetType: undefined,
     userId: undefined
   };
-  
+
   // Available filter options
   actionOptions: { label: string; value: AuditAction }[] = [
     { label: 'Permission Added', value: 'permission_added' },
@@ -73,60 +82,51 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
     { label: 'Lock Added', value: 'lock_added' },
     { label: 'Lock Removed', value: 'lock_removed' }
   ];
-  
+
   resourceTypeOptions = [
     { label: 'Storage Account', value: 'storage_account' }
   ];
-  
-  constructor(
-    private auditService: AppAuditService,
-    private azureApiService: AzureApiService,
-    private message: MessageService
-  ) {}
-  
-  ngOnInit(): void {
-    this.loadAuditLogs();
+
+  constructor() {
+    afterNextRender(() => {
+      this.loadAuditLogs();
+    });
   }
-  
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-  
+
   loadAuditLogs(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.auditService.getAuditLogs()
       .pipe(
         map(logs => this.enrichLogsWithUserInfo(logs)),
-        takeUntil(this.destroy$)
+        takeUntilDestroyed(this.destroyRef)
       )
       .subscribe({
         next: (enrichedLogs) => {
           enrichedLogs.subscribe({
             next: (logs) => {
-              this.auditLogs = logs;
+              this.auditLogs.set(logs);
               this.applyFilters();
-              this.loading = false;
+              this.loading.set(false);
             },
             error: (error) => {
               console.error('Error enriching audit logs:', error);
               this.message.add({ severity: 'error', summary: 'Error', detail: 'Failed to enrich audit logs' });
-              this.loading = false;
+              this.loading.set(false);
             }
           });
         },
         error: (error) => {
           console.error('Error loading audit logs:', error);
           this.message.add({ severity: 'error', summary: 'Error', detail: 'Failed to load audit logs' });
-          this.loading = false;
+          this.loading.set(false);
         }
       });
   }
-  
+
   applyFilter(): void {
     this.loadAuditLogs();
   }
-  
+
   clearFilter(): void {
     this.filter = {
       startDate: undefined,
@@ -137,7 +137,7 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
     };
     this.loadAuditLogs();
   }
-  
+
   private enrichLogsWithUserInfo(logs: AppAuditLog[]) {
     const userRequests = logs
       .filter(log => log.action === 'permission_added' && log.details?.principalId)
@@ -199,7 +199,7 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
   }
 
   applyFilters(): void {
-    let filtered = [...this.auditLogs] as EnrichedAuditLog[];
+    let filtered = [...this.auditLogs()] as EnrichedAuditLog[];
 
     // Apply date range filter
     if (this.filter.startDate) {
@@ -211,7 +211,7 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
 
     // Apply user filter
     if (this.filter.userId) {
-      filtered = filtered.filter(log => 
+      filtered = filtered.filter(log =>
         log.userId?.toLowerCase().includes(this.filter.userId!.toLowerCase()) ||
         log.userName?.toLowerCase().includes(this.filter.userId!.toLowerCase())
       );
@@ -227,9 +227,9 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(log => log.targetType === this.filter.targetType);
     }
 
-    this.filteredLogs = filtered;
+    this.filteredLogs.set(filtered);
   }
-  
+
   getActionColor(action: AuditAction): string {
     switch (action) {
       case 'permission_added':
@@ -243,7 +243,7 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
         return 'blue';
     }
   }
-  
+
   getActionSeverity(action: AuditAction): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
     switch (action) {
       case 'permission_added':
@@ -257,19 +257,19 @@ export class AuditLogsComponent implements OnInit, OnDestroy {
         return 'info';
     }
   }
-  
+
   getActionLabel(action: AuditAction): string {
     const option = this.actionOptions.find(opt => opt.value === action);
     return option ? option.label : action;
   }
-  
+
   formatDetails(details: any): string {
     if (!details) return 'N/A';
-    
+
     const entries = Object.entries(details)
       .filter(([key, value]) => value !== null && value !== undefined)
       .map(([key, value]) => `${key}: ${value}`);
-    
+
     return entries.join(', ');
   }
 }

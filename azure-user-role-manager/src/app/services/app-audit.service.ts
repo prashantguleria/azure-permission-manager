@@ -33,7 +33,6 @@ export class AppAuditService {
   ): void {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) {
-      console.warn('Cannot log audit action: No current user');
       return;
     }
 
@@ -57,7 +56,6 @@ export class AppAuditService {
     this.saveAuditLogs(updatedLogs);
     this.auditLogsSubject.next(updatedLogs);
 
-    console.log('🔍 Audit logged:', auditLog);
   }
 
   /**
@@ -159,7 +157,6 @@ export class AppAuditService {
   clearAuditLogs(): void {
     localStorage.removeItem(this.STORAGE_KEY);
     this.auditLogsSubject.next([]);
-    console.log('🗑️ All audit logs cleared');
   }
 
   /**

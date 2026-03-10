@@ -1,16 +1,15 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, output, ChangeDetectionStrategy, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { MultiSelectModule } from 'primeng/multiselect';
-import { ButtonModule } from 'primeng/button';
-import { MessageService } from 'primeng/api';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { MessageService } from 'primeng/api';
 import { AzureApiService } from '../../services/azure-api.service';
 import { User, UserSearchResult } from '../../models/user.model';
-import { Subject, debounceTime, distinctUntilChanged, switchMap, takeUntil, of } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
 export interface BulkPermissionRequest {
   principalIds: string[];
@@ -21,19 +20,18 @@ export interface BulkPermissionRequest {
 @Component({
   selector: 'app-bulk-permission-modal',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     DialogModule,
     InputTextModule,
     SelectModule,
     MultiSelectModule,
-    ButtonModule,
     ProgressSpinnerModule
   ],
   template: `
     <p-dialog
-      [(visible)]="visible"
+      [visible]="visible()"
       header="Assign Permissions to Selected Accounts"
       [modal]="true"
       [closable]="true"
@@ -42,15 +40,19 @@ export interface BulkPermissionRequest {
       styleClass="bulk-permission-modal"
       [style]="{width: '600px'}"
       (onHide)="onCancel()">
-      <ng-template pTemplate="content">
+      <ng-template #content>
         <div class="bulk-add-permission-form">
-          <div class="selected-accounts" *ngIf="selectedAccounts.length > 1">
-            <h4>Adding permissions to {{ selectedAccounts.length }} storage accounts:</h4>
-            <ul>
-              <li *ngFor="let account of selectedAccounts">{{ account.name }}</li>
-            </ul>
-          </div>
-          
+          @if (selectedAccounts().length > 1) {
+            <div class="selected-accounts">
+              <h4>Adding permissions to {{ selectedAccounts().length }} storage accounts:</h4>
+              <ul>
+                @for (account of selectedAccounts(); track account.name) {
+                  <li>{{ account.name }}</li>
+                }
+              </ul>
+            </div>
+          }
+
           <form [formGroup]="permissionForm" class="permission-form">
             <!-- Principal Type Selection -->
             <div class="form-field">
@@ -65,28 +67,30 @@ export interface BulkPermissionRequest {
                 ]"
                 placeholder="Select principal type"
                 (onChange)="onUserSearch('')"
+                appendTo="body"
                 styleClass="w-full">
               </p-select>
             </div>
-            
+
             <!-- Principal Selection -->
             <div class="form-field">
               <label for="principalIds" class="form-label required">{{ getPrincipalLabel() }}</label>
               <p-multiSelect
                 inputId="principalIds"
                 formControlName="principalIds"
-                [options]="searchedUsers"
+                [options]="allPrincipalOptions()"
                 optionLabel="displayName"
-                optionValue="id"
                 [placeholder]="'Search and select ' + getPrincipalLabel().toLowerCase() + '...'"
                 [filter]="true"
+                filterBy="_noFilter"
                 [showClear]="true"
-                [loading]="searchingUsers"
+                [loading]="searchingUsers()"
                 (onFilter)="onUserSearch($event.filter)"
-                styleClass="w-full"
-                [virtualScroll]="true"
-                [virtualScrollItemSize]="40">
-                <ng-template let-user pTemplate="item">
+                (onPanelShow)="onPanelOpen()"
+                emptyFilterMessage="Type to search..."
+                appendTo="body"
+                styleClass="w-full">
+                <ng-template let-user #item>
                   <div class="user-option">
                     <div class="user-name">{{ user.displayName }}</div>
                     <div class="user-info">{{ getPrincipalDisplayInfo(user) }}</div>
@@ -94,156 +98,186 @@ export interface BulkPermissionRequest {
                 </ng-template>
               </p-multiSelect>
             </div>
-            
+
             <!-- Role Selection -->
-             <div class="form-field">
-               <label for="roleDefinitionIds" class="form-label required">Roles</label>
-               <p-multiSelect
-                 inputId="roleDefinitionIds"
-                 formControlName="roleDefinitionIds"
-                 [options]="availableRoles"
-                 optionLabel="label"
-                 optionValue="value"
-                 placeholder="Select roles to assign..."
-                 [showClear]="true"
-                 styleClass="w-full">
-               </p-multiSelect>
-             </div>
+            <div class="form-field">
+              <label for="roleDefinitionIds" class="form-label required">Roles</label>
+              <p-multiSelect
+                inputId="roleDefinitionIds"
+                formControlName="roleDefinitionIds"
+                [options]="availableRoles"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select roles to assign..."
+                [showClear]="true"
+                appendTo="body"
+                styleClass="w-full">
+              </p-multiSelect>
+            </div>
           </form>
-         </div>
-       </ng-template>
-       
-       <ng-template pTemplate="footer">
-         <p-button
-           label="Cancel"
-           icon="pi pi-times"
-           [text]="true"
-           (onClick)="onCancel()"
-           styleClass="p-button-text">
-         </p-button>
-         <p-button
-           label="Assign Permissions"
-           icon="pi pi-check"
-           [loading]="loading"
-           [disabled]="!permissionForm.valid"
-           (onClick)="onOk()"
-           styleClass="p-button-primary">
-         </p-button>
-       </ng-template>
-     </p-dialog>
+        </div>
+      </ng-template>
+
+      <ng-template #footer>
+        <div class="modal-footer">
+          <button class="btn btn-text" (click)="onCancel()">
+            <i class="pi pi-times"></i> Cancel
+          </button>
+          <button
+            class="btn btn-primary"
+            [disabled]="!permissionForm.valid || loading()"
+            (click)="onOk()">
+            @if (loading()) {
+              <i class="pi pi-spinner pi-spin"></i>
+            } @else {
+              <i class="pi pi-check"></i>
+            }
+            Assign Permissions
+          </button>
+        </div>
+      </ng-template>
+    </p-dialog>
   `,
   styles: [`
     .bulk-add-permission-form {
-      padding: 16px 0;
+      padding: var(--space-4) 0;
     }
-    
+
     .selected-accounts {
-      margin-bottom: 16px;
-      padding: 12px;
-      background-color: #f8f9fa;
-      border-radius: 6px;
-      border: 1px solid #dee2e6;
+      margin-bottom: var(--space-4);
+      padding: var(--space-3);
+      background-color: var(--color-surface-hover);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
     }
-    
+
     .selected-accounts h4 {
-      margin: 0 0 8px 0;
-      font-size: 14px;
+      margin: 0 0 var(--space-2) 0;
+      font-size: var(--font-size-base);
       font-weight: 600;
-      color: #495057;
+      color: var(--color-text-secondary);
     }
-    
-    .account-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+
+    .selected-accounts ul {
+      margin: 0;
+      padding-left: var(--space-5);
     }
-    
-    .account-tag {
-      background-color: #007bff;
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-    
+
     .permission-form {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: var(--space-5);
     }
-    
+
     .form-field {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: var(--space-2);
     }
-    
+
     .form-label {
       font-weight: 600;
-      color: #495057;
-      font-size: 14px;
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-base);
     }
-    
+
     .form-label.required::after {
       content: ' *';
-      color: #dc3545;
+      color: var(--color-danger);
     }
-    
+
     .user-option {
-      padding: 8px 0;
+      padding: var(--space-2) 0;
     }
-    
+
     .user-name {
       font-weight: 500;
-      color: #495057;
-      font-size: 14px;
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-base);
     }
-    
+
     .user-info {
-      font-size: 12px;
-      color: #6c757d;
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
       margin-top: 2px;
     }
-    
-    ::ng-deep .bulk-permission-modal .p-dialog-footer {
+
+    .modal-footer {
       display: flex;
       justify-content: flex-end;
-      gap: 12px;
-      padding: 16px 24px;
+      gap: var(--space-3);
+      padding: var(--space-4) 0 0;
     }
-    
-    .selected-accounts ul {
-      margin: 0;
-      padding-left: 20px;
-    }
-    
-    .user-email {
-      font-size: 12px;
-      color: #8c8c8c;
-      margin-top: 2px;
-    }
-    
-    .user-type {
-      font-size: 10px;
-      color: #1890ff;
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-base);
       font-weight: 500;
-      margin-top: 2px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all var(--transition-fast);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-text {
+      background: transparent;
+      color: var(--color-text-secondary);
+      border-color: transparent;
+    }
+
+    .btn-text:hover:not(:disabled) {
+      background: var(--color-surface-hover);
+      color: var(--color-text);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      border-color: var(--color-primary);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--color-primary-hover);
+      border-color: var(--color-primary-hover);
     }
   `]
 })
-export class BulkPermissionModalComponent implements OnInit, OnDestroy {
-  @Input() visible = false;
-  @Input() selectedAccounts: any[] = [];
-  @Input() subscriptionId = '';
-  @Input() loading = false;
-  @Output() visibleChange = new EventEmitter<boolean>();
-  @Output() permissionRequest = new EventEmitter<BulkPermissionRequest>();
+export class BulkPermissionModalComponent {
+  readonly visible = input(false);
+  readonly selectedAccounts = input<any[]>([]);
+  readonly subscriptionId = input('');
+  readonly loading = input(false);
+  readonly visibleChange = output<boolean>();
+  readonly permissionRequest = output<BulkPermissionRequest>();
+
+  private readonly fb = inject(FormBuilder);
+  private readonly messageService = inject(MessageService);
+  private readonly azureApiService = inject(AzureApiService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly searchedUsers = signal<User[]>([]);
+  readonly searchingUsers = signal(false);
+  /** Merged list: search results + previously selected users (so selected chips keep their labels) */
+  readonly allPrincipalOptions = computed(() => {
+    const searched = this.searchedUsers();
+    const selected: User[] = this.permissionForm?.get('principalIds')?.value || [];
+    if (!selected.length) return searched;
+    const searchedIds = new Set(searched.map(u => u.id));
+    const extras = selected.filter(u => u && !searchedIds.has(u.id));
+    return [...extras, ...searched];
+  });
+
+  private readonly userSearchSubject = new Subject<string>();
 
   permissionForm: FormGroup;
-  searchedUsers: User[] = [];
-  searchingUsers = false;
-  private destroy$ = new Subject<void>();
-  private userSearchSubject = new Subject<string>();
   availableRoles = [
     {
       value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe',
@@ -267,50 +301,37 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
     }
   ];
 
-  constructor(
-    private fb: FormBuilder,
-    private messageService: MessageService,
-    private azureApiService: AzureApiService,
-    private cdr: ChangeDetectorRef
-  ) {
+  constructor() {
     this.permissionForm = this.fb.group({
       principalIds: [[], [Validators.required]],
       roleDefinitionIds: [[], [Validators.required]],
       principalType: ['User', [Validators.required]]
     });
-  }
 
-  ngOnInit(): void {
     // Update role definitions with subscription ID
     this.updateRoleDefinitions();
-    
+
     // Setup principal search with debouncing
     this.userSearchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged(),
       switchMap(query => {
-        if (!query || query.length < 2) {
-          return of({ users: [], totalCount: 0, hasMore: false } as UserSearchResult);
-        }
-        this.searchingUsers = true;
-        this.cdr.markForCheck();
+        this.searchingUsers.set(true);
         const principalType = this.permissionForm.get('principalType')?.value || 'User';
-        return this.azureApiService.searchPrincipals(query, principalType, 10).pipe(
-          takeUntil(this.destroy$)
-        );
+        // Empty or short query: load initial list; otherwise search
+        const searchQuery = (!query || query.length < 2) ? '' : query;
+        return this.azureApiService.searchPrincipals(searchQuery, principalType, 25);
       }),
-      takeUntil(this.destroy$)
+      takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: (result: UserSearchResult) => {
-        this.searchedUsers = result.users || [];
-        this.searchingUsers = false;
-        this.cdr.markForCheck();
+        this.searchedUsers.set(result.users || []);
+        this.searchingUsers.set(false);
       },
       error: (error) => {
         console.error('Principal search error:', error);
-        this.searchedUsers = [];
-        this.searchingUsers = false;
-        this.cdr.markForCheck();
+        this.searchedUsers.set([]);
+        this.searchingUsers.set(false);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
@@ -320,13 +341,31 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
   onUserSearch(query: string): void {
     this.userSearchSubject.next(query);
+  }
+
+  onPanelOpen(): void {
+    // Load initial results if none loaded yet
+    if (this.searchedUsers().length === 0) {
+      this.loadInitialPrincipals();
+    }
+  }
+
+  private loadInitialPrincipals(): void {
+    this.searchingUsers.set(true);
+    const principalType = this.permissionForm.get('principalType')?.value || 'User';
+    this.azureApiService.searchPrincipals('', principalType, 25)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.searchedUsers.set(result.users || []);
+          this.searchingUsers.set(false);
+        },
+        error: () => {
+          this.searchingUsers.set(false);
+        }
+      });
   }
 
   getPrincipalLabel(): string {
@@ -370,12 +409,10 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
     }
   }
 
-
-
   private updateRoleDefinitions(): void {
     // Update role definition IDs with actual subscription ID
-    if (this.selectedAccounts.length > 0) {
-      const subscriptionId = this.selectedAccounts[0].subscriptionId;
+    if (this.selectedAccounts().length > 0) {
+      const subscriptionId = this.selectedAccounts()[0].subscriptionId;
       this.availableRoles = this.availableRoles.map(role => ({
         ...role,
         value: role.value.replace('{{subscriptionId}}', subscriptionId)
@@ -383,15 +420,14 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
     }
   }
 
-  onModalVisibilityChange(visible: boolean): void {
-    this.visible = visible;
-    this.visibleChange.emit(visible);
-    
-    if (visible) {
+  onModalVisibilityChange(vis: boolean): void {
+    this.visibleChange.emit(vis);
+
+    if (vis) {
       // Update role definitions when modal opens
       this.updateRoleDefinitions();
       // Clear previous search results
-      this.searchedUsers = [];
+      this.searchedUsers.set([]);
     } else {
       this.permissionForm.reset({
         principalIds: [],
@@ -402,7 +438,6 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
   }
 
   onCancel() {
-    this.visible = false;
     this.visibleChange.emit(false);
     this.permissionForm.reset({ principalType: 'User' });
   }
@@ -410,8 +445,11 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
   onOk() {
     if (this.permissionForm.valid) {
       const formValue = this.permissionForm.value;
+      // principalIds now holds full User objects (no optionValue), extract IDs
+      const selectedPrincipals: User[] = formValue.principalIds || [];
+      const principalIds = selectedPrincipals.map(u => u.id);
       // Validate that arrays are not empty
-      if (!formValue.principalIds?.length || !formValue.roleDefinitionIds?.length) {
+      if (!principalIds.length || !formValue.roleDefinitionIds?.length) {
         this.messageService.add({
           severity: 'error',
           summary: 'Validation Error',
@@ -419,9 +457,9 @@ export class BulkPermissionModalComponent implements OnInit, OnDestroy {
         });
         return;
       }
-      
+
       this.permissionRequest.emit({
-        principalIds: formValue.principalIds,
+        principalIds,
         roleDefinitionIds: formValue.roleDefinitionIds,
         principalType: formValue.principalType
       });

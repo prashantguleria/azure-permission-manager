@@ -1,192 +1,210 @@
 <!-- Content -->
-<div class="page-content grid">
-  <div class="col-12">
+<div class="page-content">
+  <div class="page-column">
       <!-- Breadcrumb -->
-      <p-breadcrumb class="breadcrumb" [model]="breadcrumbItems" [home]="homeItem"></p-breadcrumb>
+      <p-breadcrumb class="breadcrumb" [model]="breadcrumbItems()" [home]="homeItem"></p-breadcrumb>
 
       <!-- Page Header -->
       <div class="page-header">
         <div class="page-title-section">
           <h2 class="page-title">
-            <i class="pi pi-user" style="margin-right: 8px;"></i>
+            <i class="pi pi-user"></i>
             User Details
           </h2>
           <p class="page-description">View and manage user information and role assignments</p>
         </div>
         <div class="page-actions">
-          <p-button 
-            label="Back to Users"
-            icon="pi pi-arrow-left"
-            styleClass="p-button-secondary"
-            routerLink="/user-management">
-          </p-button>
+          @if (userId()) {
+            <button
+              class="btn btn-secondary"
+              (click)="utilityService.openInPortal(utilityService.getPortalUserUrl(userId()!))">
+              <i class="pi pi-external-link"></i>
+              Open in Portal
+            </button>
+          }
+          <button
+            class="btn btn-secondary"
+            routerLink="/app/user-management">
+            <i class="pi pi-arrow-left"></i>
+            Back to Users
+          </button>
         </div>
       </div>
 
       <!-- User Information Card -->
-      <p-card class="user-info-card">
-        <ng-template pTemplate="header">
-          <div class="user-info-header">
-            <h3>
-              <i class="pi pi-id-card" style="margin-right: 8px;"></i>
-              User Information
-            </h3>
-          </div>
-        </ng-template>
-        
-        <div *ngIf="loading" class="flex justify-content-center p-4">
-          <p-progressSpinner></p-progressSpinner>
+      <section class="card user-info-card">
+        <div class="card-header">
+          <h3>
+            <i class="pi pi-id-card"></i>
+            User Information
+          </h3>
         </div>
-        
-        <div *ngIf="user && !loading" class="user-info-content">
-          <div class="user-avatar-section">
-            <p-avatar 
-              [label]="utilityService.getUserInitials(user)" 
-              size="large"
-              styleClass="mr-3"
-              style="background-color: #1890ff; color: white;">
-            </p-avatar>
-            <div class="user-basic-info">
-              <h4 class="user-display-name">{{ user.displayName }}</h4>
-              <p class="user-email">{{ user.mail || user.userPrincipalName }}</p>
-            </div>
+
+        @if (loading()) {
+          <div class="loading-center">
+            <p-progressSpinner></p-progressSpinner>
           </div>
-          
-          <p-divider></p-divider>
-          
-          <div class="user-details-grid grid">
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Display Name:</label>
-              <span class="detail-value text-wrap">{{ user.displayName || 'N/A' }}</span>
-            </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">User Principal Name:</label>
-              <span class="detail-value text-wrap word-break-all">{{ user.userPrincipalName || 'N/A' }}</span>
-            </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Email:</label>
-              <span class="detail-value text-wrap word-break-all">{{ user.mail || 'N/A' }}</span>
-            </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Job Title:</label>
-              <span class="detail-value text-wrap">{{ user.jobTitle || 'N/A' }}</span>
-            </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Department:</label>
-              <span class="detail-value text-wrap">{{ user.department || 'N/A' }}</span>
-            </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Office Location:</label>
-              <span class="detail-value text-wrap">{{ user.officeLocation || 'N/A' }}</span>
-            </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Mobile Phone:</label>
-              <span class="detail-value text-wrap">{{ user.mobilePhone || 'N/A' }}</span>
-            </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Business Phone:</label>
-              <span class="detail-value text-wrap">{{ user.businessPhones?.[0] || 'N/A' }}</span>
-            </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Account Enabled:</label>
-              <div class="detail-value">
-                <p-tag [severity]="user.accountEnabled ? 'success' : 'danger'">
-                  {{ user.accountEnabled ? 'Enabled' : 'Disabled' }}
-                </p-tag>
+        }
+
+        @if (user() && !loading()) {
+          <div class="user-info-content">
+            <div class="user-avatar-section">
+              <p-avatar
+                [label]="utilityService.getUserInitials(user()!)"
+                size="large"
+                styleClass="user-avatar">
+              </p-avatar>
+              <div class="user-basic-info">
+                <h4 class="user-display-name">{{ user()!.displayName }}</h4>
+                <p class="user-email">{{ user()!.mail || user()!.userPrincipalName }}</p>
               </div>
             </div>
-            <div class="detail-item col-12 md:col-6">
-              <label class="detail-label">Created Date:</label>
-              <span class="detail-value text-wrap">{{ utilityService.formatDate(user.createdDateTime || user.createdDate) }}</span>
+
+            <hr class="divider" />
+
+            <div class="user-details-grid">
+              <div class="detail-item">
+                <label class="detail-label">Display Name:</label>
+                <span class="detail-value">{{ user()!.displayName || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">User Principal Name:</label>
+                <span class="detail-value text-break">{{ user()!.userPrincipalName || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">Email:</label>
+                <span class="detail-value text-break">{{ user()!.mail || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">Job Title:</label>
+                <span class="detail-value">{{ user()!.jobTitle || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">Department:</label>
+                <span class="detail-value">{{ user()!.department || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">Office Location:</label>
+                <span class="detail-value">{{ user()!.officeLocation || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">Mobile Phone:</label>
+                <span class="detail-value">{{ user()!.mobilePhone || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">Business Phone:</label>
+                <span class="detail-value">{{ user()!.businessPhones?.[0] || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">Account Enabled:</label>
+                <div class="detail-value">
+                  <p-tag [severity]="user()!.accountEnabled ? 'success' : 'danger'">
+                    {{ user()!.accountEnabled ? 'Enabled' : 'Disabled' }}
+                  </p-tag>
+                </div>
+              </div>
+              <div class="detail-item">
+                <label class="detail-label">Created Date:</label>
+                <span class="detail-value">{{ utilityService.formatDate(user()!.createdDateTime || user()!.createdDate) }}</span>
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div *ngIf="!loading && !user" class="text-center p-4">
-          <i class="pi pi-exclamation-triangle text-4xl text-orange-500 mb-3"></i>
-          <p class="text-lg">User not found</p>
-        </div>
-      </p-card>
+        }
+
+        @if (!loading() && !user()) {
+          <div class="empty-state">
+            <i class="pi pi-exclamation-triangle empty-icon warning"></i>
+            <p class="empty-text">User not found</p>
+          </div>
+        }
+      </section>
 
       <!-- Role Assignments Card -->
-      <p-card class="role-assignments-card">
-        <ng-template pTemplate="header">
-          <div class="role-assignments-header">
-            <h3>
-              <i class="pi pi-shield" style="margin-right: 8px;"></i>
-              Role Assignments
-            </h3>
-          </div>
-        </ng-template>
-        
-        <div *ngIf="roleAssignmentsLoading" class="flex justify-content-center p-4">
-          <p-progressSpinner></p-progressSpinner>
+      <section class="card role-assignments-card">
+        <div class="card-header">
+          <h3>
+            <i class="pi pi-shield"></i>
+            Role Assignments
+          </h3>
         </div>
-        
-        <div *ngIf="roleAssignments && roleAssignments.length > 0 && !roleAssignmentsLoading" class="role-assignments-content">
-          <p-table 
-            [value]="roleAssignments" 
-            [paginator]="roleAssignments.length > 10" 
-            [rows]="10"
 
-            styleClass="p-datatable-sm">
-            <ng-template pTemplate="header">
-              <tr>
-                <th>Role Name</th>
-                <th>Role Type</th>
-                <th>Scope</th>
-                <th>Assigned Date</th>
-                <th>Actions</th>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-assignment>
-              <tr>
-                <td>
-                  <div class="role-info">
-                    <div class="role-name">{{ assignment.roleName }}</div>
-                    <div class="role-description" *ngIf="assignment.roleDescription">
-                      {{ assignment.roleDescription }}
+        @if (roleAssignmentsLoading()) {
+          <div class="loading-center">
+            <p-progressSpinner></p-progressSpinner>
+          </div>
+        }
+
+        @if (roleAssignments().length > 0 && !roleAssignmentsLoading()) {
+          <div class="role-assignments-content">
+            <p-table
+              [value]="roleAssignments()"
+              [paginator]="roleAssignments().length > 10"
+              [rows]="10"
+              styleClass="p-datatable-sm">
+              <ng-template #header>
+                <tr>
+                  <th>Role Name</th>
+                  <th>Role Type</th>
+                  <th>Scope</th>
+                  <th>Assigned Date</th>
+                  <th>Actions</th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-assignment>
+                <tr>
+                  <td>
+                    <div class="role-info">
+                      <div class="role-name">{{ assignment.roleName }}</div>
+                      @if (assignment.roleDescription) {
+                        <div class="role-description">
+                          {{ assignment.roleDescription }}
+                        </div>
+                      }
                     </div>
-                  </div>
-                </td>
-                <td>
-                  <p-tag [severity]="utilityService.getRoleTypeSeverity(assignment.roleType)">
-                    {{ assignment.roleType || 'Unknown' }}
-                  </p-tag>
-                </td>
-                <td>
-                  <div class="scope-info">
-                    <div class="scope-name">{{ assignment.scopeName || 'N/A' }}</div>
-                    <div class="scope-type" *ngIf="assignment.scopeType">
-                      {{ assignment.scopeType }}
+                  </td>
+                  <td>
+                    <p-tag [severity]="utilityService.getRoleTypeSeverity(assignment.roleType)">
+                      {{ assignment.roleType || 'Unknown' }}
+                    </p-tag>
+                  </td>
+                  <td>
+                    <div class="scope-info">
+                      <div class="scope-name">{{ assignment.scopeName || 'N/A' }}</div>
+                      @if (assignment.scopeType) {
+                        <div class="scope-type">
+                          {{ assignment.scopeType }}
+                        </div>
+                      }
                     </div>
-                  </div>
-                </td>
-                <td class="date">{{ utilityService.formatDate(assignment.assignedDate) }}</td>
-                <td>
-                  <div class="table-actions">
-                    <p-button 
-                      severity="danger" 
-                      size="small"
-                      [disabled]="removingRoleId === assignment.id"
-                      (onClick)="confirmRemoveRole(assignment)"
-                      pTooltip="Remove Role">
-                      <ng-template pTemplate="icon">
-                        <i class="pi pi-trash" *ngIf="removingRoleId !== assignment.id"></i>
-                        <i class="pi pi-spin pi-spinner" *ngIf="removingRoleId === assignment.id"></i>
-                      </ng-template>
-                    </p-button>
-                  </div>
-                </td>
-              </tr>
-            </ng-template>
-          </p-table>
-        </div>
-        
-        <div *ngIf="!roleAssignmentsLoading && (!roleAssignments || roleAssignments.length === 0)" class="text-center p-4">
-          <i class="pi pi-info-circle text-4xl text-gray-400 mb-3"></i>
-          <p class="text-lg">No role assignments found</p>
-        </div>
-      </p-card>
+                  </td>
+                  <td class="date">{{ utilityService.formatDate(assignment.assignedDate) }}</td>
+                  <td>
+                    <div class="table-actions">
+                      <button
+                        class="btn btn-icon btn-danger-ghost"
+                        [disabled]="removingRoleId() === assignment.id"
+                        (click)="confirmRemoveRole(assignment)"
+                        pTooltip="Remove Role">
+                        @if (removingRoleId() !== assignment.id) {
+                          <i class="pi pi-trash"></i>
+                        } @else {
+                          <i class="pi pi-spin pi-spinner"></i>
+                        }
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+        }
+
+        @if (!roleAssignmentsLoading() && roleAssignments().length === 0) {
+          <div class="empty-state">
+            <i class="pi pi-info-circle empty-icon"></i>
+            <p class="empty-text">No role assignments found</p>
+          </div>
+        }
+      </section>
   </div>
 </div>

@@ -1,84 +1,87 @@
-import { Component } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
-import { DividerModule } from 'primeng/divider';
-import { TagModule } from 'primeng/tag';
 
 @Component({
   selector: 'app-homepage',
   standalone: true,
-  imports: [
-    CommonModule,
-    ButtonModule,
-    CardModule,
-    DividerModule,
-    TagModule
-  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [],
   templateUrl: './homepage.component.html',
-  styleUrls: ['./homepage.component.scss']
+  styleUrl: './homepage.component.scss'
 })
 export class HomepageComponent {
-  constructor(private router: Router) {}
+  private readonly router = inject(Router);
 
   navigateToApp(): void {
     this.router.navigate(['/app']);
   }
 
-  features = [
+  readonly features = [
     {
-      icon: 'user',
+      icon: 'users',
+      iconClass: 'icon-blue',
       title: 'User Management',
       description: 'Search, view, and manage Azure AD users and service principals with advanced filtering and bulk operations.'
     },
     {
       icon: 'shield',
+      iconClass: 'icon-blue',
       title: 'Permission Control',
       description: 'Assign and revoke storage account roles with precision, ensuring proper access control across your organization.'
     },
     {
       icon: 'lock',
+      iconClass: 'icon-blue',
       title: 'Resource Protection',
       description: 'Create, modify, and remove resource locks to prevent accidental changes to critical Azure resources.'
     },
     {
-      icon: 'file-text',
+      icon: 'file',
+      iconClass: 'icon-orange',
       title: 'Audit & Compliance',
       description: 'Comprehensive audit logs track all permission changes with detailed activity monitoring for compliance.'
     },
     {
-      icon: 'cloud',
+      icon: 'globe',
+      iconClass: 'icon-purple',
       title: 'Multi-Tenant Support',
       description: 'Seamlessly switch between different Azure tenants and manage permissions across multiple environments.'
     },
     {
-      icon: 'mobile',
+      icon: 'desktop',
+      iconClass: 'icon-green',
       title: 'Responsive Design',
       description: 'Modern, intuitive interface that works perfectly on desktop, tablet, and mobile devices.'
     }
   ];
 
-  securityFeatures = [
+  readonly securityFeatures = [
     {
       icon: 'shield',
       title: 'Client-Side Only',
-      text: 'Application runs entirely in your browser with no external servers'
+      text: 'Runs entirely in your browser with no external servers'
     },
     {
       icon: 'eye-slash',
       title: 'No Data Collection',
-      text: 'We don\'t collect, store, or transmit your personal information'
+      text: "We don't collect, store, or transmit your information"
     },
     {
-      icon: 'home',
+      icon: 'database',
       title: 'Local Storage',
       text: 'Audit logs and preferences stored locally on your device'
     },
     {
-      icon: 'cog',
-      title: 'Direct Azure Integration',
-      text: 'Communicates exclusively with Microsoft Graph and Azure APIs'
+      icon: 'globe',
+      title: 'Direct Azure APIs',
+      text: 'Communicates exclusively with Microsoft Graph and Azure'
     }
+  ];
+
+  readonly privacyPoints = [
+    'All audit logs stored in your browser\'s local storage',
+    'Clear your data anytime with a single click',
+    'No tracking, analytics, or third-party data sharing',
+    'Direct communication with Microsoft Azure APIs only'
   ];
 }

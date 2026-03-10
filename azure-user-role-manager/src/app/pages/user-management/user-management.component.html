@@ -1,161 +1,227 @@
-<!-- Content using PrimeFlex Grid System -->
-<div class="grid p-4">
-  <div class="col-12">
-    <!-- Search Section -->
-    <p-card header="Search Users" styleClass="search-card mb-4">
-      <div class="search-section">
-        <div class="p-inputgroup">
-          <span class="p-inputgroup-addon">
-            <i class="pi pi-search"></i>
-          </span>
-          <input
-            type="text"
-            pInputText
-            placeholder="Search by name, email, or username..."
-            [(ngModel)]="searchQuery"
-            (input)="onSearchInput($event)"
-            [disabled]="loading"
-            class="flex-1"
-          />
-          <p-button
-            label="Search"
-            icon="pi pi-search"
-            (onClick)="onSearch(searchQuery)"
-            [loading]="loading"
-            styleClass="p-button-primary"
-          ></p-button>
-        </div>
-      </div>
-    </p-card>
+<!-- Page Container -->
+<div class="page-container">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">User Management</h1>
+      <p class="page-subtitle">Manage Azure AD users and service principals</p>
+    </div>
+    <div class="header-right">
+      <span class="badge badge-info user-count-badge">
+        <i class="pi pi-users"></i>
+        {{ totalCount() }} users
+      </span>
+    </div>
   </div>
-  
-  <div class="col-12">
-    <!-- Users Table -->
-    <p-card styleClass="table-card">
-      <ng-template pTemplate="header">
-        <div class="table-header flex justify-content-between align-items-center">
-          <h3 class="m-0">Users ({{ totalCount }})</h3>
-          <p-tag *ngIf="selectedUsers.size > 0" severity="info" [value]="selectedUsers.size + ' selected'"></p-tag>
-        </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar">
+    <div class="search-input-wrapper">
+      <i class="pi pi-search search-icon"></i>
+      <input
+        type="text"
+        class="input search-input"
+        placeholder="Search by name, email, or username..."
+        [value]="searchQuery()"
+        (input)="onSearchInput($event)"
+        [disabled]="loading()"
+      />
+    </div>
+    <button
+      class="btn btn-primary search-btn"
+      (click)="onSearch(searchQuery())"
+      [disabled]="loading()"
+    >
+      @if (loading()) {
+        <i class="pi pi-spinner pi-spin"></i>
+      } @else {
+        <i class="pi pi-search"></i>
+      }
+      Search
+    </button>
+  </div>
+
+  <!-- Users Table Card -->
+  <div class="table-card">
+
+    <!-- Table Header -->
+    <div class="table-card-header">
+      <h3 class="table-card-title">Users</h3>
+      @if (selectedCount() > 0) {
+        <span class="badge badge-info">{{ selectedCount() }} selected</span>
+      }
+    </div>
+
+    <!-- Loading Overlay -->
+    @if (loading()) {
+      <div class="loading-overlay">
+        <p-progressSpinner
+          strokeWidth="3"
+          [style]="{ width: '40px', height: '40px' }"
+        ></p-progressSpinner>
+      </div>
+    }
+
+    <!-- PrimeNG Table -->
+    <p-table
+      [value]="users()"
+      [loading]="loading()"
+      [paginator]="false"
+      styleClass="p-datatable-sm users-table"
+    >
+      <ng-template #header>
+        <tr>
+          <th class="col-checkbox">
+            <p-checkbox
+              [ngModel]="allChecked()"
+              [indeterminate]="indeterminate()"
+              (onChange)="onAllChecked($event.checked)"
+              [binary]="true"
+            ></p-checkbox>
+          </th>
+          <th class="col-user">USER</th>
+          <th class="col-email">EMAIL</th>
+          <th class="col-username" pSortableColumn="userPrincipalName">
+            USERNAME <p-sortIcon field="userPrincipalName"></p-sortIcon>
+          </th>
+          <th class="col-status">STATUS</th>
+          <th class="col-created" pSortableColumn="createdDate">
+            CREATED <p-sortIcon field="createdDate"></p-sortIcon>
+          </th>
+          <th class="col-actions">ACTIONS</th>
+        </tr>
       </ng-template>
 
-      <p-table
-        [value]="users"
-        [loading]="loading"
-        [paginator]="false"
-        styleClass="p-datatable-sm users-table"
-      >
-        <ng-template pTemplate="header">
-          <tr>
-            <th style="width: 50px">
-              <p-checkbox
-                [(ngModel)]="allChecked"
-                [indeterminate]="indeterminate"
-                (onChange)="onAllChecked($event.checked)"
-              ></p-checkbox>
-            </th>
-            <th style="width: 60px">Avatar</th>
-            <th pSortableColumn="displayName">Display Name <p-sortIcon field="displayName"></p-sortIcon></th>
-            <th pSortableColumn="email">Email <p-sortIcon field="email"></p-sortIcon></th>
-            <th pSortableColumn="userPrincipalName">Username <p-sortIcon field="userPrincipalName"></p-sortIcon></th>
-            <th style="width: 100px">Status</th>
-            <th style="width: 120px">Created Date</th>
-            <th style="width: 160px" class="text-center">Actions</th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-user>
-          <tr>
-            <td>
-              <p-checkbox
-                [ngModel]="selectedUsers.has(user.id)"
-                (onChange)="onItemChecked(user.id, $event.checked)"
-              ></p-checkbox>
-            </td>
-            <td>
-              <p-avatar
-                [label]="utilityService.getUserInitials(user.displayName)"
-                size="normal"
-                styleClass="bg-primary"
-              ></p-avatar>
-            </td>
-            <td>
+      <ng-template #body let-user>
+        <tr>
+          <!-- Checkbox -->
+          <td class="col-checkbox">
+            <p-checkbox
+              [ngModel]="isSelected(user.id)"
+              (onChange)="onItemChecked(user.id, $event.checked)"
+              [binary]="true"
+            ></p-checkbox>
+          </td>
+
+          <!-- User (avatar + name) -->
+          <td class="col-user">
+            <div class="user-cell">
+              <div
+                class="avatar-circle"
+                [style.background-color]="getAvatarColor(user.id)"
+              >
+                {{ utilityService.getUserInitials(user.displayName) }}
+              </div>
               <div class="user-info">
-                <div class="user-name font-semibold">{{ user.displayName }}</div>
-                <div class="user-details text-sm text-color-secondary" *ngIf="user.department || user.jobTitle">
-                  <span *ngIf="user.jobTitle" class="job-title">{{ user.jobTitle }}</span>
-                  <span *ngIf="user.department" class="department">{{ user.department }}</span>
-                </div>
+                <span class="user-name">{{ user.displayName }}</span>
+                @if (user.jobTitle || user.department) {
+                  <span class="user-meta">
+                    @if (user.jobTitle) {
+                      {{ user.jobTitle }}
+                    }
+                    @if (user.jobTitle && user.department) {
+                      &middot;
+                    }
+                    @if (user.department) {
+                      {{ user.department }}
+                    }
+                  </span>
+                }
               </div>
-            </td>
-            <td>
-              <span class="email">{{ user.email }}</span>
-            </td>
-            <td>
-              <span class="username">{{ user.userPrincipalName }}</span>
-            </td>
-            <td>
-              <p-tag
-                [severity]="user.isEnabled ? 'success' : 'danger'"
-                [value]="utilityService.getStatusText(user.isEnabled)"
-              ></p-tag>
-            </td>
-            <td>
-              <span class="date">{{ utilityService.formatDate(user.createdDate) }}</span>
-            </td>
-            <td class="text-center">
-              <div class="table-actions">
-                <p-button
-                  icon="pi pi-eye"
-                  size="small"
-                  severity="info"
-                  (onClick)="viewUserDetail(user.id)"
-                  pTooltip="View Details"
-                  tooltipPosition="top"
-                ></p-button>
-                <p-button
-                  icon="pi pi-shield"
-                  size="small"
-                  severity="secondary"
-                  (onClick)="viewUserPermissions(user)"
-                  pTooltip="View Permissions"
-                  tooltipPosition="top"
-                ></p-button>
-              </div>
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="emptymessage">
-          <tr>
-            <td colspan="8" class="text-center p-4">
-              <div class="flex flex-column align-items-center gap-3">
-                <i class="pi pi-users" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
-                <div class="text-lg font-medium">{{ searchQuery ? 'No users found matching your search' : 'No users available' }}</div>
-                <p-button
-                  label="Refresh"
-                  icon="pi pi-refresh"
-                  (onClick)="refreshUsers()"
-                  severity="secondary"
-                ></p-button>
-              </div>
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+            </div>
+          </td>
 
-      
-      <!-- Pagination -->
-      <ng-template pTemplate="footer">
-        <p-paginator
-          [rows]="pageSize"
-          [totalRecords]="totalCount"
-          [first]="(pageIndex - 1) * pageSize"
-          [rowsPerPageOptions]="[10, 25, 50, 100]"
-          (onPageChange)="onPageChange(($event.page ?? 0) + 1); onPageSizeChange($event.rows ?? 10)"
-          [showCurrentPageReport]="true"
-          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
-        ></p-paginator>
+          <!-- Email -->
+          <td class="col-email">
+            <span class="mono-text">{{ user.email }}</span>
+          </td>
+
+          <!-- Username -->
+          <td class="col-username">
+            <span class="mono-text">{{ user.userPrincipalName }}</span>
+          </td>
+
+          <!-- Status -->
+          <td class="col-status">
+            @if (user.isEnabled) {
+              <span class="badge badge-success">Active</span>
+            } @else {
+              <span class="badge badge-danger">Disabled</span>
+            }
+          </td>
+
+          <!-- Created -->
+          <td class="col-created">
+            <span class="date-text">{{ utilityService.formatDate(user.createdDate) }}</span>
+          </td>
+
+          <!-- Actions -->
+          <td class="col-actions">
+            <div class="table-actions">
+              <button
+                class="btn btn-icon action-btn"
+                (click)="viewUserDetail(user.id)"
+                pTooltip="View Details"
+                tooltipPosition="top"
+              >
+                <i class="pi pi-eye"></i>
+              </button>
+              <button
+                class="btn btn-icon action-btn"
+                (click)="viewUserPermissions(user)"
+                pTooltip="View Permissions"
+                tooltipPosition="top"
+              >
+                <i class="pi pi-shield"></i>
+              </button>
+              <button
+                class="btn btn-icon action-btn"
+                (click)="utilityService.openInPortal(utilityService.getPortalUserUrl(user.id))"
+                pTooltip="Open in Azure Portal"
+                tooltipPosition="top"
+              >
+                <i class="pi pi-external-link"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
       </ng-template>
-    </p-card>
+
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="7">
+            <div class="empty-state">
+              <i class="pi pi-users"></i>
+              <div class="empty-title">
+                @if (searchQuery()) {
+                  No users found matching your search
+                } @else {
+                  No users available
+                }
+              </div>
+              <button class="btn btn-secondary" (click)="refreshUsers()">
+                <i class="pi pi-refresh"></i>
+                Refresh
+              </button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+    <!-- Pagination Footer -->
+    <div class="table-pagination-footer">
+      <p-paginator
+        [rows]="pageSize()"
+        [totalRecords]="totalCount()"
+        [first]="(pageIndex() - 1) * pageSize()"
+        [rowsPerPageOptions]="[10, 25, 50, 100]"
+        (onPageChange)="onPageChange(($event.page ?? 0) + 1); onPageSizeChange($event.rows ?? 10)"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+      ></p-paginator>
+    </div>
   </div>
 </div>
 

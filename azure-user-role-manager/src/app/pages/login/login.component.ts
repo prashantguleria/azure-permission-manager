@@ -1,56 +1,68 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, signal, inject, DestroyRef, afterNextRender } from '@angular/core';
 import { Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { DividerModule } from 'primeng/divider';
 import { AuthService } from '../../services/auth.service';
-import { Subject, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [
-    CommonModule,
-    ButtonModule,
-    CardModule,
-    ProgressSpinnerModule,
-    DividerModule
-  ],
+  imports: [ButtonModule, ProgressSpinnerModule],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss'
 })
-export class LoginComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
-  isLoading = false;
+export class LoginComponent {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
-  constructor(
-    private authService: AuthService,
-    private router: Router
-  ) {}
+  readonly isLoading = signal(false);
+  readonly showManualLoginPrompt = signal(false);
+  readonly authenticationMessage = signal('');
 
-  ngOnInit(): void {
-    // Check if user is already authenticated
-    if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/app/tenants']);
-    }
-  }
+  constructor() {
+    afterNextRender(() => {
+      // Check if user is already authenticated
+      if (this.authService.isAuthenticated()) {
+        this.router.navigate(['/app/tenants']);
+        return;
+      }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+      // Check if manual login is required due to authentication recovery failure
+      const manualLoginRequired = sessionStorage.getItem('manualLoginRequired');
+      if (manualLoginRequired === 'true') {
+        this.showManualLoginPrompt.set(true);
+        this.authenticationMessage.set('Your session has expired. Please sign in again to continue.');
+        sessionStorage.removeItem('manualLoginRequired');
+      }
+
+      // Check for authentication initialization errors
+      const authInitError = sessionStorage.getItem('authInitializationError');
+      if (authInitError) {
+        this.showManualLoginPrompt.set(true);
+        this.authenticationMessage.set(authInitError);
+        sessionStorage.removeItem('authInitializationError');
+      }
+    });
   }
 
   login(): void {
-    this.isLoading = true;
+    this.isLoading.set(true);
+    this.showManualLoginPrompt.set(false);
+    this.authenticationMessage.set('');
+
     try {
       this.authService.login();
       // Note: isLoading will be reset when the page redirects or reloads
       // The redirect will happen automatically after Microsoft authentication
     } catch (error) {
       console.error('Login error:', error);
-      this.isLoading = false;
+      this.isLoading.set(false);
+      this.authenticationMessage.set('Login failed. Please try again.');
     }
+  }
+
+  retryLogin(): void {
+    this.login();
   }
 }

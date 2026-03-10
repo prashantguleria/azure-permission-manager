@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject, of } from 'rxjs';
-import { map, catchError, switchMap, tap } from 'rxjs/operators';
+import { map, catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { User, UserSearchResult, RoleAssignment, RoleRemovalRequest, RoleRemovalResult } from '../models/user.model';
 import { Tenant } from '../models/tenant.model';
@@ -37,14 +37,25 @@ export class AzureApiService {
   /**
    * Remove storage account role assignment
    */
-  removeStorageAccountRoleAssignment(assignmentId: string): Observable<any> {
+  removeStorageAccountRoleAssignment(assignmentId: string, subscriptionId: string): Observable<any> {
+    if (!subscriptionId) {
+      return throwError(() => new Error('Subscription ID is required for role assignment removal'));
+    }
+
     return this.getManagementAuthHeaders().pipe(
-      switchMap(headers => 
+      switchMap(headers =>
         this.http.delete(
-          `${this.managementApiUrl}/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleAssignments/${assignmentId}?api-version=2022-04-01`,
-          { headers }
+          `${this.managementApiUrl}/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleAssignments/${assignmentId}?api-version=2022-04-01`,
+          { headers, observe: 'response' }
         )
       ),
+      map(response => {
+        // Azure Management API returns 204 No Content for successful DELETE operations
+        if (response.status === 204 || response.status === 200) {
+          return { success: true, assignmentId, status: response.status };
+        }
+        throw new Error(`Unexpected response status: ${response.status}`);
+      }),
       catchError(error => {
         console.error('Failed to remove storage account role assignment:', error);
         return throwError(() => error);
@@ -68,15 +79,12 @@ export class AzureApiService {
 
   // Tenant Operations
   switchToTenant(tenantId: string): Observable<boolean> {
-    console.log(`Switching to tenant: ${tenantId}`);
-    
     // Check if we're already authenticated to this tenant
     const currentTenantId = this.authService.getCurrentTenantId();
     if (currentTenantId === tenantId) {
-      console.log('Already authenticated to this tenant');
       return of(true);
     }
-    
+
     // Use auth service to switch tenant with re-authentication
     return new Observable<boolean>(observer => {
       this.authService.switchTenant(tenantId).then(() => {
@@ -90,7 +98,7 @@ export class AzureApiService {
 
   getTenants(): Observable<Tenant[]> {
     return this.getManagementAuthHeaders().pipe(
-      switchMap(headers => 
+      switchMap(headers =>
         this.http.get<any>(`${this.managementApiUrl}/tenants?api-version=2022-12-01`, { headers })
       ),
       map(response => {
@@ -102,14 +110,14 @@ export class AzureApiService {
           countryLetterCode: tenant.countryCode || 'US',
           isDefault: tenant.tenantId === currentTenantId
         }));
-        
+
         return tenants;
       }),
       catchError(error => {
         console.error('Failed to get tenants from Azure Management API:', error);
         // Fallback to Graph API organization endpoint if Management API fails
         return this.getAuthHeaders().pipe(
-          switchMap(headers => 
+          switchMap(headers =>
             this.http.get<any>(`${this.graphApiUrl}/organization`, { headers })
           ),
           map(response => {
@@ -130,8 +138,8 @@ export class AzureApiService {
   searchUsers(query: string, top: number = 25, skip: number = 0): Observable<UserSearchResult> {
     let params = new HttpParams()
       .set('$top', top.toString())
-      .set('$select', 'id,displayName,mail,userPrincipalName,accountEnabled,createdDateTime');
-    
+      .set('$select', 'id,displayName,mail,userPrincipalName,accountEnabled,createdDateTime,jobTitle,department');
+
     // Use $filter instead of $search for better compatibility
     if (query) {
       const filterQuery = `startswith(displayName,'${query}') or startswith(mail,'${query}') or startswith(userPrincipalName,'${query}')`;
@@ -143,10 +151,10 @@ export class AzureApiService {
     }
 
     return this.getAuthHeaders().pipe(
-      switchMap(headers => 
-        this.http.get<any>(`${this.graphApiUrl}/users`, { 
-          headers, 
-          params 
+      switchMap(headers =>
+        this.http.get<any>(`${this.graphApiUrl}/users`, {
+          headers,
+          params
         })
       ),
       map(response => ({
@@ -155,8 +163,11 @@ export class AzureApiService {
           displayName: user.displayName,
           email: user.mail || user.userPrincipalName,
           userPrincipalName: user.userPrincipalName,
-          isEnabled: user.accountEnabled,
-          createdDate: new Date(user.createdDateTime)
+          isEnabled: user.accountEnabled ?? true,
+          accountEnabled: user.accountEnabled ?? true,
+          createdDate: new Date(user.createdDateTime),
+          jobTitle: user.jobTitle,
+          department: user.department
         })),
         totalCount: response['@odata.count'] || response.value.length,
         hasMore: !!response['@odata.nextLink']
@@ -172,7 +183,7 @@ export class AzureApiService {
   searchServicePrincipals(query: string, top: number = 25, skip: number = 0): Observable<UserSearchResult> {
     let params = new HttpParams()
       .set('$top', top.toString());
-    
+
     // Use $filter with supported operators for service principals
     if (query) {
       const filterQuery = `startsWith(displayName,'${query}')`;
@@ -182,10 +193,10 @@ export class AzureApiService {
     }
 
     return this.getAuthHeaders().pipe(
-      switchMap(headers => 
-        this.http.get<any>(`${this.graphApiUrl}/servicePrincipals`, { 
-          headers, 
-          params 
+      switchMap(headers =>
+        this.http.get<any>(`${this.graphApiUrl}/servicePrincipals`, {
+          headers,
+          params
         })
       ),
       map(response => ({
@@ -215,7 +226,7 @@ export class AzureApiService {
     let params = new HttpParams()
       .set('$top', top.toString())
       .set('$select', 'id,displayName,mail,description,createdDateTime');
-    
+
     // Use $filter with supported operators for groups
     if (query) {
       const filterQuery = `startswith(displayName,'${query}') or startswith(mail,'${query}')`;
@@ -225,10 +236,10 @@ export class AzureApiService {
     }
 
     return this.getAuthHeaders().pipe(
-      switchMap(headers => 
-        this.http.get<any>(`${this.graphApiUrl}/groups`, { 
-          headers, 
-          params 
+      switchMap(headers =>
+        this.http.get<any>(`${this.graphApiUrl}/groups`, {
+          headers,
+          params
         })
       ),
       map(response => ({
@@ -268,10 +279,10 @@ export class AzureApiService {
 
   getUserById(userId: string): Observable<User> {
     return this.getAuthHeaders().pipe(
-      switchMap(headers => 
-        this.http.get<any>(`${this.graphApiUrl}/users/${userId}`, { 
+      switchMap(headers =>
+        this.http.get<any>(`${this.graphApiUrl}/users/${userId}`, {
           headers,
-          params: new HttpParams().set('$select', 'id,displayName,mail,userPrincipalName,accountEnabled,createdDateTime,department,jobTitle')
+          params: new HttpParams().set('$select', 'id,displayName,mail,userPrincipalName,accountEnabled,createdDateTime,department,jobTitle,businessPhones,mobilePhone,officeLocation')
         })
       ),
       map(user => ({
@@ -279,8 +290,10 @@ export class AzureApiService {
         displayName: user.displayName,
         email: user.mail || user.userPrincipalName,
         userPrincipalName: user.userPrincipalName,
-        isEnabled: user.accountEnabled,
+        isEnabled: user.accountEnabled ?? true,
+        accountEnabled: user.accountEnabled ?? true,
         createdDate: new Date(user.createdDateTime),
+        createdDateTime: new Date(user.createdDateTime),
         department: user.department,
         jobTitle: user.jobTitle
       })),
@@ -308,7 +321,7 @@ export class AzureApiService {
     };
 
     return this.getManagementAuthHeaders().pipe(
-      switchMap(headers => 
+      switchMap(headers =>
         this.http.put(
           `${this.managementApiUrl}${request.storageAccountId}/providers/Microsoft.Authorization/roleAssignments/${assignmentId}?api-version=2022-04-01`,
           assignmentBody,
@@ -327,27 +340,14 @@ export class AzureApiService {
   // Storage Account Lock Operations
   getStorageAccountLocks(storageAccountId: string): Observable<any[]> {
     const locksUrl = `${this.managementApiUrl}${storageAccountId}/providers/Microsoft.Authorization/locks?api-version=2020-05-01`;
-    console.log('📋 Azure API: Getting locks for storage account:', storageAccountId);
-    console.log('📋 Azure API: Locks URL:', locksUrl);
-    
+
     return this.getManagementAuthHeaders().pipe(
       switchMap(headers => {
-        console.log('📋 Azure API: Making GET request to:', locksUrl);
-        return this.http.get<{value: any[]}>(locksUrl, { headers }).pipe(
-          tap(response => {
-            console.log('📋 Azure API: Raw locks response:', response);
-            console.log('📋 Azure API: Locks array:', response.value);
-            if (response.value && response.value.length > 0) {
-              console.log('📋 Azure API: Sample lock structure:', response.value[0]);
-            }
-          })
-        );
+        return this.http.get<{value: any[]}>(locksUrl, { headers });
       }),
       map(response => response.value || []),
       catchError(error => {
-        console.error('❌ Azure API: Failed to get storage account locks:', error);
-        console.error('❌ Azure API: Storage Account ID was:', storageAccountId);
-        console.error('❌ Azure API: Locks URL was:', locksUrl);
+        console.error('Failed to get storage account locks:', error);
         return of([]);
       })
     );
@@ -357,29 +357,13 @@ export class AzureApiService {
     // Azure lock IDs should be full resource paths starting with /subscriptions/
     // If lockId doesn't start with /, it's likely just the lock name and we need the full path
     const deleteUrl = `${this.managementApiUrl}${lockId}?api-version=2020-05-01`;
-    
-    console.log('🗑️ Azure API: Deleting lock with ID:', lockId);
-    console.log('🗑️ Azure API: Management API URL:', this.managementApiUrl);
-    console.log('🗑️ Azure API: Full delete URL:', deleteUrl);
-    console.log('🗑️ Azure API: Lock ID starts with /subscriptions:', lockId.startsWith('/subscriptions'));
-    
+
     return this.getManagementAuthHeaders().pipe(
       switchMap(headers => {
-        console.log('🗑️ Azure API: Making DELETE request to:', deleteUrl);
-        console.log('🗑️ Azure API: Request headers:', Object.keys(headers));
-        return this.http.delete(deleteUrl, { headers }).pipe(
-          tap(response => {
-            console.log('✅ Azure API: Lock deletion successful:', response);
-          })
-        );
+        return this.http.delete(deleteUrl, { headers });
       }),
       catchError(error => {
-        console.error('❌ Azure API: Failed to delete storage account lock:', error);
-        console.error('❌ Azure API: Lock ID was:', lockId);
-        console.error('❌ Azure API: Delete URL was:', deleteUrl);
-        console.error('❌ Azure API: Error status:', error.status);
-        console.error('❌ Azure API: Error message:', error.message);
-        console.error('❌ Azure API: Error body:', error.error);
+        console.error('Failed to delete storage account lock:', error);
         return throwError(() => error);
       })
     );
@@ -394,7 +378,7 @@ export class AzureApiService {
     };
 
     return this.getManagementAuthHeaders().pipe(
-      switchMap(headers => 
+      switchMap(headers =>
         this.http.put(
           `${this.managementApiUrl}${storageAccountId}/providers/Microsoft.Authorization/locks/${lockName}?api-version=2020-05-01`,
           lockBody,
@@ -411,7 +395,7 @@ export class AzureApiService {
   // Role Operations
   getUserRoleAssignments(userId: string): Observable<RoleAssignment[]> {
     return this.getAuthHeaders().pipe(
-      switchMap(headers => 
+      switchMap(headers =>
         this.http.get<any>(`${this.graphApiUrl}/roleManagement/directory/roleAssignments`, {
           headers,
           params: new HttpParams()
@@ -439,7 +423,7 @@ export class AzureApiService {
 
   removeUserRole(request: RoleRemovalRequest): Observable<RoleRemovalResult> {
     return this.getAuthHeaders().pipe(
-      switchMap(headers => 
+      switchMap(headers =>
         this.http.delete(`${this.graphApiUrl}/roleManagement/directory/roleAssignments/${request.assignmentId}`, { headers })
       ),
       map(() => ({

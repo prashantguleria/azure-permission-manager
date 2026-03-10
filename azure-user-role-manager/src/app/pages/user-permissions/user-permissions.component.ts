@@ -1,14 +1,19 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  inject,
+  signal,
+  computed,
+  DestroyRef,
+  afterNextRender
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, firstValueFrom } from 'rxjs';
-import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
-import { FormControl } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { FormControl, FormGroup, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MenuItem } from 'primeng/api';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
-import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
@@ -17,10 +22,8 @@ import { BreadcrumbModule } from 'primeng/breadcrumb';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
 import { DialogService } from 'primeng/dynamicdialog';
-import { DividerModule } from 'primeng/divider';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
-import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
 import { InputGroupModule } from 'primeng/inputgroup';
@@ -39,6 +42,7 @@ import {
 } from '../../models/permissions.model';
 import { User } from '../../models/user.model';
 import { PermissionDetailsComponent } from '../../components/permission-details/permission-details.component';
+import { UtilityService } from '../../services/utility.service';
 
 interface PermissionTableItem {
   id: string;
@@ -48,12 +52,16 @@ interface PermissionTableItem {
   resourceGroup?: string;
   resourceType?: string;
   scope: string;
+  scopeLevel?: string;
+  scopePath?: string;
+  principalType?: string;
   assignedDate?: Date;
   description?: string;
   isHighPrivilege?: boolean;
   selected?: boolean;
   resourceId?: string;
   principalId?: string;
+  inherited?: boolean;
 }
 
 interface AzureResource {
@@ -74,12 +82,11 @@ interface RoleDefinition {
 @Component({
   selector: 'app-user-permissions',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     FormsModule,
-    CardModule,
+    ReactiveFormsModule,
     TableModule,
-    ButtonModule,
     InputTextModule,
     SelectModule,
     TagModule,
@@ -87,116 +94,131 @@ interface RoleDefinition {
     BreadcrumbModule,
     CheckboxModule,
     DialogModule,
-    DividerModule,
     ToastModule,
-    MessageModule,
     ConfirmDialogModule,
     InputGroupModule,
-    InputGroupAddonModule,
-
+    InputGroupAddonModule
   ],
   providers: [MessageService, DialogService, ConfirmationService],
   templateUrl: './user-permissions.component.html',
-  styleUrls: ['./user-permissions.component.css']
+  styleUrl: './user-permissions.component.scss'
 })
-export class UserPermissionsComponent implements OnInit, OnDestroy {
-  // Component properties
-  userId: string = '';
-  userDisplayName: string = '';
-  loading = false;
-  error: string | null = null;
-  permissions: UserPermissions | null = null;
-  filteredPermissions: PermissionTableItem[] = [];
-  allPermissions: PermissionTableItem[] = [];
-  selectedUser: User | null = null;
-  permissionSummary: PermissionSummary | null = null;
-  subscriptions: { id: string; name: string }[] = [];
-  
-  // Breadcrumb navigation
-  breadcrumbItems: MenuItem[] = [];
-  homeItem: MenuItem = { icon: 'pi pi-home', routerLink: '/app/dashboard' };
-  
-  // Add permission modal
-  showAddPermissionModal = false;
-  resourceSearchQuery = '';
-  searchedResources: AzureResource[] = [];
-  selectedResource: AzureResource | null = null;
-  availableRoles: RoleDefinition[] = [];
-  selectedRole = '';
-  resourceSearchLoading = false;
-  addPermissionLoading = false;
-  
+export class UserPermissionsComponent {
+  // Injected services
+  private readonly azureApiService = inject(AzureApiService);
+  private readonly permissionsService = inject(PermissionsService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly dialogService = inject(DialogService);
+  private readonly messageService = inject(MessageService);
+  private readonly confirmationService = inject(ConfirmationService);
+  private readonly destroyRef = inject(DestroyRef);
+  readonly utilityService = inject(UtilityService);
 
-  searchQuery: string = '';
-  
-  // Filter properties
-  searchTerm = '';
-  selectedPermissionType = 'all';
-  selectedSubscription = '';
-  
+  // Component state signals
+  readonly userId = signal('');
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly permissions = signal<UserPermissions | null>(null);
+  readonly filteredPermissions = signal<PermissionTableItem[]>([]);
+  readonly allPermissions = signal<PermissionTableItem[]>([]);
+  readonly selectedUser = signal<User | null>(null);
+  readonly permissionSummary = signal<PermissionSummary | null>(null);
+  readonly subscriptions = signal<{ id: string; name: string }[]>([]);
+
+  // Breadcrumb navigation
+  readonly breadcrumbItems = signal<MenuItem[]>([]);
+  readonly homeItem: MenuItem = { icon: 'pi pi-home', routerLink: '/app/user-management' };
+
+  // Add permission modal
+  readonly showAddPermissionModal = signal(false);
+  readonly searchedResources = signal<AzureResource[]>([]);
+  readonly selectedResource = signal<AzureResource | null>(null);
+  readonly availableRoles = signal<RoleDefinition[]>([]);
+  readonly selectedRole = signal('');
+  readonly resourceSearchLoading = signal(false);
+  readonly addPermissionLoading = signal(false);
+
+  // Reactive Forms (keep as regular properties)
+  filtersForm: FormGroup;
+  addPermissionForm: FormGroup;
+
   // Filter options
-  permissionTypeOptions = [
+  readonly permissionTypeOptions = [
     { label: 'All Types', value: 'all' },
     { label: 'Directory Roles', value: 'directory' },
     { label: 'Application Roles', value: 'application' },
     { label: 'RBAC Roles', value: 'rbac' }
   ];
-  
+
   // Table properties
-  sortField = '';
-  sortOrder: 'ascend' | 'descend' | null = null;
-  pageSize = 10;
-  pageIndex = 1;
-  
+  readonly sortField = signal('');
+  readonly sortOrder = signal<'ascend' | 'descend' | null>(null);
+  readonly pageSize = 10;
+
   // Bulk operations
-  selectedPermissions = new Set<string>();
-  selectAll = false;
-  indeterminate = false;
-  bulkOperationLoading = false;
-  
-  private destroy$ = new Subject<void>();
+  readonly selectedPermissions = signal<Set<string>>(new Set());
+  readonly selectAll = signal(false);
+  readonly indeterminate = signal(false);
+  readonly bulkOperationLoading = signal(false);
 
-  constructor(
-    private azureApiService: AzureApiService,
-    private permissionsService: PermissionsService,
-    private route: ActivatedRoute,
-    private router: Router,
-    private dialogService: DialogService,
-    private messageService: MessageService,
-    private confirmationService: ConfirmationService
-  ) {}
+  // Computed signals — split permissions by category
+  readonly entraPermissions = computed(() =>
+    this.filteredPermissions().filter(p => p.type === 'Directory' || p.type === 'Application')
+  );
+  readonly rbacPermissions = computed(() =>
+    this.filteredPermissions().filter(p => p.type === 'RBAC')
+  );
 
-  ngOnInit(): void {
-    // Get user info from query parameters
-    this.route.queryParams.subscribe(params => {
-      if (params['userId']) {
-        this.selectedUser = {
-          id: params['userId'],
-          displayName: params['displayName'] || 'Unknown User',
-          email: params['email'] || '',
-          userPrincipalName: params['userPrincipalName'] || params['email'] || '',
-          isEnabled: true,
-          createdDate: new Date()
-        };
-        this.userId = params['userId'];
-        
-        // Initialize breadcrumb
-        this.initializeBreadcrumb();
-        
-        this.loadUserPermissions();
-      } else {
-        // If no user selected, redirect back to user management
-        this.router.navigate(['/app/user-management']);
-      }
+  readonly selectedCount = computed(() => this.selectedPermissions().size);
+  readonly isIndeterminate = computed(() => {
+    const count = this.selectedPermissions().size;
+    return count > 0 && count < this.filteredPermissions().length;
+  });
+
+  constructor() {
+    // Initialize reactive forms
+    this.filtersForm = new FormGroup({
+      searchTerm: new FormControl(''),
+      selectedPermissionType: new FormControl('all'),
+      selectedSubscription: new FormControl('')
     });
-    
-    // Initialize selection tracking
-    this.updateSelectionState();
-  }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    this.addPermissionForm = new FormGroup({
+      resourceSearchQuery: new FormControl(''),
+      selectedRole: new FormControl('')
+    });
+
+    afterNextRender(() => {
+      // Get user info from query parameters
+      this.route.queryParams.pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe(params => {
+        if (params['userId']) {
+          this.selectedUser.set({
+            id: params['userId'],
+            displayName: params['displayName'] || 'Unknown User',
+            email: params['email'] || '',
+            userPrincipalName: params['userPrincipalName'] || params['email'] || '',
+            isEnabled: true,
+            createdDate: new Date()
+          });
+          this.userId.set(params['userId']);
+
+          // Initialize breadcrumb
+          this.initializeBreadcrumb();
+
+          this.loadUserPermissions();
+        } else {
+          // If no user selected, redirect back to user management
+          this.router.navigate(['/app/user-management']);
+        }
+      });
+
+      // Initialize selection tracking
+      this.updateSelectionState();
+      this.setupFormSubscriptions();
+    });
   }
 
   /**
@@ -224,9 +246,9 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     // Handle subscription level
     if (resourceId.match(/^\/subscriptions\/[^/]+$/)) {
       const subscriptionId = resourceId.split('/')[2];
-      return { 
+      return {
         resourceName: subscriptionId ? `Subscription (${subscriptionId.substring(0, 8)}...)` : 'Subscription',
-        resourceType: 'Subscription' 
+        resourceType: 'Subscription'
       };
     }
 
@@ -244,7 +266,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     const fullMatch = resourceId.match(/\/subscriptions\/[^/]+\/resourceGroups\/([^/]+)\/providers\/([^/]+)\/([^/]+)\/(.+)$/);
     if (fullMatch) {
       const [, resourceGroup, provider, resourceTypeRaw, resourceName] = fullMatch;
-      
+
       // Map common Azure resource types to friendly names
       const typeMapping: { [key: string]: string } = {
         'Microsoft.Storage/storageAccounts': 'Storage Account',
@@ -262,7 +284,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         'Microsoft.ServiceBus/namespaces': 'Service Bus',
         'Microsoft.EventHub/namespaces': 'Event Hub'
       };
-      
+
       const friendlyType = typeMapping[`${provider}/${resourceTypeRaw}`] || resourceTypeRaw.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 
       return {
@@ -305,59 +327,59 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
       const type = pathParts[providerIndex + 2];
       resourceType = type || 'Resource';
     }
-    
+
     return { resourceName, resourceGroup, resourceType };
   }
 
   async loadUserPermissions(): Promise<void> {
-    if (!this.selectedUser && !this.userId) {
-      this.error = 'No user selected';
+    if (!this.selectedUser() && !this.userId()) {
+      this.error.set('No user selected');
       return;
     }
 
-    this.loading = true;
-    this.error = null;
+    this.loading.set(true);
+    this.error.set(null);
 
     try {
-      const targetUserId = this.userId || this.selectedUser?.id;
+      const targetUserId = this.userId() || this.selectedUser()?.id;
       if (!targetUserId) {
         throw new Error('User ID is required');
       }
-      
+
       // Load permissions and summary in parallel
       const [permissions, summary] = await Promise.all([
         this.permissionsService.getUserPermissions(targetUserId),
         this.permissionsService.getPermissionSummary(targetUserId).toPromise()
       ]);
 
-      this.permissions = permissions;
-      this.permissionSummary = summary || null;
-      
+      this.permissions.set(permissions);
+      this.permissionSummary.set(summary || null);
+
       // Extract subscriptions for filter dropdown
-      this.subscriptions = permissions.subscriptions.map(sub => ({
+      this.subscriptions.set(permissions.subscriptions.map(sub => ({
         id: sub.subscriptionId,
         name: sub.displayName
-      }));
+      })));
 
       // Convert to table format
-      this.allPermissions = this.convertToTableFormat(permissions);
+      this.allPermissions.set(this.convertToTableFormat(permissions));
       this.applyFilters();
 
       this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Permissions loaded successfully' });
     } catch (error) {
       console.error('Failed to load permissions:', error);
-      
+
       if (error instanceof PermissionError) {
-        this.error = error.message;
+        this.error.set(error.message);
         if (error.code === 'INSUFFICIENT_PERMISSIONS') {
           this.messageService.add({ severity: 'error', summary: 'Access Denied', detail: 'You do not have sufficient permissions to view this user\'s permissions' });
         }
       } else {
-        this.error = 'Failed to load user permissions. Please try again.';
+        this.error.set('Failed to load user permissions. Please try again.');
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load permissions' });
       }
     } finally {
-      this.loading = false;
+      this.loading.set(false);
     }
   }
 
@@ -373,11 +395,15 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         resourceName: 'Azure Active Directory',
         resourceType: 'Tenant',
         scope: 'Tenant-wide',
+        scopeLevel: 'Tenant',
+        scopePath: 'Azure Active Directory',
+        principalType: 'User',
         description: role.description,
         isHighPrivilege: this.isHighPrivilegeDirectoryRole(role.displayName),
         selected: false,
         resourceId: 'tenant',
-        principalId: this.selectedUser?.id || ''
+        principalId: this.selectedUser()?.id || '',
+        inherited: false
       });
     });
 
@@ -390,31 +416,60 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         resourceName: role.resourceDisplayName,
         resourceType: 'Application',
         scope: 'Application',
+        scopeLevel: 'Application',
+        scopePath: role.resourceDisplayName || 'Application',
+        principalType: 'User',
         assignedDate: new Date(role.createdDateTime),
         description: role.appRoleDescription,
         selected: false,
         resourceId: role.resourceId,
-        principalId: role.principalId
+        principalId: role.principalId,
+        inherited: false
       });
     });
 
     // RBAC roles
     permissions.rbacRoles.forEach((role, index) => {
       const resourceInfo = this.parseResourceId(role.properties.scope);
-      
+
+      // Extract the actual role assignment ID from the Azure API response
+      // The role assignment ID should be a GUID, not the full resource path
+      let roleAssignmentId = role.name; // Use the 'name' field which contains the GUID
+
+      // If the name field contains a full path, extract just the GUID part
+      if (roleAssignmentId && roleAssignmentId.includes('/')) {
+        const parts = roleAssignmentId.split('/');
+        roleAssignmentId = parts[parts.length - 1]; // Get the last part which should be the GUID
+      }
+
+      // Validate that we have a proper GUID format
+      const guidRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+      if (!roleAssignmentId || !guidRegex.test(roleAssignmentId)) {
+        // Generate a fallback ID if the original is invalid
+        roleAssignmentId = `rbac-${index}-${role.name || 'unknown'}`;
+      }
+
+      // Calculate scope level and path
+      const scopeLevel = this.getScopeLevel(role.properties.scope);
+      const scopePath = this.getScopePath(role.properties.scope);
+
       items.push({
-        id: `rbac-${index}-${role.name}`,
+        id: roleAssignmentId,
         type: 'RBAC',
-        roleName: role.properties.roleDefinitionName || 'Unknown Role',
+        roleName: role.properties.roleDefinitionName || 'No role assigned',
         resourceName: resourceInfo.resourceName,
         resourceGroup: resourceInfo.resourceGroup,
         resourceType: resourceInfo.resourceType,
-        scope: role.properties.scopeType || 'Unknown',
+        scope: role.properties.scope,
+        scopeLevel: scopeLevel,
+        scopePath: scopePath,
+        principalType: role.properties.principalType || 'User',
         assignedDate: new Date(role.properties.createdOn),
         isHighPrivilege: this.isHighPrivilegeRbacRole(role.properties.roleDefinitionName),
         selected: false,
         resourceId: role.properties.scope,
-        principalId: role.properties.principalId
+        principalId: role.properties.principalId,
+        inherited: false
       });
     });
 
@@ -441,17 +496,43 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     return highPrivilegeRoles.includes(roleName);
   }
 
-  applyFilters(): void {
-    if (!this.permissions) return;
+  /**
+   * Setup form subscriptions for reactive forms
+   */
+  private setupFormSubscriptions(): void {
+    // Subscribe to filter form changes
+    this.filtersForm.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => {
+      this.applyFilters();
+    });
 
+    // Subscribe to add permission form changes
+    this.addPermissionForm.get('resourceSearchQuery')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe((query) => {
+      if (query && query.trim()) {
+        this.searchResources();
+      }
+    });
+  }
+
+  applyFilters(): void {
+    if (!this.permissions()) return;
+
+    const formValues = this.filtersForm.value;
     const filter: PermissionFilter = {
-      searchQuery: this.searchQuery.trim() || undefined,
-      permissionType: this.selectedPermissionType !== 'all' ? this.selectedPermissionType as any : undefined,
-      subscriptionId: this.selectedSubscription || undefined
+      searchQuery: formValues.searchTerm?.trim() || undefined,
+      permissionType: formValues.selectedPermissionType !== 'all' ? formValues.selectedPermissionType as any : undefined,
+      subscriptionId: formValues.selectedSubscription || undefined
     };
 
-    const filteredPermissions = this.permissionsService.filterPermissions(this.permissions, filter);
-    this.filteredPermissions = this.convertToTableFormat(filteredPermissions);
+    const filteredPermissions = this.permissionsService.filterPermissions(this.permissions()!, filter);
+    this.filteredPermissions.set(this.convertToTableFormat(filteredPermissions));
   }
 
   onSearch(): void {
@@ -467,29 +548,33 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
   }
 
   clearFilters(): void {
-    this.searchQuery = '';
-    this.selectedPermissionType = 'all';
-    this.selectedSubscription = '';
+    // Reset form controls instead of direct properties
+    this.filtersForm.patchValue({
+      searchTerm: '',
+      selectedPermissionType: 'all',
+      selectedSubscription: ''
+    });
     this.applyFilters();
   }
 
   exportPermissions(): void {
-    if (!this.permissions || !this.selectedUser) {
+    if (!this.permissions() || !this.selectedUser()) {
       this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'No permissions to export' });
       return;
     }
 
     try {
-      const userId = this.selectedUser.id;
-      const displayName = this.selectedUser.displayName;
-      
+      const user = this.selectedUser()!;
+      const userId = user.id;
+      const displayName = user.displayName;
+
       if (!userId || !displayName) {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'User information is incomplete' });
         return;
       }
-      
+
       const blob = this.permissionsService.exportPermissions(
-        this.permissions,
+        this.permissions()!,
         userId,
         displayName
       );
@@ -497,7 +582,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${this.selectedUser.displayName}_permissions_${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = `${user.displayName}_permissions_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
       window.URL.revokeObjectURL(url);
 
@@ -533,14 +618,14 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
   }
 
   onTableSort(sort: { key: string; value: string | null }): void {
-    this.sortField = sort.key;
-    this.sortOrder = sort.value as 'ascend' | 'descend' | null;
-    
+    this.sortField.set(sort.key);
+    this.sortOrder.set(sort.value as 'ascend' | 'descend' | null);
+
     if (sort.value) {
-      this.filteredPermissions = [...this.filteredPermissions].sort((a, b) => {
+      const sorted = [...this.filteredPermissions()].sort((a, b) => {
         const aValue = (a as any)[sort.key];
         const bValue = (b as any)[sort.key];
-        
+
         if (aValue < bValue) {
           return sort.value === 'ascend' ? -1 : 1;
         }
@@ -549,20 +634,21 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         }
         return 0;
       });
+      this.filteredPermissions.set(sorted);
     }
   }
 
   getUserDisplayName(): string {
-    return this.selectedUser?.displayName || 'Current User';
+    return this.selectedUser()?.displayName || 'Current User';
   }
 
   // Breadcrumb initialization
   private initializeBreadcrumb(): void {
-    this.breadcrumbItems = [
+    this.breadcrumbItems.set([
       { label: 'Users', command: () => this.navigateToUsers() },
       { label: this.getUserDisplayName(), command: () => this.navigateToUserDetails() },
       { label: 'Permissions' }
-    ];
+    ]);
   }
 
   // Navigation Methods
@@ -571,52 +657,57 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
   }
 
   navigateToUserDetails(): void {
-    this.router.navigate(['/app/user-detail', this.userId]);
+    this.router.navigate(['/app/user-detail', this.userId()]);
   }
 
   // Bulk Selection Methods
   updateSelectionState(): void {
-    const selectedCount = this.selectedPermissions.size;
-    const totalCount = this.filteredPermissions.length;
-    
-    this.selectAll = selectedCount === totalCount && totalCount > 0;
-    this.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+    const selectedCount = this.selectedPermissions().size;
+    const totalCount = this.filteredPermissions().length;
+
+    this.selectAll.set(selectedCount === totalCount && totalCount > 0);
+    this.indeterminate.set(selectedCount > 0 && selectedCount < totalCount);
   }
 
   onAllChecked(event: any): void {
     // Handle PrimeNG checkbox event - ensure we get boolean value to prevent iteration errors
     const isChecked = typeof event === 'boolean' ? event : Boolean(event?.checked);
-    
-    this.filteredPermissions.forEach(permission => {
+    const currentPermissions = this.filteredPermissions();
+    const newSet = new Set(this.selectedPermissions());
+
+    currentPermissions.forEach(permission => {
       permission.selected = isChecked;
       if (isChecked) {
-        this.selectedPermissions.add(permission.id);
+        newSet.add(permission.id);
       } else {
-        this.selectedPermissions.delete(permission.id);
+        newSet.delete(permission.id);
       }
     });
+    this.selectedPermissions.set(newSet);
     this.updateSelectionState();
   }
 
   onItemChecked(id: string, event: any): void {
     // Handle PrimeNG checkbox event - ensure we get boolean value to prevent iteration errors
     const isChecked = typeof event === 'boolean' ? event : Boolean(event?.checked);
-    
+    const newSet = new Set(this.selectedPermissions());
+
     if (isChecked) {
-      this.selectedPermissions.add(id);
+      newSet.add(id);
     } else {
-      this.selectedPermissions.delete(id);
+      newSet.delete(id);
     }
+    this.selectedPermissions.set(newSet);
     this.updateSelectionState();
   }
 
   getSelectedCount(): number {
-    return this.selectedPermissions.size;
+    return this.selectedPermissions().size;
   }
 
   // Bulk Operations
   async bulkRemovePermissions(): Promise<void> {
-    if (this.selectedPermissions.size === 0) {
+    if (this.selectedPermissions().size === 0) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Warning',
@@ -625,17 +716,17 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.bulkOperationLoading = true;
-    
+    this.bulkOperationLoading.set(true);
+
     try {
-      const selectedIds = Array.from(this.selectedPermissions);
-      const permissionsToRemove = this.filteredPermissions.filter(
+      const selectedIds = Array.from(this.selectedPermissions());
+      const permissionsToRemove = this.filteredPermissions().filter(
         permission => selectedIds.includes(permission.id)
       );
-      
+
       let successCount = 0;
       let errorCount = 0;
-      
+
       // Remove each permission individually
       for (const permission of permissionsToRemove) {
         try {
@@ -646,14 +737,14 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
           errorCount++;
         }
       }
-      
+
       // Clear selection
-      this.selectedPermissions.clear();
+      this.selectedPermissions.set(new Set());
       this.updateSelectionState();
-      
+
       // Reload permissions to reflect changes from Azure
       await this.loadUserPermissions();
-      
+
       // Show summary message
       if (errorCount === 0) {
         this.messageService.add({
@@ -668,7 +759,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
           detail: `${successCount} permission(s) removed, ${errorCount} failed`
         });
       }
-      
+
     } catch (error) {
       console.error('Error removing permissions:', error);
       this.messageService.add({
@@ -677,7 +768,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         detail: 'Failed to remove selected permissions'
       });
     } finally {
-      this.bulkOperationLoading = false;
+      this.bulkOperationLoading.set(false);
     }
   }
 
@@ -705,155 +796,112 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
 
   // Add Permission Modal Methods
   openAddPermissionModal(): void {
-    this.showAddPermissionModal = true;
+    this.showAddPermissionModal.set(true);
     this.resetAddPermissionForm();
   }
 
   closeAddPermissionModal(): void {
-    this.showAddPermissionModal = false;
+    this.showAddPermissionModal.set(false);
     this.resetAddPermissionForm();
   }
 
   resetAddPermissionForm(): void {
-    this.resourceSearchQuery = '';
-    this.searchedResources = [];
-    this.selectedResource = null;
-    this.availableRoles = [];
-    this.selectedRole = '';
-    this.resourceSearchLoading = false;
-    this.addPermissionLoading = false;
+    this.addPermissionForm.reset();
+    this.searchedResources.set([]);
+    this.selectedResource.set(null);
+    this.availableRoles.set([]);
+    this.resourceSearchLoading.set(false);
+    this.addPermissionLoading.set(false);
   }
 
   async searchResources(): Promise<void> {
-    if (!this.resourceSearchQuery.trim()) {
+    const query = this.addPermissionForm.get('resourceSearchQuery')?.value;
+    if (!query?.trim() || query.trim().length < 2) {
+      this.searchedResources.set([]);
       return;
     }
 
-    this.resourceSearchLoading = true;
-    
+    this.resourceSearchLoading.set(true);
     try {
-      // Simulate API call to search Azure resources
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock search results
-      this.searchedResources = [
-        {
-          id: '/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/storage1',
-          name: 'storage1',
-          type: 'Storage Account',
-          resourceGroup: 'rg1',
-          subscriptionId: 'sub1'
-        },
-        {
-          id: '/subscriptions/sub1/resourceGroups/rg1',
-          name: 'rg1',
-          type: 'Resource Group',
-          subscriptionId: 'sub1'
-        },
-        {
-          id: '/subscriptions/sub1',
-          name: 'Production Subscription',
-          type: 'Subscription',
-          subscriptionId: 'sub1'
-        }
-      ].filter(resource => 
-        resource.name.toLowerCase().includes(this.resourceSearchQuery.toLowerCase()) ||
-        resource.type.toLowerCase().includes(this.resourceSearchQuery.toLowerCase())
+      const resources = await firstValueFrom(
+        this.permissionsService.searchResources(query.trim())
       );
-      
+      this.searchedResources.set(resources as AzureResource[]);
     } catch (error) {
       console.error('Error searching resources:', error);
-      this.searchedResources = [];
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Search Error',
+        detail: 'Failed to search Azure resources'
+      });
+      this.searchedResources.set([]);
     } finally {
-      this.resourceSearchLoading = false;
+      this.resourceSearchLoading.set(false);
     }
   }
 
-  selectResource(resource: AzureResource): void {
-    this.selectedResource = resource;
-    this.selectedRole = '';
+  selectResourceItem(resource: AzureResource): void {
+    this.selectedResource.set(resource);
+    this.selectedRole.set('');
     this.loadAvailableRoles(resource);
   }
 
   async loadAvailableRoles(resource: AzureResource): Promise<void> {
-    this.availableRoles = [];
-    
+    this.availableRoles.set([]);
+
     try {
-      // Simulate API call to get available roles for resource type
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Mock available roles based on resource type
-      const allRoles: RoleDefinition[] = [
-        {
-          id: 'reader',
-          name: 'Reader',
-          description: 'View all resources, but cannot make any changes.',
-          type: 'builtin'
-        },
-        {
-          id: 'contributor',
-          name: 'Contributor',
-          description: 'Create and manage all types of Azure resources but cannot grant access to others.',
-          type: 'builtin'
-        },
-        {
-          id: 'owner',
-          name: 'Owner',
-          description: 'Full access to all resources including the right to delegate access to others.',
-          type: 'builtin'
-        }
-      ];
-      
-      if (resource.type === 'Storage Account') {
-        allRoles.push(
-          {
-            id: 'storage-blob-data-reader',
-            name: 'Storage Blob Data Reader',
-            description: 'Read and list Azure Storage containers and blobs.',
-            type: 'builtin'
-          },
-          {
-            id: 'storage-blob-data-contributor',
-            name: 'Storage Blob Data Contributor',
-            description: 'Read, write, and delete Azure Storage containers and blobs.',
-            type: 'builtin'
-          }
-        );
-      }
-      
-      this.availableRoles = allRoles;
-      
+      const roles = await firstValueFrom(
+        this.permissionsService.getRoleDefinitionsForScope(resource.id)
+      );
+      this.availableRoles.set(roles as RoleDefinition[]);
     } catch (error) {
       console.error('Error loading available roles:', error);
-      this.availableRoles = [];
+      this.availableRoles.set([]);
     }
   }
 
   async addPermission(): Promise<void> {
-    if (!this.selectedResource || !this.selectedRole) {
+    const selectedRoleValue = this.addPermissionForm.get('selectedRole')?.value;
+    const resource = this.selectedResource();
+
+    if (!resource || !selectedRoleValue) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Validation Error',
+        detail: 'Please select both a resource and a role'
+      });
       return;
     }
 
-    this.addPermissionLoading = true;
-    
+    this.addPermissionLoading.set(true);
     try {
-      // Simulate API call to assign permission
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      console.log(`Adding permission: ${this.selectedRole} on ${this.selectedResource.name} for user ${this.userId}`);
-      
-      // Close modal and refresh permissions
-      this.closeAddPermissionModal();
+      await firstValueFrom(
+        this.permissionsService.assignStorageAccountPermission({
+          storageAccountId: resource.id,
+          principalId: this.userId(),
+          roleDefinitionId: selectedRoleValue,
+          principalType: 'User'
+        })
+      );
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Permission added successfully'
+      });
+
+      // Refresh permissions and close modal
       await this.loadUserPermissions();
-      
-      // Show success message
-      console.log('Permission added successfully');
-      
+      this.closeAddPermissionModal();
     } catch (error) {
       console.error('Error adding permission:', error);
-      // Handle error - could show notification
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to add permission'
+      });
     } finally {
-      this.addPermissionLoading = false;
+      this.addPermissionLoading.set(false);
     }
   }
 
@@ -881,8 +929,8 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
 
   private async removePermission(permission: PermissionTableItem): Promise<void> {
     try {
-      this.loading = true;
-      
+      this.loading.set(true);
+
       // Call appropriate removal method based on permission type
       switch (permission.type) {
         case 'Directory':
@@ -897,17 +945,17 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         default:
           throw new Error(`Unsupported permission type: ${permission.type}`);
       }
-      
+
       // Show success message
       this.messageService.add({
         severity: 'success',
         summary: 'Success',
         detail: `${permission.type} role "${permission.roleName}" removed successfully`
       });
-      
+
       // Reload permissions to reflect changes from Azure
       await this.loadUserPermissions();
-      
+
     } catch (error) {
       console.error('Error removing permission:', error);
       this.messageService.add({
@@ -916,7 +964,7 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         detail: error instanceof Error ? error.message : 'Failed to remove permission'
       });
     } finally {
-      this.loading = false;
+      this.loading.set(false);
     }
   }
 
@@ -934,11 +982,31 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     return 'Unknown';
   }
 
+  private getScopeDisplayName(scope: string, scopeType?: string): string {
+    if (!scope) return 'Unknown';
+
+    // If we have a scopeType, use it
+    if (scopeType) {
+      return scopeType;
+    }
+
+    // Otherwise, determine from the scope path
+    const parts = scope.split('/');
+    if (parts.includes('subscriptions') && parts.includes('resourceGroups') && parts.length > 6) {
+      return 'Resource';
+    } else if (parts.includes('subscriptions') && parts.includes('resourceGroups')) {
+      return 'Resource Group';
+    } else if (parts.includes('subscriptions')) {
+      return 'Subscription';
+    }
+    return 'Management Group';
+  }
+
   getScopePath(scope: string): string {
     // Extract readable path from Azure resource scope
     const parts = scope.split('/');
     const pathParts: string[] = [];
-    
+
     for (let i = 0; i < parts.length; i++) {
       if (parts[i] === 'subscriptions' && i + 1 < parts.length) {
         pathParts.push(`Sub: ${parts[i + 1].substring(0, 8)}...`);
@@ -948,27 +1016,30 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
         pathParts.push(`${parts[i + 2]}`);
       }
     }
-    
+
     return pathParts.join(' / ') || scope;
   }
 
-  getTypeTagSeverity(principalType: string): 'success' | 'info' | 'warning' | 'danger' {
-    // Return PrimeNG tag severity based on principal type
-    switch (principalType?.toLowerCase()) {
+  getTypeTagSeverity(type: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' {
+    switch (type?.toLowerCase()) {
+      case 'directory':
+        return 'danger';
+      case 'application':
+        return 'success';
+      case 'rbac':
+        return 'info';
       case 'user':
         return 'info';
       case 'group':
-        return 'success';
+        return 'warn';
       case 'serviceprincipal':
-        return 'warning';
-      case 'managedidentity':
-        return 'danger';
+        return 'success';
       default:
-        return 'info';
+        return 'secondary';
     }
   }
 
-  getRoleTagSeverity(roleName: string): 'success' | 'info' | 'warning' | 'danger' {
+  getRoleTagSeverity(roleName: string): 'success' | 'info' | 'warn' | 'danger' {
     // Return PrimeNG tag severity based on role name
     if (!roleName) {
       return 'info';
@@ -980,46 +1051,45 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     return 'info';
   }
 
-  isIndeterminate(): boolean {
-    const selectedCount = this.getSelectedCount();
-    return selectedCount > 0 && selectedCount < this.filteredPermissions.length;
-  }
-
   onSelectAllChange(event: any): void {
     // Handle PrimeNG checkbox event - ensure we get boolean value to prevent iteration errors
     const isChecked = typeof event === 'boolean' ? event : Boolean(event?.checked);
-    
+    const currentPermissions = this.filteredPermissions();
+    const newSet = new Set(this.selectedPermissions());
+
     if (isChecked) {
-      this.filteredPermissions.forEach(permission => {
+      currentPermissions.forEach(permission => {
         permission.selected = true;
-        this.selectedPermissions.add(permission.id);
+        newSet.add(permission.id);
       });
     } else {
-      this.filteredPermissions.forEach(permission => {
+      currentPermissions.forEach(permission => {
         permission.selected = false;
-        this.selectedPermissions.delete(permission.id);
+        newSet.delete(permission.id);
       });
     }
+    this.selectedPermissions.set(newSet);
     this.updateSelectionState();
   }
 
   onPermissionSelectionChange(): void {
     // Update selected permissions set based on individual checkbox changes
-    this.selectedPermissions.clear();
-    this.filteredPermissions.forEach(permission => {
+    const newSet = new Set<string>();
+    this.filteredPermissions().forEach(permission => {
       if (permission.selected) {
-        this.selectedPermissions.add(permission.id);
+        newSet.add(permission.id);
       }
     });
+    this.selectedPermissions.set(newSet);
     this.updateSelectionState();
   }
 
   confirmRemoveSelected(): void {
-    const selectedCount = this.getSelectedCount();
-    if (selectedCount === 0) return;
-    
+    const count = this.getSelectedCount();
+    if (count === 0) return;
+
     this.confirmationService.confirm({
-      message: `Are you sure you want to remove ${selectedCount} selected permission${selectedCount > 1 ? 's' : ''}?`,
+      message: `Are you sure you want to remove ${count} selected permission${count > 1 ? 's' : ''}?`,
       header: 'Confirm Bulk Permission Removal',
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-danger',
@@ -1029,20 +1099,24 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
     });
   }
 
-
-
   clearError(): void {
-    this.error = null;
+    this.error.set(null);
+  }
+
+  clearSelectedResource(): void {
+    this.selectedResource.set(null);
+    this.availableRoles.set([]);
+    this.selectedRole.set('');
   }
 
   /**
    * Remove Directory role assignment
    */
   private async removeDirectoryRoleAssignment(permission: PermissionTableItem): Promise<void> {
-    if (!this.selectedUser) {
+    if (!this.selectedUser()) {
       throw new Error('No user selected');
     }
-    
+
     // For directory roles, we need to call the Azure API service
     const result = await firstValueFrom(this.azureApiService.removeUserRole({ assignmentId: permission.id }));
     if (!result.success) {
@@ -1054,10 +1128,10 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
    * Remove Application role assignment
    */
   private async removeApplicationRoleAssignment(permission: PermissionTableItem): Promise<void> {
-    if (!this.selectedUser) {
+    if (!this.selectedUser()) {
       throw new Error('No user selected');
     }
-    
+
     // For application roles, we need to call the Azure API service
     const result = await firstValueFrom(this.azureApiService.removeUserRole({ assignmentId: permission.id }));
     if (!result.success) {
@@ -1069,15 +1143,59 @@ export class UserPermissionsComponent implements OnInit, OnDestroy {
    * Remove RBAC role assignment
    */
   private async removeRBACRoleAssignment(permission: PermissionTableItem): Promise<void> {
-    if (!permission.resourceId || !permission.principalId) {
-      throw new Error('Missing resource ID or principal ID for RBAC role removal');
+    if (!permission.resourceId && !permission.scope) {
+      throw new Error('Missing resource information for RBAC role removal');
     }
-    
-    // For RBAC roles, we need to use the permissions service
-    await firstValueFrom(this.permissionsService.removeStorageAccountPermission(
-      permission.id,
-      permission.resourceId || ''
-    ));
+
+    // Try to extract subscription ID from multiple sources
+    const resourcePath = permission.scope || permission.resourceId || '';
+    let subscriptionId = this.extractSubscriptionId(resourcePath);
+
+    // If no subscription ID found in scope/resourceId, try to get from current subscriptions
+    if (!subscriptionId && this.subscriptions().length > 0) {
+      // Use the first available subscription as fallback
+      subscriptionId = this.subscriptions()[0].id;
+    }
+
+    if (!subscriptionId) {
+      throw new Error('Unable to determine subscription ID for RBAC role removal. Please ensure the resource scope contains a valid subscription ID.');
+    }
+
+    if (!this.isValidSubscriptionId(subscriptionId)) {
+      throw new Error(`Invalid subscription ID format: ${subscriptionId}`);
+    }
+
+    try {
+      // For RBAC roles, we need to use the permissions service
+      await firstValueFrom(this.permissionsService.removeStorageAccountPermission(
+        permission.id,
+        permission.resourceId || permission.scope || '',
+        subscriptionId
+      ));
+    } catch (error) {
+      console.error('Failed to remove RBAC role assignment:', error);
+      throw new Error(`Failed to remove RBAC role assignment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
+  /**
+   * Extract subscription ID from Azure resource path
+   */
+  private extractSubscriptionId(resourcePath: string): string | null {
+    if (!resourcePath) return null;
+
+    const subscriptionMatch = resourcePath.match(/\/subscriptions\/([a-f0-9-]{36})/i);
+    return subscriptionMatch ? subscriptionMatch[1] : null;
+  }
+
+  /**
+   * Validate Azure subscription ID format
+   */
+  private isValidSubscriptionId(subscriptionId: string): boolean {
+    if (!subscriptionId) return false;
+
+    // Azure subscription ID should be a valid GUID format
+    const guidRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+    return guidRegex.test(subscriptionId);
+  }
 }

@@ -1,79 +1,83 @@
-<!-- Main Layout for authenticated pages -->
-<div *ngIf="showMainLayout; else standaloneLayout">
-  <div class="app-layout">
-    <!-- Top Navbar -->
-    <div class="top-navbar">
-      <div class="navbar-content">
-        <!-- Left section: Burger menu and branding -->
-        <div class="navbar-left">
-          <span class="burger-menu" (click)="isCollapsed = !isCollapsed">
-            <i class="pi" [class]="isCollapsed ? 'pi-bars' : 'pi-times'"></i>
-          </span>
-          <div class="brand-section">
-            <i class="pi pi-shield brand-logo"></i>
-            <span class="brand-name">Azure User Role Manager</span>
-          </div>
+@if (showMainLayout()) {
+  <div class="app-layout" [class.sidebar-collapsed]="isCollapsed()">
+    <!-- Sidebar -->
+    <aside class="app-sidebar" [class.collapsed]="isCollapsed()">
+      <!-- Brand -->
+      <div class="sidebar-brand">
+        <div class="brand-icon">
+          <i class="pi pi-shield"></i>
         </div>
-        
-        <!-- Right section: User info + Logout -->
-        <div class="navbar-right" *ngIf="currentUser">
-          <p-avatar [label]="utilityService.getUserInitials(currentUser.name)" size="normal" shape="circle"></p-avatar>
-          <span class="user-name">{{ currentUser.name || 'User' }}</span>
-          <p-button icon="pi pi-sign-out" (onClick)="logout()" [text]="true" size="small" class="logout-btn">
-            Logout
-          </p-button>
-        </div>
+        <span class="brand-name">Azure RM</span>
       </div>
-    </div>
-    
-    <!-- Main Content Area with Fixed Sidebar -->
-    <div class="main-content-wrapper">
-      <!-- Sidebar -->
-      <div class="menu-sidebar" [style.width]="isCollapsed ? '80px' : '256px'">
-        <div class="sidebar-menu">
-          <div class="menu-item" routerLinkActive="active">
-            <a routerLink="/app/tenants" class="menu-link">
-              <i class="pi pi-building"></i>
-              <span *ngIf="!isCollapsed">Tenants</span>
-            </a>
+
+      <!-- Navigation -->
+      <nav class="sidebar-nav">
+        @for (item of navItems; track item.route) {
+          <a class="nav-item"
+             [routerLink]="item.route"
+             routerLinkActive="active">
+            <i [class]="item.icon"></i>
+            <span class="nav-label">{{ item.label }}</span>
+          </a>
+        }
+      </nav>
+
+      <!-- User Footer -->
+      <div class="sidebar-footer">
+        @if (currentUser()) {
+          <div class="user-avatar">{{ userInitials() }}</div>
+          <div class="user-info">
+            <span class="user-name">{{ userName() }}</span>
+            <span class="user-role">Administrator</span>
           </div>
-          <div class="menu-item" routerLinkActive="active">
-            <a routerLink="/app/user-management" class="menu-link">
-              <i class="pi pi-users"></i>
-              <span *ngIf="!isCollapsed">User Management</span>
-            </a>
-          </div>
-          <div class="menu-item" routerLinkActive="active">
-            <a routerLink="/app/storage-accounts" class="menu-link">
-              <i class="pi pi-database"></i>
-              <span *ngIf="!isCollapsed">Storage Accounts</span>
-            </a>
-          </div>
-          <div class="menu-item" routerLinkActive="active">
-            <a routerLink="/app/audit-logs" class="menu-link">
-              <i class="pi pi-file-edit"></i>
-              <span *ngIf="!isCollapsed">Audit Logs</span>
-            </a>
-          </div>
-        </div>
+        }
+        <button class="theme-toggle" (click)="toggleTheme()" [attr.title]="isDarkMode() ? 'Switch to light mode' : 'Switch to dark mode'">
+          <i [class]="isDarkMode() ? 'pi pi-sun' : 'pi pi-moon'"></i>
+        </button>
       </div>
-      
-      <!-- Main Content -->
-      <div class="main-content" [style.margin-left]="isCollapsed ? '80px' : '256px'">
-        <div class="inner-content">
-          <!-- Breadcrumbs moved here -->
-          <div class="breadcrumb-container" *ngIf="breadcrumbs.length > 0">
-            <p-breadcrumb [model]="breadcrumbItems" class="page-breadcrumb"></p-breadcrumb>
-          </div>
-          
-          <router-outlet></router-outlet>
+    </aside>
+
+    <!-- Main Area -->
+    <div class="app-main">
+      <!-- Top Bar -->
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="btn-icon collapse-toggle" (click)="toggleSidebar()">
+            <i class="pi" [class.pi-bars]="isCollapsed()" [class.pi-arrow-left]="!isCollapsed()"></i>
+          </button>
+
+          @if (breadcrumbs().length > 0) {
+            <nav class="topbar-breadcrumb">
+              @for (crumb of breadcrumbs(); track crumb.label; let last = $last) {
+                @if (crumb.link && !last) {
+                  <a [routerLink]="crumb.link">{{ crumb.label }}</a>
+                  <span class="separator">/</span>
+                } @else {
+                  <span class="current">{{ crumb.label }}</span>
+                }
+              }
+            </nav>
+          }
         </div>
-      </div>
+
+        <div class="topbar-actions">
+          @if (currentUser()) {
+            <span class="topbar-user-name">{{ userName() }}</span>
+            <div class="user-avatar sm">{{ userInitials() }}</div>
+            <button class="btn btn-secondary btn-sm" (click)="logout()">
+              <i class="pi pi-sign-out"></i>
+              <span class="logout-label">Logout</span>
+            </button>
+          }
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <main class="page-container">
+        <router-outlet />
+      </main>
     </div>
   </div>
-</div>
-
-<!-- Standalone Layout for login and tenant selection -->
-<ng-template #standaloneLayout>
-  <router-outlet></router-outlet>
-</ng-template>
+} @else {
+  <router-outlet />
+}

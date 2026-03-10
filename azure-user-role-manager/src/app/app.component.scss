@@ -1,246 +1,156 @@
 :host {
   display: block;
   width: 100%;
+  min-height: 100vh;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.app-layout {
-  height: 100vh;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
+// ─── Layout Shell ────────────────────────────
+// Uses shared classes from styles.scss:
+//   .app-layout, .app-sidebar, .sidebar-brand, .brand-icon, .brand-name,
+//   .sidebar-nav, .nav-item, .sidebar-footer, .user-avatar, .user-name,
+//   .user-role, .app-main, .app-topbar, .topbar-breadcrumb, .topbar-actions,
+//   .page-container, .theme-toggle
 
-// Top Navbar Styles
-.top-navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  padding: 0;
-  height: 64px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.navbar-content {
-  height: 100%;
-  padding: 0 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-}
-
-.navbar-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .burger-menu {
-    font-size: 18px;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 4px;
-    transition: all 0.3s;
-  }
-
-  .brand-section {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    
-    .brand-logo {
-      font-size: 20px;
-      color: #1890ff;
-    }
-    
-    .brand-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: #262626;
-      white-space: nowrap;
-    }
-  }
-
-.navbar-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  
-  .app-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 1.2;
+// Sidebar-collapsed modifier on the layout root drives the main margin shift
+.sidebar-collapsed {
+  .app-main {
+    margin-left: var(--sidebar-collapsed-width);
   }
 }
 
-.navbar-right {
+// ─── Sidebar extras ──────────────────────────
+
+.sidebar-footer {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
   flex-shrink: 0;
-}
 
-// Main Content Layout with Fixed Sidebar
-.main-content-wrapper {
-  margin-top: 64px;
-  height: calc(100vh - 64px);
-  display: flex;
-  overflow: hidden;
-}
+  .user-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
 
-.menu-sidebar {
-  height: 100%;
-  position: fixed;
-  left: 0;
-  top: 64px;
-  z-index: 10;
-  transition: width 0.3s ease;
-  
-  :deep(.p-sidebar-content) {
-    height: 100%;
-    overflow-y: auto;
-  }
-}
+    .user-name {
+      font-weight: 600;
+      font-size: var(--font-size-sm);
+      color: var(--color-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.main-content {
-  height: 100%;
-  overflow-y: auto;
-  transition: margin-left 0.3s ease;
-  width: 100%;
-}
-
-.breadcrumb-container {
-  margin-bottom: 16px;
-  
-  .page-breadcrumb {
-    :deep(.p-breadcrumb) {
-      font-size: 14px;
-      
-      .p-breadcrumb-item a {
-        &:hover {
-        }
-      }
+    .user-role {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
     }
   }
-}
 
-.user-name {
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.logout-btn {
-  &:hover {
+  .theme-toggle {
+    margin-left: auto;
   }
 }
 
-.inner-content {
-  padding: 24px;
-  background: transparent;
-  height: 100%;
-  min-height: calc(100vh - 64px);
-}
+// When collapsed, hide text elements in footer
+.app-sidebar.collapsed .sidebar-footer {
+  justify-content: center;
+  padding: var(--space-4) var(--space-2);
 
-// Desktop styles
-@media (min-width: 769px) {
-  .menu-sidebar {
-    position: fixed !important;
-    transform: translateX(0) !important;
-    left: 0 !important;
-    top: 64px !important;
-    height: calc(100vh - 64px) !important;
-    z-index: 10 !important;
-  }
-}
-
-// Responsive Design
-@media (max-width: 768px) {
-  .brand-title {
+  .user-info {
     display: none;
   }
-  
-  .navbar-left {
-    gap: 8px;
-    
-    .brand-section {
-      .brand-name {
-        display: none; // Hide brand name on mobile
-      }
-    }
+
+  .theme-toggle {
+    margin-left: 0;
   }
-  
-  .navbar-content {
-    padding: 0 16px;
-    gap: 12px;
+}
+
+// ─── Top Bar ─────────────────────────────────
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
   }
-  
-  .navbar-center {
-    .page-info {
-      .page-title {
-        font-size: 16px;
-      }
-      
-      .breadcrumb-nav {
-        display: none; // Hide breadcrumbs on mobile
-      }
-    }
+}
+
+.topbar-breadcrumb {
+  .separator {
+    color: var(--color-text-tertiary);
+    margin: 0 2px;
+    user-select: none;
   }
-  
-  .navbar-right {
-    gap: 8px;
-    
-    .user-name {
-      display: none;
-    }
-    
-    .logout-btn span {
-      display: none;
-    }
+}
+
+.topbar-user-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.user-avatar.sm {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.btn-sm {
+  height: 30px;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-xs);
+  gap: var(--space-1);
+}
+
+.logout-label {
+  font-weight: 500;
+}
+
+// ─── Responsive ──────────────────────────────
+
+@media (max-width: 768px) {
+  // On mobile the sidebar is off-screen by default (handled in styles.scss)
+  // so we don't need sidebar-collapsed logic.
+
+  .topbar-user-name,
+  .logout-label {
+    display: none;
   }
-  
-  // Mobile sidebar behavior
-  .menu-sidebar {
-    position: fixed;
-    left: 0;
-    top: 64px;
-    height: calc(100vh - 64px);
-    z-index: 1001;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    
-    &:not(.p-sidebar-collapsed) {
-      transform: translateX(0);
-    }
+
+  .topbar-breadcrumb {
+    display: none;
   }
-  
-  .main-content {
-    margin-left: 0 !important;
-  }
-  
-  .inner-content {
-    padding: 16px;
+
+  .btn-sm {
+    padding: 0 var(--space-2);
   }
 }
 
 @media (max-width: 480px) {
-  .navbar-center {
-    .page-info {
-      .page-title {
-        font-size: 14px;
-      }
-    }
-  }
-  
-  .inner-content {
-    padding: 12px !important;
+  .topbar-actions {
+    gap: var(--space-1);
   }
 }

@@ -1,32 +1,34 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  Component,
+  signal,
+  computed,
+  inject,
+  DestroyRef,
+  afterNextRender,
+  ChangeDetectionStrategy
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputGroupModule } from 'primeng/inputgroup';
 import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
-import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageService, ConfirmationService } from 'primeng/api';
-import { DialogService, DynamicDialogRef } from 'primeng/dynamicdialog';
+import { DialogService } from 'primeng/dynamicdialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
-import { BreadcrumbModule } from 'primeng/breadcrumb';
-import { AccordionModule } from 'primeng/accordion';
 import { MessageModule } from 'primeng/message';
-import { DividerModule } from 'primeng/divider';
-import { MenuModule } from 'primeng/menu';
 import { CheckboxModule } from 'primeng/checkbox';
-import { SkeletonModule } from 'primeng/skeleton';
 import { ToastModule } from 'primeng/toast';
 import { SelectModule } from 'primeng/select';
 import { SubscriptionSelectorComponent } from '../../components/subscription-selector/subscription-selector.component';
-import { Subject, takeUntil, finalize, Subscription as RxSubscription, Observable, throwError, combineLatest, firstValueFrom } from 'rxjs';
-import { catchError, of, tap, map, timeout } from 'rxjs';
+import { Observable, throwError, firstValueFrom, forkJoin } from 'rxjs';
+import { catchError, of, tap, finalize, takeUntil, timeout, switchMap } from 'rxjs';
 import { PermissionsService } from '../../services/permissions.service';
 import { AuthService } from '../../services/auth.service';
 import { LockManagementService } from '../../services/lock-management.service';
@@ -34,7 +36,7 @@ import { StorageAccount, StorageAccountPermission, StorageAccountRoleAssignment,
 import { Subscription } from '../../models/permissions.model';
 import { BulkPermissionModalComponent } from '../../components/bulk-permission-modal/bulk-permission-modal.component';
 import { BulkRemoveModalComponent } from '../../components/bulk-remove-modal/bulk-remove-modal.component';
-import { SkeletonLoaderComponent } from '../../components/skeleton-loader/skeleton-loader.component';
+import { SkeletonModule } from 'primeng/skeleton';
 import { PermissionDetailsComponent } from '../../components/permission-details/permission-details.component';
 import { UtilityService } from '../../services/utility.service';
 
@@ -60,7 +62,7 @@ interface StorageAccountTableItem {
   permissions: StorageAccountRoleAssignment[];
   expanded?: boolean;
   loadingPermissions?: boolean;
-  selected: boolean; // Make required to prevent undefined values
+  selected: boolean;
   locks?: any[];
   loadingLocks?: boolean;
   locksLoading?: boolean;
@@ -69,8 +71,8 @@ interface StorageAccountTableItem {
   accessLevel?: string;
   hasError?: boolean;
   errorMessage?: string;
-  hasLocks?: boolean; // Indicates if the storage account has any locks
-  lockCount?: number; // Number of locks on this storage account
+  hasLocks?: boolean;
+  lockCount?: number;
 }
 
 @Component({
@@ -78,7 +80,7 @@ interface StorageAccountTableItem {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
+    DatePipe,
     FormsModule,
     TableModule,
     ButtonModule,
@@ -86,193 +88,233 @@ interface StorageAccountTableItem {
     InputGroupModule,
     InputGroupAddonModule,
     SelectModule,
-    CardModule,
     ProgressSpinnerModule,
     TagModule,
-    AccordionModule,
     TooltipModule,
     MessageModule,
-    DividerModule,
-    MenuModule,
     CheckboxModule,
-    SkeletonModule,
     ToastModule,
-    BreadcrumbModule,
     ConfirmDialogModule,
     SubscriptionSelectorComponent,
     BulkPermissionModalComponent,
     BulkRemoveModalComponent,
-    SkeletonLoaderComponent
+    SkeletonModule
   ],
   templateUrl: './storage-accounts.component.html',
-  styleUrls: ['./storage-accounts.component.css']
+  styleUrl: './storage-accounts.component.scss'
 })
-export class StorageAccountsComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
-  private tenantChangeSubscription?: RxSubscription;
+export class StorageAccountsComponent {
+  private readonly permissionsService = inject(PermissionsService);
+  private readonly authService = inject(AuthService);
+  private readonly lockManagementService = inject(LockManagementService);
+  private readonly messageService = inject(MessageService);
+  private readonly dialogService = inject(DialogService);
+  private readonly confirmationService = inject(ConfirmationService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  readonly utilityService = inject(UtilityService);
+
   private searchTimeout: any;
-  
-  // Debouncing for toggle expand to prevent rapid API calls
 
-  
-  loading = false;
-  storageAccounts: StorageAccount[] = [];
-  storageAccountPermissions: StorageAccountPermission[] = [];
-  filteredStorageAccounts: StorageAccountTableItem[] = [];
-  allStorageAccounts: StorageAccountTableItem[] = [];
-  error: string | null = null;
-  selectedSubscription: Subscription | null = null;
+  // Data signals
+  readonly loading = signal(true);
+  readonly storageAccounts = signal<StorageAccount[]>([]);
+  readonly storageAccountPermissions = signal<StorageAccountPermission[]>([]);
+  readonly filteredStorageAccounts = signal<StorageAccountTableItem[]>([]);
+  readonly allStorageAccounts = signal<StorageAccountTableItem[]>([]);
+  readonly error = signal<string | null>(null);
+  readonly selectedSubscription = signal<Subscription | null>(null);
 
-  // Filter properties
-  searchQuery = '';
-  searchTerm = '';
-  selectedResourceGroup = '';
-  selectedLocation = '';
-  selectedAccessLevel = '';
-  resourceGroups: string[] = [];
-  locations: string[] = [];
-  locationOptions: {label: string, value: string}[] = [];
-  resourceGroupOptions: {label: string, value: string}[] = [];
-  
-  // Selection
-  allSelected: boolean = false;
-  indeterminate: boolean = false;
-  
+  // Filter signals
+  readonly searchQuery = signal('');
+  readonly searchTerm = signal('');
+  readonly selectedResourceGroup = signal('');
+  readonly selectedLocation = signal('');
+  readonly selectedAccessLevel = signal('');
+  readonly resourceGroups = signal<string[]>([]);
+  readonly locations = signal<string[]>([]);
+  readonly locationOptions = signal<{ label: string; value: string }[]>([]);
+  readonly resourceGroupOptions = signal<{ label: string; value: string }[]>([]);
+
+  // Selection signals
+  readonly allSelected = signal(false);
+  readonly indeterminate = signal(false);
+
   // Operation Queue
   private operationQueue: Array<() => Observable<any>> = [];
-  private isProcessingQueue: boolean = false;
-  
-  // Modal states
-  showBulkPermissionModal = false;
-  showBulkRemoveModal = false;
-  bulkModalLoading = false;
-  roleAssignmentsForRemoval: any[] = [];
-  selectedStorageAccounts: StorageAccountTableItem[] = [];
+  private isProcessingQueue = false;
 
-  // Table properties
-  pageSize = 10;
-  pageIndex = 1;
-  sortField: string | null = null;
-  sortOrder: string | null = null;
-  
-  // Table expansion
-  expandedRows: {[key: string]: boolean} = {};
+  // Modal state signals
+  readonly showBulkPermissionModal = signal(false);
+  readonly showBulkRemoveModal = signal(false);
+  readonly bulkModalLoading = signal(false);
+  readonly roleAssignmentsForRemoval = signal<any[]>([]);
+  readonly selectedStorageAccounts = signal<StorageAccountTableItem[]>([]);
 
-  // Statistics
-  totalStorageAccounts = 0;
-  accountsWithPermissions = 0;
-  totalUsers = 0;
-  lockedAccounts = 0;
-  totalUsersWithAccess = 0;
-  totalRoleAssignments = 0;
-  highPrivilegeAssignments = 0;
+  // Table signals
+  readonly pageSize = signal(10);
+  readonly pageIndex = signal(1);
+  readonly sortField = signal<string | null>(null);
+  readonly sortOrder = signal<string | null>(null);
 
-  constructor(
-    private permissionsService: PermissionsService,
-    private authService: AuthService,
-    private lockManagementService: LockManagementService,
-    private messageService: MessageService,
-    private dialogService: DialogService,
-    private confirmationService: ConfirmationService,
-    private route: ActivatedRoute,
-    private router: Router,
-    private cdr: ChangeDetectorRef
-  ) {}
+  // Table expansion — PrimeNG mutates this object internally via pRowToggler
+  expandedRowsObj: { [key: string]: boolean } = {};
 
-  ngOnInit(): void {
-    // Get subscription info from query parameters if available
-    this.route.queryParams.subscribe(params => {
-      if (params['subscriptionId']) {
-        this.selectedSubscription = {
-          subscriptionId: params['subscriptionId'],
-          displayName: params['subscriptionName'] || 'Selected Subscription',
-          state: 'Enabled'
-        };
-        this.loadStorageAccounts();
-      }
-      // If no subscription in query params, the subscription selector will handle it
-    });
-    
-    // Subscribe to tenant changes
-    this.tenantChangeSubscription = this.authService.tenantChanged$.subscribe((newTenantId: string) => {
-      console.log('Storage accounts: Tenant changed to', newTenantId);
-      if (this.selectedSubscription) {
-        this.loadStorageAccounts();
-      }
+  // Permissions loading state (background loading after table appears)
+  readonly permissionsLoading = signal(false);
+
+  // Statistics signals
+  readonly totalStorageAccounts = signal(0);
+  readonly accountsWithPermissions = signal(0);
+  readonly totalUsers = signal(0);
+  readonly lockedAccounts = signal(0);
+  readonly totalUsersWithAccess = signal(0);
+  readonly totalRoleAssignments = signal(0);
+  readonly highPrivilegeAssignments = signal(0);
+
+  constructor() {
+    afterNextRender(() => {
+      // Get subscription info from query parameters if available
+      this.route.queryParams
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(params => {
+          if (params['subscriptionId']) {
+            this.selectedSubscription.set({
+              subscriptionId: params['subscriptionId'],
+              displayName: params['subscriptionName'] || 'Selected Subscription',
+              state: 'Enabled'
+            });
+            this.loadStorageAccounts();
+          } else {
+            // No subscription in query params — stop loading skeleton
+            this.loading.set(false);
+          }
+        });
+
+      // Subscribe to tenant changes
+      this.authService.tenantChanged$
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((newTenantId: string) => {
+          if (this.selectedSubscription()) {
+            this.loadStorageAccounts();
+          }
+        });
     });
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    
-    // Unsubscribe from tenant changes
-    if (this.tenantChangeSubscription) {
-      this.tenantChangeSubscription.unsubscribe();
-    }
-  }
-
-  async loadStorageAccounts(): Promise<void> {
-    if (!this.selectedSubscription) {
-      this.error = 'No subscription selected. Please select a subscription first.';
+  loadStorageAccounts(): void {
+    const subscription = this.selectedSubscription();
+    if (!subscription) {
+      this.error.set('No subscription selected. Please select a subscription first.');
       return;
     }
 
-    this.loading = true;
-    this.error = null;
+    this.loading.set(true);
+    this.error.set(null);
+    this.permissionsLoading.set(true);
 
-    try {
-      // Only load basic storage account information initially for better performance
-      this.permissionsService.getStorageAccounts(this.selectedSubscription.subscriptionId).pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Failed to load storage accounts:', error);
-          
-          if (error instanceof StorageAccountError) {
-            this.error = error.message;
-            if (error.code === 'INSUFFICIENT_PERMISSIONS') {
-              this.messageService.add({severity: 'error', summary: 'Error', detail: 'You do not have sufficient permissions to view storage accounts in this subscription'});
-            }
-          } else {
-            this.error = 'Failed to load storage accounts. Please try again.';
-            this.messageService.add({severity: 'error', summary: 'Error', detail: 'Failed to load storage accounts'});
+    // Step 1: Fetch storage accounts
+    this.permissionsService.getStorageAccounts(subscription.subscriptionId).pipe(
+      takeUntilDestroyed(this.destroyRef),
+      catchError(error => {
+        console.error('Failed to load storage accounts:', error);
+        if (error instanceof StorageAccountError) {
+          this.error.set(error.message);
+          if (error.code === 'INSUFFICIENT_PERMISSIONS') {
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'You do not have sufficient permissions to view storage accounts in this subscription' });
           }
-          return of([]);
+        } else {
+          this.error.set('Failed to load storage accounts. Please try again.');
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load storage accounts' });
+        }
+        return of([]);
+      })
+    ).subscribe({
+      next: (storageAccounts) => {
+        this.storageAccounts.set(storageAccounts);
+
+        // Extract unique resource groups and locations for filters
+        const rgs = [...new Set(storageAccounts.map(sa => sa.resourceGroup))].sort();
+        const locs = [...new Set(storageAccounts.map(sa => sa.location))].sort();
+        this.resourceGroups.set(rgs);
+        this.locations.set(locs);
+        this.locationOptions.set(locs.map(location => ({ label: location, value: location })));
+        this.resourceGroupOptions.set(rgs.map(rg => ({ label: rg, value: rg })));
+
+        // Convert to table format (permissions will be populated shortly)
+        const tableItems = this.convertToTableFormatBasic(storageAccounts);
+        this.allStorageAccounts.set(tableItems);
+        this.calculateBasicStatistics();
+        this.applyFilters();
+
+        // Table is now visible - hide main loading spinner
+        this.loading.set(false);
+        this.messageService.add({ severity: 'success', summary: 'Success', detail: `Loaded ${storageAccounts.length} storage accounts` });
+
+        // Step 2: Eagerly batch-load ALL permissions using subscription-level API
+        // This makes 2 API calls total instead of N*3 per storage account
+        if (storageAccounts.length > 0) {
+          this.eagerlyLoadAllPermissions(subscription.subscriptionId, storageAccounts, tableItems);
+        } else {
+          this.permissionsLoading.set(false);
+        }
+      },
+      error: (error) => {
+        console.error('Failed to load storage accounts:', error);
+        this.error.set('Failed to load storage accounts. Please try again.');
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load storage accounts' });
+        this.loading.set(false);
+        this.permissionsLoading.set(false);
+      }
+    });
+  }
+
+  /**
+   * Eagerly load all permissions for storage accounts using a single subscription-level
+   * batch API call. This replaces the lazy per-account loading approach.
+   */
+  private eagerlyLoadAllPermissions(
+    subscriptionId: string,
+    storageAccounts: StorageAccount[],
+    tableItems: StorageAccountTableItem[]
+  ): void {
+    const storageAccountIds = storageAccounts.map(sa => sa.id);
+
+    this.permissionsService.batchLoadStorageAccountPermissions(subscriptionId, storageAccountIds)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(error => {
+          console.error('Failed to batch-load permissions:', error);
+          this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Could not load permissions. Expand rows to load individually.' });
+          return of(new Map<string, StorageAccountRoleAssignment[]>());
         }),
         finalize(() => {
-          this.loading = false;
-          this.cdr.markForCheck();
+          this.permissionsLoading.set(false);
         })
-      ).subscribe({
-        next: (storageAccounts) => {
-          this.storageAccounts = storageAccounts;
-          
-          // Extract unique resource groups and locations for filters
-          this.resourceGroups = [...new Set(storageAccounts.map(sa => sa.resourceGroup))].sort();
-          this.locations = [...new Set(storageAccounts.map(sa => sa.location))].sort();
-          this.locationOptions = this.locations.map(location => ({label: location, value: location}));
-          this.resourceGroupOptions = this.resourceGroups.map(rg => ({label: rg, value: rg}));
+      )
+      .subscribe({
+        next: (permissionsMap) => {
+          // Populate each table item with its pre-fetched permissions
+          tableItems.forEach(item => {
+            const perms = permissionsMap.get(item.id) || [];
+            item.permissions = perms;
+            item.users = this.extractUsersFromRoleAssignments(perms);
+            item.accessLevel = this.calculateAccessLevel(perms);
+            item.loadingPermissions = false;
+          });
 
-          // Convert to table format without permissions (lazy loaded)
-          this.allStorageAccounts = this.convertToTableFormatBasic(storageAccounts);
-          this.calculateBasicStatistics();
+          // Trigger signal update so the UI reflects the new data
+          this.allStorageAccounts.set([...tableItems]);
+          this.calculateStatistics();
           this.applyFilters();
 
-          this.messageService.add({severity: 'success', summary: 'Success', detail: `Loaded ${storageAccounts.length} storage accounts`});
-          this.cdr.markForCheck();
-        },
-        error: (error) => {
-          console.error('Failed to load storage accounts:', error);
-          this.error = 'Failed to load storage accounts. Please try again.';
-          this.messageService.add({severity: 'error', summary: 'Error', detail: 'Failed to load storage accounts'});
+          const totalPerms = tableItems.reduce((sum, item) => sum + item.permissions.length, 0);
+          if (totalPerms > 0) {
+            this.messageService.add({ severity: 'info', summary: 'Permissions Loaded', detail: `Found ${totalPerms} role assignments across ${storageAccounts.length} storage accounts` });
+          }
         }
       });
-    } catch (error) {
-      console.error('Failed to load storage accounts:', error);
-      this.error = 'Failed to load storage accounts. Please try again.';
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Failed to load storage accounts'});
-      this.loading = false;
-    }
   }
 
   private convertToTableFormatBasic(storageAccounts: StorageAccount[]): StorageAccountTableItem[] {
@@ -284,22 +326,22 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
       kind: account.properties?.accountType || 'StorageV2',
       sku: account.properties?.accountType || 'Standard_LRS',
       createdTime: new Date(account.properties?.creationTime || Date.now()),
-      permissions: [], // Will be loaded on demand
-      users: [], // Will be loaded on demand
-      accessLevel: 'Unknown', // Will be calculated when permissions are loaded
+      permissions: [] as StorageAccountRoleAssignment[],
+      users: [] as any[],
+      accessLevel: 'Unknown',
       expanded: false,
       loadingPermissions: false,
-      selected: false, // Explicitly set as boolean
-      locks: [],
+      selected: false,
+      locks: [] as any[],
       loadingLocks: false,
       locksLoading: false,
-      hasLocks: false, // Will be determined after loading locks
-      lockCount: 0 // Number of locks on this storage account
+      hasLocks: false,
+      lockCount: 0
     }));
 
     // Proactively load locks for all storage accounts
     this.loadLocksForAllAccounts(tableItems);
-    
+
     return tableItems;
   }
 
@@ -308,11 +350,9 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
    */
   private loadLocksForAllAccounts(accounts: StorageAccountTableItem[]): void {
     accounts.forEach(account => {
-      account.loadingLocks = true;
-      
       this.permissionsService.getStorageAccountLocks(account.id)
         .pipe(
-          takeUntil(this.destroy$),
+          takeUntilDestroyed(this.destroyRef),
           catchError(error => {
             console.error(`Failed to load locks for storage account ${account.name}:`, error);
             return of([]);
@@ -324,22 +364,22 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
             account.lockCount = locks ? locks.length : 0;
             account.hasLocks = account.lockCount > 0;
             account.loadingLocks = false;
-            this.cdr.markForCheck();
+            // Trigger OnPush change detection on the bound signal
+            this.filteredStorageAccounts.update(items => [...items]);
           },
-          error: (error) => {
-            console.error(`Error loading locks for ${account.name}:`, error);
+          error: () => {
             account.locks = [];
             account.lockCount = 0;
             account.hasLocks = false;
             account.loadingLocks = false;
-            this.cdr.markForCheck();
+            this.filteredStorageAccounts.update(items => [...items]);
           }
         });
     });
   }
 
   private convertToTableFormat(
-    storageAccounts: StorageAccount[], 
+    storageAccounts: StorageAccount[],
     permissions: StorageAccountPermission[]
   ): StorageAccountTableItem[] {
     return storageAccounts.map(sa => {
@@ -366,35 +406,37 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   }
 
   private calculateBasicStatistics(): void {
-    this.totalStorageAccounts = this.allStorageAccounts.length;
-    this.accountsWithPermissions = this.allStorageAccounts.filter(sa => sa.permissions && sa.permissions.length > 0).length;
-    this.totalUsers = 0; // Will be calculated as permissions are loaded
-    this.lockedAccounts = this.allStorageAccounts.filter(sa => sa.hasLocks).length;
-    this.highPrivilegeAssignments = 0; // Will be calculated as permissions are loaded
-    this.totalUsersWithAccess = 0; // Will be calculated as permissions are loaded
+    const all = this.allStorageAccounts();
+    this.totalStorageAccounts.set(all.length);
+    this.accountsWithPermissions.set(all.filter(sa => sa.permissions && sa.permissions.length > 0).length);
+    this.totalUsers.set(0);
+    this.lockedAccounts.set(all.filter(sa => sa.hasLocks).length);
+    this.highPrivilegeAssignments.set(0);
+    this.totalUsersWithAccess.set(0);
   }
 
   private calculateStatistics(): void {
-    this.totalStorageAccounts = this.allStorageAccounts.length;
-    this.accountsWithPermissions = this.allStorageAccounts.filter(sa => sa.permissions && sa.permissions.length > 0).length;
-    this.lockedAccounts = this.allStorageAccounts.filter(sa => sa.hasLocks).length;
-    
-    const allRoleAssignments = this.allStorageAccounts.flatMap(sa => sa.permissions);
-    this.totalRoleAssignments = allRoleAssignments.length;
-    
+    const all = this.allStorageAccounts();
+    this.totalStorageAccounts.set(all.length);
+    this.accountsWithPermissions.set(all.filter(sa => sa.permissions && sa.permissions.length > 0).length);
+    this.lockedAccounts.set(all.filter(sa => sa.hasLocks).length);
+
+    const allRoleAssignments = all.flatMap(sa => sa.permissions);
+    this.totalRoleAssignments.set(allRoleAssignments.length);
+
     const uniqueUsers = new Set(allRoleAssignments.map(ra => ra.properties.principalId));
-    this.totalUsersWithAccess = uniqueUsers.size;
-    this.totalUsers = uniqueUsers.size;
-    
-    this.highPrivilegeAssignments = allRoleAssignments.filter(ra => 
+    this.totalUsersWithAccess.set(uniqueUsers.size);
+    this.totalUsers.set(uniqueUsers.size);
+
+    this.highPrivilegeAssignments.set(allRoleAssignments.filter(ra =>
       this.isHighPrivilegeRole(ra.properties.roleDefinitionName)
-    ).length;
+    ).length);
   }
 
   private isHighPrivilegeRole(roleName: string): boolean {
     const highPrivilegeRoles = [
       'Owner',
-      'Contributor', 
+      'Contributor',
       'Storage Account Contributor',
       'Storage Account Key Operator Service Role'
     ];
@@ -402,16 +444,20 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   }
 
   applyFilters(): void {
-    let filtered = [...this.allStorageAccounts];
+    let filtered = [...this.allStorageAccounts()];
+    const term = this.searchTerm();
+    const rg = this.selectedResourceGroup();
+    const loc = this.selectedLocation();
+    const access = this.selectedAccessLevel();
 
     // Apply search filter
-    if (this.searchTerm.trim()) {
-      const query = this.searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(sa => 
+    if (term.trim()) {
+      const query = term.toLowerCase().trim();
+      filtered = filtered.filter(sa =>
         sa.name.toLowerCase().includes(query) ||
         sa.resourceGroup.toLowerCase().includes(query) ||
         sa.location.toLowerCase().includes(query) ||
-        sa.permissions.some(p => 
+        sa.permissions.some(p =>
           p.properties.principalDisplayName?.toLowerCase().includes(query) ||
           p.properties.roleDefinitionName.toLowerCase().includes(query)
         )
@@ -419,24 +465,25 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     }
 
     // Apply resource group filter
-    if (this.selectedResourceGroup) {
-      filtered = filtered.filter(sa => sa.resourceGroup === this.selectedResourceGroup);
+    if (rg) {
+      filtered = filtered.filter(sa => sa.resourceGroup === rg);
     }
 
     // Apply location filter
-    if (this.selectedLocation) {
-      filtered = filtered.filter(sa => sa.location === this.selectedLocation);
+    if (loc) {
+      filtered = filtered.filter(sa => sa.location === loc);
     }
 
     // Apply access level filter
-    if (this.selectedAccessLevel) {
-      filtered = filtered.filter(sa => 
-        sa.permissions.some(p => p.properties.roleDefinitionName === this.selectedAccessLevel)
+    if (access) {
+      filtered = filtered.filter(sa =>
+        sa.permissions.some(p => p.properties.roleDefinitionName === access)
       );
     }
 
-    this.filteredStorageAccounts = filtered;
-    this.cdr.markForCheck();
+    this.filteredStorageAccounts.set(filtered);
+    // Reset pagination to page 1 when filtering
+    this.pageIndex.set(1);
   }
 
   onSearch(): void {
@@ -456,64 +503,69 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   }
 
   clearFilters(): void {
-    this.searchQuery = '';
-    this.searchTerm = '';
-    this.selectedResourceGroup = '';
-    this.selectedLocation = '';
-    this.selectedAccessLevel = '';
-    this.pageIndex = 1;
+    this.searchQuery.set('');
+    this.searchTerm.set('');
+    this.selectedResourceGroup.set('');
+    this.selectedLocation.set('');
+    this.selectedAccessLevel.set('');
+    this.pageIndex.set(1);
     this.applyFilters();
-    this.cdr.markForCheck();
   }
 
   onPageIndexChange(pageIndex: number): void {
-    this.pageIndex = pageIndex;
-    this.cdr.markForCheck();
+    this.pageIndex.set(pageIndex);
   }
 
   onPageSizeChange(pageSize: number): void {
-    this.pageSize = pageSize;
-    this.pageIndex = 1;
-    this.cdr.markForCheck();
+    this.pageSize.set(pageSize);
+    this.pageIndex.set(1);
   }
 
   toggleExpand(item: StorageAccountTableItem): void {
-    // Toggle expansion state in PrimeNG expandedRows object
-    if (this.expandedRows[item.id]) {
-      delete this.expandedRows[item.id];
-      item.expanded = false;
+    if (this.expandedRowsObj[item.id]) {
+      delete this.expandedRowsObj[item.id];
     } else {
-      this.expandedRows[item.id] = true;
-      item.expanded = true;
-      
-      // If expanding and permissions haven't been loaded yet, load them
+      this.expandedRowsObj[item.id] = true;
       if (!item.permissions || item.permissions.length === 0) {
         this.loadPermissionsForAccount(item);
       }
     }
-    
-    this.cdr.markForCheck();
+  }
+
+  onRowExpand(event: any): void {
+    const account = event.data as StorageAccountTableItem;
+    // Permissions are pre-loaded via batch API. Fall back to per-account only if
+    // the batch load failed or hasn't completed yet.
+    if ((!account.permissions || account.permissions.length === 0) && !this.permissionsLoading() && !account.loadingPermissions) {
+      this.loadPermissionsForAccount(account);
+    }
+  }
+
+  onRowCollapse(event: any): void {
+    // PrimeNG handles expandedRowsObj mutation via two-way binding
   }
 
   private loadPermissionsForAccount(item: StorageAccountTableItem): void {
-    if (!this.selectedSubscription || item.loadingPermissions) {
+    if (!this.selectedSubscription() || item.loadingPermissions) {
       return;
     }
 
     item.loadingPermissions = true;
+    // Notify Angular that the data changed so the loading spinner renders
+    this.filteredStorageAccounts.update(items => [...items]);
 
     // Load permissions for this specific storage account only
     this.permissionsService.getStorageAccountRoleAssignments(item.id)
       .pipe(
-        takeUntil(this.destroy$),
+        takeUntilDestroyed(this.destroyRef),
         catchError(error => {
           console.error(`Failed to load permissions for storage account ${item.name}:`, error);
-          this.messageService.add({severity: 'error', summary: 'Error', detail: `Failed to load permissions for ${item.name}`});
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: `Failed to load permissions for ${item.name}` });
           return of([]);
         }),
         finalize(() => {
           item.loadingPermissions = false;
-          this.cdr.markForCheck();
+          this.filteredStorageAccounts.update(items => [...items]);
         })
       )
       .subscribe({
@@ -522,10 +574,10 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
           item.permissions = roleAssignments || [];
           item.users = this.extractUsersFromRoleAssignments(roleAssignments || []);
           item.accessLevel = this.calculateAccessLevel(roleAssignments || []);
-          
+
           // Update statistics
           this.updateStatisticsForLoadedAccount(item);
-          this.cdr.markForCheck();
+          this.filteredStorageAccounts.update(items => [...items]);
         },
         error: (error) => {
           console.error(`Error loading permissions for ${item.name}:`, error);
@@ -558,24 +610,22 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   private updateStatisticsForLoadedAccount(item: StorageAccountTableItem): void {
     // Update high privilege count
     if (item.accessLevel === 'High') {
-      this.highPrivilegeAssignments++;
+      this.highPrivilegeAssignments.update(v => v + 1);
     }
 
     // Update total users count
-    const uniqueUsers = new Set();
-    this.allStorageAccounts.forEach(account => {
+    const uniqueUsers = new Set<string>();
+    this.allStorageAccounts().forEach(account => {
       if (account.users && account.users.length > 0) {
         account.users.forEach(user => uniqueUsers.add(user.principalId));
       }
     });
-    this.totalUsersWithAccess = uniqueUsers.size;
+    this.totalUsersWithAccess.set(uniqueUsers.size);
   }
-  
-
 
   private loadAccountLocks(account: StorageAccountTableItem): void {
     account.loadingLocks = true;
-    
+
     this.permissionsService.getStorageAccountLocks(account.id).subscribe({
       next: (locks) => {
         account.locks = locks || [];
@@ -598,9 +648,9 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   }
 
   onSubscriptionSelected(subscription: Subscription | null): void {
-    this.selectedSubscription = subscription;
-    this.error = null;
-    
+    this.selectedSubscription.set(subscription);
+    this.error.set(null);
+
     if (subscription) {
       // Update URL with subscription info
       this.router.navigate([], {
@@ -611,13 +661,13 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         },
         queryParamsHandling: 'merge'
       });
-      
+
       // Load storage accounts for the selected subscription
       this.loadStorageAccounts();
     } else {
       // Clear data when no subscription is selected
       this.clearData();
-      
+
       // Remove subscription from URL
       this.router.navigate([], {
         relativeTo: this.route,
@@ -631,84 +681,71 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   }
 
   private clearData(): void {
-    this.storageAccounts = [];
-    this.allStorageAccounts = [];
-    this.filteredStorageAccounts = [];
-    this.storageAccountPermissions = [];
-    this.resourceGroups = [];
-    this.locations = [];
-    this.totalStorageAccounts = 0;
-    this.totalRoleAssignments = 0;
-    this.totalUsersWithAccess = 0;
-    this.highPrivilegeAssignments = 0;
-    this.error = null;
-    this.cdr.markForCheck();
+    this.storageAccounts.set([]);
+    this.allStorageAccounts.set([]);
+    this.filteredStorageAccounts.set([]);
+    this.storageAccountPermissions.set([]);
+    this.resourceGroups.set([]);
+    this.locations.set([]);
+    this.totalStorageAccounts.set(0);
+    this.totalRoleAssignments.set(0);
+    this.totalUsersWithAccess.set(0);
+    this.highPrivilegeAssignments.set(0);
+    this.error.set(null);
   }
 
   exportStorageAccounts(): void {
-    if (!this.allStorageAccounts.length) {
-      this.messageService.add({severity: 'warn', summary: 'Warning', detail: 'No storage accounts to export'});
+    if (!this.allStorageAccounts().length) {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'No storage accounts to export' });
       return;
     }
 
     try {
-      const csvData = this.convertToCSV(this.filteredStorageAccounts);
+      const csvData = this.convertToCSV(this.filteredStorageAccounts());
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `storage_accounts_${this.selectedSubscription?.displayName || 'export'}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = `storage_accounts_${this.selectedSubscription()?.displayName || 'export'}_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
       window.URL.revokeObjectURL(url);
 
-      this.messageService.add({severity: 'success', summary: 'Success', detail: 'Storage accounts exported successfully'});
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Storage accounts exported successfully' });
     } catch (error) {
       console.error('Export failed:', error);
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Failed to export storage accounts'});
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to export storage accounts' });
     }
   }
 
-  getUsersCountColor(count: number): string {
+  getUsersCountColor(count: number): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' {
     if (count === 0) return 'secondary';
     if (count <= 2) return 'success';
-    if (count <= 5) return 'warning';
+    if (count <= 5) return 'warn';
     return 'danger';
   }
 
   viewAccountDetails(account: StorageAccountTableItem): void {
-    // Show account details using message service for now
-    this.messageService.add({
-      severity: 'info',
-      summary: `Storage Account: ${account.name}`,
-      detail: `Resource Group: ${account.resourceGroup}, Location: ${account.location}, Type: ${account.kind}`,
-      life: 5000
-    });
+    // Expand the row to show permissions and details
+    if (!this.expandedRowsObj[account.id]) {
+      this.expandedRowsObj[account.id] = true;
+      if (!account.permissions || account.permissions.length === 0) {
+        this.loadPermissionsForAccount(account);
+      }
+    }
   }
 
   managePermissions(account: StorageAccountTableItem): void {
-    // Show permission management info using message service for now
-    console.log('Managing permissions for storage account:', account.name);
-    
-    this.messageService.add({
-      severity: 'info',
-      summary: `Manage Permissions - ${account.name}`,
-      detail: `Current permissions: ${account.permissions?.length || 0} role assignments. Full management functionality coming soon.`,
-      life: 5000
-    });
+    // Expand the row to show permissions
+    if (!this.expandedRowsObj[account.id]) {
+      this.expandedRowsObj[account.id] = true;
+      if (!account.permissions || account.permissions.length === 0) {
+        this.loadPermissionsForAccount(account);
+      }
+    }
   }
 
   exportAccountData(account: StorageAccountTableItem): void {
     try {
-      const accountData = {
-        name: account.name,
-        resourceGroup: account.resourceGroup,
-        location: account.location,
-        kind: account.kind,
-        sku: account.sku,
-        createdTime: account.createdTime,
-        permissions: account.permissions || []
-      };
-      
       const csvContent = this.convertToCSV([account]);
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
@@ -717,58 +754,55 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
       link.download = `${account.name}_permissions.csv`;
       link.click();
       window.URL.revokeObjectURL(url);
-      
-      this.messageService.add({severity: 'success', summary: 'Success', detail: `Exported data for ${account.name}`});
+
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: `Exported data for ${account.name}` });
     } catch (error) {
       console.error('Error exporting account data:', error);
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Failed to export account data'});
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to export account data' });
     }
   }
 
   // Selection methods
   getSelectedAccountsCount(): number {
-    return this.filteredStorageAccounts.filter(account => account.selected).length;
+    return this.filteredStorageAccounts().filter(account => account.selected).length;
   }
 
   selectAllAccounts(): void {
-    this.filteredStorageAccounts.forEach(account => account.selected = true);
+    this.filteredStorageAccounts().forEach(account => account.selected = true);
+    this.filteredStorageAccounts.update(items => [...items]);
     this.updateSelectionState();
   }
 
   clearSelection(): void {
-    this.filteredStorageAccounts.forEach(account => account.selected = false);
+    this.filteredStorageAccounts().forEach(account => account.selected = false);
+    this.filteredStorageAccounts.update(items => [...items]);
     this.updateSelectionState();
   }
 
   onAllChecked(event: any): void {
-    // Handle PrimeNG checkbox event - ensure we get boolean value to prevent iteration errors
     const isChecked = typeof event === 'boolean' ? event : Boolean(event?.checked);
-    
-    this.filteredStorageAccounts.forEach(account => {
+    this.filteredStorageAccounts().forEach(account => {
       account.selected = isChecked;
     });
+    this.filteredStorageAccounts.update(items => [...items]);
     this.updateSelectionState();
-    this.cdr.markForCheck();
   }
 
   onItemChecked(account: StorageAccountTableItem, event: any): void {
-    // Handle PrimeNG checkbox event - ensure we get boolean value to prevent iteration errors
     const isChecked = typeof event === 'boolean' ? event : Boolean(event?.checked);
-    
     account.selected = isChecked;
+    this.filteredStorageAccounts.update(items => [...items]);
     this.updateSelectionState();
-    this.cdr.markForCheck();
   }
 
   private updateSelectionState(): void {
     const selectedCount = this.getSelectedAccountsCount();
-    const totalCount = this.filteredStorageAccounts.length;
-    
-    // Ensure boolean values to prevent 'this.model is not iterable' errors
-    this.allSelected = selectedCount === totalCount && totalCount > 0;
-    this.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+    const totalCount = this.filteredStorageAccounts().length;
+
+    this.allSelected.set(selectedCount === totalCount && totalCount > 0);
+    this.indeterminate.set(selectedCount > 0 && selectedCount < totalCount);
   }
-  
+
   // Operation Queue Management
   private addToQueue(operation: () => Observable<any>): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -781,7 +815,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
           })
         );
       };
-      
+
       this.operationQueue.push(wrappedOperation);
       this.processQueue();
     });
@@ -792,11 +826,10 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
    */
   private refreshExpandedAccount(storageAccount: any): void {
     if (storageAccount.expanded) {
-      // Directly refresh the permissions data without collapsing/expanding
       storageAccount.loadingPermissions = true;
-      
+
       this.permissionsService.getStorageAccountRoleAssignments(storageAccount.id)
-        .pipe(takeUntil(this.destroy$))
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (permissions) => {
             storageAccount.permissions = permissions;
@@ -805,7 +838,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
           error: (error) => {
             console.error('Failed to refresh permissions for account:', storageAccount.name, error);
             storageAccount.loadingPermissions = false;
-            this.messageService.add({severity: 'error', summary: 'Error', detail: `Failed to refresh permissions for ${storageAccount.name}`});
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: `Failed to refresh permissions for ${storageAccount.name}` });
           }
         });
     }
@@ -820,7 +853,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     }
 
     storageAccount.locksLoading = true;
-    
+
     this.permissionsService.getStorageAccountLocks(storageAccount.id).subscribe({
       next: (locks) => {
         storageAccount.locks = locks;
@@ -831,7 +864,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         console.error('Failed to load storage account locks:', error);
         storageAccount.locks = [];
         storageAccount.locksLoading = false;
-        this.messageService.add({severity: 'error', summary: 'Error', detail: 'Failed to load storage account locks'});
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load storage account locks' });
       }
     });
   }
@@ -843,13 +876,13 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     // First ensure the row is expanded
     if (!storageAccount.expanded) {
       storageAccount.expanded = true;
-      
+
       // Load permissions if not already loaded
       if ((!storageAccount.permissions || storageAccount.permissions.length === 0) && !storageAccount.loadingPermissions) {
         this.loadPermissionsForAccount(storageAccount);
       }
     }
-    
+
     if (!storageAccount.locks) {
       this.loadStorageAccountLocks(storageAccount);
     } else {
@@ -857,58 +890,22 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Group permissions by role for better organization
-   */
-  getGroupedPermissions(permissions: any[]): { [role: string]: any[] } {
-    if (!permissions || permissions.length === 0) {
-      return {};
-    }
-
-    return permissions.reduce((groups, permission) => {
-      const role = permission.properties.roleDefinitionName || 'Unknown Role';
-      if (!groups[role]) {
-        groups[role] = [];
-      }
-      groups[role].push(permission);
-      return groups;
-    }, {} as { [role: string]: any[] });
-  }
-
-  /**
-   * Get the keys (role names) from grouped permissions
-   */
-  getGroupedPermissionKeys(permissions: any[]): string[] {
-    const grouped = this.getGroupedPermissions(permissions);
-    return Object.keys(grouped).sort();
-  }
-
-  /**
-   * Get permissions for a specific role
-   */
-  getPermissionsForRole(permissions: any[], role: string): any[] {
-    const grouped = this.getGroupedPermissions(permissions);
-    return grouped[role] || [];
-  }
-  
   private processQueue(): void {
     if (this.isProcessingQueue || this.operationQueue.length === 0) {
       return;
     }
-    
+
     this.isProcessingQueue = true;
     const operation = this.operationQueue.shift()!;
-    
+
     operation().subscribe({
       next: () => {
         this.isProcessingQueue = false;
-        // Process next operation after a small delay to avoid conflicts
         setTimeout(() => this.processQueue(), 1000);
       },
       error: (error) => {
         console.error('Operation failed:', error);
         this.isProcessingQueue = false;
-        // Continue processing queue even if one operation fails
         setTimeout(() => this.processQueue(), 2000);
       }
     });
@@ -921,7 +918,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   private convertToCSV(storageAccounts: StorageAccountTableItem[]): string {
     const headers = [
       'Storage Account Name',
-      'Resource Group', 
+      'Resource Group',
       'Location',
       'Kind',
       'SKU',
@@ -936,21 +933,19 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
 
     storageAccounts.forEach(sa => {
       if (sa.permissions.length === 0) {
-        // Storage account with no permissions
         rows.push([
           `"${sa.name}"`,
           `"${sa.resourceGroup}"`,
           `"${sa.location}"`,
           `"${sa.kind}"`,
-              `"${sa.sku}"`,
-              sa.createdTime ? `"${sa.createdTime.toISOString()}"` : '""',
+          `"${sa.sku}"`,
+          sa.createdTime ? `"${sa.createdTime.toISOString()}"` : '""',
           '"No permissions assigned"',
           '""',
           '""',
           '""'
         ].join(','));
       } else {
-        // Storage account with permissions
         sa.permissions.forEach(permission => {
           rows.push([
             `"${sa.name}"`,
@@ -963,7 +958,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
             `"${permission.properties.roleDefinitionName}"`,
             `"${permission.properties.scope}"`,
             `"${permission.properties.principalType}"`,
-            `"${permission.properties.createdOn}"`    ].join(','));
+            `"${permission.properties.createdOn}"` ].join(','));
         });
       }
     });
@@ -971,7 +966,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
     return rows.join('\n');
   }
 
-  getRoleColor(roleName: string): string {
+  getRoleColor(roleName: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' {
     if (this.isHighPrivilegeRole(roleName)) {
       return 'danger';
     }
@@ -981,30 +976,30 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         return 'info';
       case 'Storage Blob Data Contributor':
       case 'Storage Queue Data Contributor':
-        return 'warning';
+        return 'warn';
       default:
         return 'secondary';
     }
   }
 
-  getPrincipalTypeColor(type: string): string {
+  getPrincipalTypeColor(type: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' {
     switch (type) {
       case 'User': return 'info';
       case 'Group': return 'success';
-      case 'ServicePrincipal': return 'warning';
+      case 'ServicePrincipal': return 'warn';
       default: return 'secondary';
     }
   }
 
   onTableSort(sort: { key: string; value: string | null }): void {
-    this.sortField = sort.key;
-    this.sortOrder = sort.value;
-    
+    this.sortField.set(sort.key);
+    this.sortOrder.set(sort.value);
+
     if (sort.value) {
-      this.filteredStorageAccounts = [...this.filteredStorageAccounts].sort((a, b) => {
+      const sorted = [...this.filteredStorageAccounts()].sort((a, b) => {
         const aValue = (a as any)[sort.key];
         const bValue = (b as any)[sort.key];
-        
+
         if (aValue < bValue) {
           return sort.value === 'ascend' ? -1 : 1;
         }
@@ -1013,11 +1008,12 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         }
         return 0;
       });
+      this.filteredStorageAccounts.set(sorted);
     }
   }
 
   getSubscriptionDisplayName(): string {
-    return this.selectedSubscription?.displayName || 'Selected Subscription';
+    return this.selectedSubscription()?.displayName || 'Selected Subscription';
   }
 
   viewPermissionDetails(permission: any): void {
@@ -1031,19 +1027,19 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
   }
 
   removePermission(storageAccount: any, assignment: any): void {
-    if (this.loading) {
-      this.messageService.add({severity: 'warn', summary: 'Warning', detail: 'Please wait for the current operation to complete'});
+    if (this.loading()) {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please wait for the current operation to complete' });
       return;
     }
 
     // Validate inputs
     if (!assignment || !assignment.properties) {
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Invalid permission data'});
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Invalid permission data' });
       return;
     }
 
     if (!storageAccount || !storageAccount.id) {
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Invalid storage account data'});
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Invalid storage account data' });
       return;
     }
 
@@ -1056,48 +1052,44 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
-        console.log('🗑️ Starting individual permission removal for:', principalDisplayName);
-        this.loading = true;
+        this.loading.set(true);
         const assignmentId = assignment.id;
         const storageAccountId = storageAccount.id;
-        
-        console.log('🗑️ Assignment ID:', assignmentId, 'Storage Account ID:', storageAccountId);
-        
+
         // Add timeout to prevent hanging indefinitely
         const timeoutId = setTimeout(() => {
-          console.error('⏰ Individual remove operation timed out after 30 seconds');
-          this.loading = false;
-          this.messageService.add({severity: 'error', summary: 'Error', detail: 'Permission removal timed out. Please try again.'});
-        }, 30000); // 30 second timeout for individual operations
+          console.error('Individual remove operation timed out after 30 seconds');
+          this.loading.set(false);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Permission removal timed out. Please try again.' });
+        }, 30000);
 
         this.permissionsService.removeStorageAccountPermissionWithLockHandling(
           assignmentId,
-          storageAccountId
+          storageAccountId,
+          this.selectedSubscription()?.subscriptionId || ''
         ).subscribe({
           next: (result) => {
-            console.log('✅ Permission removed successfully for:', principalDisplayName);
             clearTimeout(timeoutId);
-            this.messageService.add({severity: 'success', summary: 'Success', detail: `Permission removed successfully for ${principalDisplayName} (locks handled automatically)`});
+            this.messageService.add({ severity: 'success', summary: 'Success', detail: `Permission removed successfully for ${principalDisplayName} (locks handled automatically)` });
             // Refresh the expanded account view
             this.refreshExpandedAccount(storageAccount);
             // Refresh locks if they were loaded
             if (storageAccount.locks) {
               this.loadStorageAccountLocks(storageAccount);
             }
-            this.loading = false;
-            console.log('🗑️ Individual permission removal completed successfully');
+            this.loading.set(false);
           },
           error: (error) => {
-            console.error('❌ Failed to remove permission for:', principalDisplayName, 'Error:', error);
+            console.error('Failed to remove permission for:', principalDisplayName, 'Error:', error);
             clearTimeout(timeoutId);
-            
+
             // Ensure loading state is reset
-            this.loading = false;
-            
+            this.loading.set(false);
+
             // Provide detailed error message
             const errorMessage = error?.error?.message || error?.message || 'Unknown error occurred';
-            console.error('🗑️ Error details:', errorMessage);
-            this.messageService.add({severity: 'error', summary: 'Error', detail: `Failed to remove permission: ${errorMessage}`});
+            console.error('Error details:', errorMessage);
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: `Failed to remove permission: ${errorMessage}` });
           }
         });
       }
@@ -1110,36 +1102,36 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
 
   bulkAddPermissions(): void {
     if (this.getSelectedAccountsCount() === 0) {
-      this.messageService.add({severity: 'warn', summary: 'Warning', detail: 'Please select at least one storage account'});
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please select at least one storage account' });
       return;
     }
-    
-    this.selectedStorageAccounts = this.filteredStorageAccounts.filter(account => account.selected);
-    this.showBulkPermissionModal = true;
+
+    this.selectedStorageAccounts.set(this.filteredStorageAccounts().filter(account => account.selected));
+    this.showBulkPermissionModal.set(true);
   }
 
   bulkRemovePermissions(): void {
     if (this.getSelectedAccountsCount() === 0) {
-      this.messageService.add({severity: 'warn', summary: 'Warning', detail: 'Please select at least one storage account'});
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please select at least one storage account' });
       return;
     }
-    
-    if (this.loading) {
-      this.messageService.add({severity: 'warn', summary: 'Warning', detail: 'Please wait for the current operation to complete'});
+
+    if (this.loading()) {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please wait for the current operation to complete' });
       return;
     }
-    
-    this.selectedStorageAccounts = this.filteredStorageAccounts.filter(account => account.selected);
+
+    this.selectedStorageAccounts.set(this.filteredStorageAccounts().filter(account => account.selected));
     this.fetchPermissionsForSelectedAccounts();
   }
 
   // Handler for bulk permission modal
   onBulkPermissionRequest(request: BulkPermissionRequest): void {
-    this.bulkModalLoading = true;
-    
+    this.bulkModalLoading.set(true);
+
     // Create requests for all combinations of accounts, users, and roles
     const requests: any[] = [];
-    this.selectedStorageAccounts.forEach(account => {
+    this.selectedStorageAccounts().forEach(account => {
       request.principalIds.forEach(principalId => {
         request.roleDefinitionIds.forEach(roleDefinitionId => {
           requests.push({
@@ -1151,71 +1143,63 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         });
       });
     });
-    
+
     const totalAssignments = requests.length;
-    this.messageService.add({severity: 'info', summary: 'Loading', detail: `Adding ${totalAssignments} permission assignment(s) to ${this.selectedStorageAccounts.length} storage account(s)...`});
-    
+    this.messageService.add({ severity: 'info', summary: 'Loading', detail: `Adding ${totalAssignments} permission assignment(s) to ${this.selectedStorageAccounts().length} storage account(s)...` });
+
     this.addToQueue(() => {
       return this.permissionsService.bulkAssignStorageAccountPermissions(requests);
     }).then((results) => {
       this.messageService.clear();
-      this.bulkModalLoading = false;
-      
+      this.bulkModalLoading.set(false);
+
       const successful = results.filter((result: any) => !result.error).length;
       const failed = results.filter((result: any) => result.error).length;
-      
+
       if (failed === 0) {
-        this.messageService.add({severity: 'success', summary: 'Success', detail: `Successfully added ${successful} permission assignment(s)`});
+        this.messageService.add({ severity: 'success', summary: 'Success', detail: `Successfully added ${successful} permission assignment(s)` });
       } else {
-        this.messageService.add({severity: 'warn', summary: 'Warning', detail: `Added ${successful} permission assignment(s), ${failed} failed`});
+        this.messageService.add({ severity: 'warn', summary: 'Warning', detail: `Added ${successful} permission assignment(s), ${failed} failed` });
       }
-      
-      this.showBulkPermissionModal = false;
-      
+
+      this.showBulkPermissionModal.set(false);
+
       // Refresh expanded accounts
-      this.selectedStorageAccounts.forEach((account: StorageAccountTableItem) => {
+      this.selectedStorageAccounts().forEach((account: StorageAccountTableItem) => {
         this.refreshExpandedAccount(account);
       });
     }).catch((error) => {
       this.messageService.clear();
-      this.bulkModalLoading = false;
+      this.bulkModalLoading.set(false);
       console.error('Failed to add bulk permissions:', error);
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Failed to add permissions'});
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to add permissions' });
     });
   }
-  
+
   // Fetch permissions for selected accounts before showing removal modal
   fetchPermissionsForSelectedAccounts(): void {
-    console.log('🔍 Starting fetchPermissionsForSelectedAccounts for', this.selectedStorageAccounts.length, 'accounts');
-    console.log('🔍 Selected accounts:', this.selectedStorageAccounts.map(a => ({ name: a.name, id: a.id })));
-    this.loading = true;
-    this.messageService.add({severity: 'info', summary: 'Loading', detail: 'Fetching permissions for selected storage accounts...'});
-    console.log('🔍 Loading message created, proceeding with permission fetching...');
-    
+    this.loading.set(true);
+    this.messageService.add({ severity: 'info', summary: 'Loading', detail: 'Fetching permissions for selected storage accounts...' });
+
     // Add overall timeout for the entire operation
     const overallTimeout = setTimeout(() => {
-      console.error('⏰ fetchPermissionsForSelectedAccounts timed out after 30 seconds');
+      console.error('fetchPermissionsForSelectedAccounts timed out after 30 seconds');
       this.messageService.clear();
-      this.loading = false;
-      this.cdr.markForCheck();
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Permission fetching timed out. This may be due to authentication issues. Please try refreshing the page.'});
+      this.loading.set(false);
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Permission fetching timed out. This may be due to authentication issues. Please try refreshing the page.' });
     }, 30000);
-    
-    const permissionPromises = this.selectedStorageAccounts.map(account => {
-      console.log('📋 Processing account:', account.name, 'ID:', account.id);
+
+    const permissionPromises = this.selectedStorageAccounts().map(account => {
       // If permissions are already loaded, use them
       if (account.permissions && account.permissions.length > 0) {
-        console.log('✅ Using cached permissions for:', account.name);
         return Promise.resolve(account);
       }
-      
+
       // Create a promise that ALWAYS resolves, never rejects
       return new Promise<StorageAccountTableItem>((resolve) => {
-        console.log('🔄 Fetching permissions for:', account.name);
-        
         // Set up a timeout for this individual request
         const requestTimeout = setTimeout(() => {
-          console.error(`⏰ Request timeout for ${account.name} after 15 seconds`);
+          console.error(`Request timeout for ${account.name} after 15 seconds`);
           account.permissions = [];
           account.users = [];
           account.accessLevel = 'None';
@@ -1223,20 +1207,18 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
           account.errorMessage = 'Request timed out';
           resolve(account);
         }, 15000);
-        
+
         // Make the API call
         this.permissionsService.getStorageAccountRoleAssignments(account.id).pipe(
-          timeout(14000), // Slightly less than the manual timeout
+          timeout(14000),
           catchError(error => {
-            console.error(`❌ Service error for ${account.name}:`, error);
-            // Always return empty array on any error
+            console.error(`Service error for ${account.name}:`, error);
             return of([]);
           }),
-          takeUntil(this.destroy$)
+          takeUntilDestroyed(this.destroyRef)
         ).subscribe({
           next: (roleAssignments) => {
             clearTimeout(requestTimeout);
-            console.log('✅ Successfully fetched permissions for:', account.name, 'Count:', roleAssignments?.length || 0);
             const permissions = roleAssignments || [];
             account.permissions = permissions;
             account.users = this.extractUsersFromRoleAssignments(permissions);
@@ -1247,7 +1229,7 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
           },
           error: (error) => {
             clearTimeout(requestTimeout);
-            console.error(`❌ Observable error for ${account.name}:`, error);
+            console.error(`Observable error for ${account.name}:`, error);
             account.permissions = [];
             account.users = [];
             account.accessLevel = 'None';
@@ -1258,88 +1240,59 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         });
       });
     });
-    
+
     // Use Promise.allSettled to handle partial failures gracefully
-    console.log('⏳ Waiting for', permissionPromises.length, 'permission requests...');
-    console.log('⏳ About to call Promise.allSettled...');
-    
     const startTime = Date.now();
     Promise.allSettled(permissionPromises)
       .then((results) => {
-        // Clear the overall timeout since we got results
         clearTimeout(overallTimeout);
-        
-        const endTime = Date.now();
-        console.log('🎯 Promise.allSettled resolved with', results.length, 'results in', endTime - startTime, 'ms');
-        console.log('🎯 About to remove loading message and reset loading state...');
-        
-        // Always reset loading state in a finally-like manner
+
+        // Always reset loading state
         this.messageService.clear();
-        this.loading = false;
-        this.cdr.markForCheck();
-        console.log('🎯 Loading state reset, processing results...');
-        
+        this.loading.set(false);
+
         // Count successful and failed requests
         const successful = results.filter(result => result.status === 'fulfilled').length;
         const failed = results.filter(result => result.status === 'rejected').length;
-        console.log('📊 Results: successful =', successful, ', failed =', failed);
-        
-        // Log failed requests for debugging (should be rare with our new approach)
+
+        // Log failed requests for debugging
         const rejectedResults = results.filter(result => result.status === 'rejected') as PromiseRejectedResult[];
-        if (rejectedResults.length > 0) {
-          console.warn('Some permission requests failed:', rejectedResults.map(r => r.reason));
-        }
-        
-        // Always try to show the modal with whatever data we have
-        console.log('🎯 Calling loadRoleAssignmentsForRemoval with available data...');
-        
         if (failed === 0) {
-          console.log('🎯 All requests succeeded');
+          // All requests succeeded
         } else if (successful > 0) {
-          console.log('🎯 Partial success, showing available permissions');
-          this.messageService.add({severity: 'warn', summary: 'Warning', detail: `Loaded permissions for ${successful} account(s), ${failed} failed. Showing available permissions.`});
+          this.messageService.add({ severity: 'warn', summary: 'Warning', detail: `Loaded permissions for ${successful} account(s), ${failed} failed. Showing available permissions.` });
         } else {
-          console.log('🎯 All requests failed, checking for any available permissions');
-          this.messageService.add({severity: 'warn', summary: 'Warning', detail: 'Failed to fetch fresh permissions. Showing any available cached permissions.'});
+          this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Failed to fetch fresh permissions. Showing any available cached permissions.' });
         }
-        
+
         this.loadRoleAssignmentsForRemoval();
-        console.log('🎯 fetchPermissionsForSelectedAccounts completed');
       })
       .catch((error) => {
-        // This should never happen with Promise.allSettled, but keeping as fallback
-        console.error('❌ Unexpected error in fetchPermissionsForSelectedAccounts:', error);
+        console.error('Unexpected error in fetchPermissionsForSelectedAccounts:', error);
         clearTimeout(overallTimeout);
         this.messageService.clear();
-        this.loading = false;
-        this.cdr.markForCheck();
-        this.messageService.add({severity: 'error', summary: 'Error', detail: 'An unexpected error occurred while fetching permissions. Please try again.'});
+        this.loading.set(false);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred while fetching permissions. Please try again.' });
       })
       .finally(() => {
         // Extra safety net to ensure loading state is always reset
-        if (this.loading) {
-          console.log('🔧 Final safety: resetting loading state');
-          this.loading = false;
-          this.cdr.markForCheck();
+        if (this.loading()) {
+          this.loading.set(false);
         }
       });
   }
 
   // Load role assignments for removal modal
   loadRoleAssignmentsForRemoval(): void {
-    console.log('📋 Starting loadRoleAssignmentsForRemoval...');
     const allPermissions: any[] = [];
     const accountsWithErrors: string[] = [];
-    const accountsWithPermissions: string[] = [];
-    console.log('📋 Processing', this.selectedStorageAccounts.length, 'selected accounts...');
-    
-    this.selectedStorageAccounts.forEach(account => {
+    const accountsWithPerms: string[] = [];
+
+    this.selectedStorageAccounts().forEach(account => {
       if (account.hasError) {
-        // Track accounts that failed to load permissions
         accountsWithErrors.push(account.name);
       } else if (account.permissions && account.permissions.length > 0) {
-        // Process accounts with successfully loaded permissions
-        accountsWithPermissions.push(account.name);
+        accountsWithPerms.push(account.name);
         account.permissions.forEach((permission: any) => {
           allPermissions.push({
             ...permission,
@@ -1354,128 +1307,101 @@ export class StorageAccountsComponent implements OnInit, OnDestroy {
         });
       }
     });
-    
+
     // Provide detailed feedback about the loading results
     if (allPermissions.length === 0) {
       if (accountsWithErrors.length > 0) {
-        this.messageService.add({severity: 'warn', summary: 'Warning', detail: `No permissions available. Failed to load permissions for: ${accountsWithErrors.join(', ')}`});
+        this.messageService.add({ severity: 'warn', summary: 'Warning', detail: `No permissions available. Failed to load permissions for: ${accountsWithErrors.join(', ')}` });
       } else {
-        this.messageService.add({severity: 'warn', summary: 'Warning', detail: 'No permissions found on selected storage accounts'});
+        this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'No permissions found on selected storage accounts' });
       }
       return;
     }
-    
-    // Show informational message if some accounts had errors but we still have permissions to show
+
     if (accountsWithErrors.length > 0) {
-      this.messageService.add({severity: 'info', summary: 'Info', detail: `Showing permissions from ${accountsWithPermissions.length} account(s). Could not load permissions for: ${accountsWithErrors.join(', ')}`});
+      this.messageService.add({ severity: 'info', summary: 'Info', detail: `Showing permissions from ${accountsWithPerms.length} account(s). Could not load permissions for: ${accountsWithErrors.join(', ')}` });
     }
-    
-    console.log('📋 Setting roleAssignmentsForRemoval with', allPermissions.length, 'permissions');
-    this.roleAssignmentsForRemoval = allPermissions;
-    console.log('📋 About to show bulk remove modal...');
-    this.showBulkRemoveModal = true;
-    console.log('📋 Bulk remove modal should now be visible');
-    console.log('📋 loadRoleAssignmentsForRemoval completed successfully');
+
+    this.roleAssignmentsForRemoval.set(allPermissions);
+    this.showBulkRemoveModal.set(true);
   }
-  
+
   // Handler for bulk remove modal
   onBulkRemoveRequest(request: RemovePermissionRequest): void {
-    console.log('🗑️ Starting bulk remove request for', request.roleAssignmentIds.length, 'permissions');
-    
     // Validate request
     if (!request || !request.roleAssignmentIds || request.roleAssignmentIds.length === 0) {
-      console.error('❌ Invalid remove request:', request);
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Invalid permission removal request'});
+      console.error('Invalid remove request:', request);
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Invalid permission removal request' });
       return;
     }
-    
+
     // Set loading state
-    this.bulkModalLoading = true;
-    console.log('🗑️ Bulk modal loading state set to true');
-    
+    this.bulkModalLoading.set(true);
+
     const assignments = request.roleAssignmentIds.map(id => {
-      const permission = this.roleAssignmentsForRemoval.find(p => p.id === id);
+      const permission = this.roleAssignmentsForRemoval().find(p => p.id === id);
       if (!permission) {
-        console.warn('⚠️ Permission not found for ID:', id);
       }
       return {
         assignmentId: id,
-        storageAccountId: permission?.accountId
+        storageAccountId: permission?.accountId,
+        subscriptionId: this.selectedSubscription()?.subscriptionId || ''
       };
     });
-    
-    console.log('🗑️ Mapped assignments:', assignments.length);
-    this.messageService.add({severity: 'info', summary: 'Loading', detail: `Removing ${assignments.length} permission(s)...`});
-    
+
+    this.messageService.add({ severity: 'info', summary: 'Loading', detail: `Removing ${assignments.length} permission(s)...` });
+
     // Add timeout to prevent hanging indefinitely
     const timeoutId = setTimeout(() => {
-      console.error('⏰ Bulk remove operation timed out after 60 seconds');
+      console.error('Bulk remove operation timed out after 60 seconds');
       this.messageService.clear();
-      this.bulkModalLoading = false;
-      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Permission removal timed out. Please try again.'});
-    }, 60000); // 60 second timeout
-    
+      this.bulkModalLoading.set(false);
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Permission removal timed out. Please try again.' });
+    }, 60000);
+
     this.addToQueue(() => {
-      console.log('🗑️ Adding bulk remove operation to queue...');
       return this.permissionsService.bulkRemoveStorageAccountPermissions(assignments);
     }).then((results) => {
-      console.log('🗑️ Bulk remove operation completed with results:', results);
       clearTimeout(timeoutId);
       this.messageService.clear();
-      this.bulkModalLoading = false;
-      console.log('🗑️ Loading states reset after successful completion');
-      
+      this.bulkModalLoading.set(false);
+
       const successful = results.filter((result: any) => !result.error).length;
       const failed = results.filter((result: any) => result.error).length;
-      console.log('🗑️ Results summary: successful =', successful, ', failed =', failed);
-      
+
       if (failed === 0) {
-        this.messageService.add({severity: 'success', summary: 'Success', detail: `Successfully removed ${successful} permission(s)`});
+        this.messageService.add({ severity: 'success', summary: 'Success', detail: `Successfully removed ${successful} permission(s)` });
       } else {
-        this.messageService.add({severity: 'warn', summary: 'Warning', detail: `Removed ${successful} permission(s), ${failed} failed`});
-        // Log failed operations for debugging
+        this.messageService.add({ severity: 'warn', summary: 'Warning', detail: `Removed ${successful} permission(s), ${failed} failed` });
         const failedResults = results.filter((result: any) => result.error);
-        console.error('🗑️ Failed operations:', failedResults);
+        console.error('Failed operations:', failedResults);
       }
-      
-      this.showBulkRemoveModal = false;
-      console.log('🗑️ Bulk remove modal closed');
-      
+
+      this.showBulkRemoveModal.set(false);
+
       // Refresh expanded accounts
-      console.log('🗑️ Refreshing expanded accounts...');
-      this.selectedStorageAccounts.forEach((account: StorageAccountTableItem) => {
+      this.selectedStorageAccounts().forEach((account: StorageAccountTableItem) => {
         this.refreshExpandedAccount(account);
       });
-      console.log('🗑️ Bulk remove request completed successfully');
     }).catch((error) => {
-      console.error('❌ Bulk remove operation failed:', error);
+      console.error('Bulk remove operation failed:', error);
       clearTimeout(timeoutId);
-      
-      // Ensure loading states are reset even on error
+
       this.messageService.clear();
-      this.bulkModalLoading = false;
-      console.log('🗑️ Loading states reset after error');
-      
-      // Provide detailed error message
+      this.bulkModalLoading.set(false);
+
       const errorMessage = error?.message || error?.error?.message || 'Unknown error occurred';
-      console.error('🗑️ Error details:', errorMessage);
-      this.messageService.add({severity: 'error', summary: 'Error', detail: `Failed to remove permissions: ${errorMessage}`});
-      
-      // Don't close modal on error so user can retry
-      console.log('🗑️ Keeping modal open for retry after error');
+      console.error('Error details:', errorMessage);
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: `Failed to remove permissions: ${errorMessage}` });
     });
   }
 
   private showAddPermissionModal(account: any): void {
-    // Set up single account permission modal
-    this.selectedStorageAccounts = [account];
-    this.showBulkPermissionModal = true;
+    this.selectedStorageAccounts.set([account]);
+    this.showBulkPermissionModal.set(true);
   }
 
   onPageChange(event: any): void {
-    // Handle pagination change event
-    console.log('Page change event:', event);
-    // Add any additional logic needed for pagination
+    // Page change handled by PrimeNG table
   }
-
 }

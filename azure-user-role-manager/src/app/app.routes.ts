@@ -40,10 +40,15 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/user-permissions/user-permissions.component').then(m => m.UserPermissionsComponent),
         canActivate: [authGuard, tenantGuard] 
       },
-      { 
-        path: 'storage-accounts', 
+      {
+        path: 'storage-accounts',
         loadComponent: () => import('./pages/storage-accounts/storage-accounts.component').then(m => m.StorageAccountsComponent),
-        canActivate: [authGuard, tenantGuard] 
+        canActivate: [authGuard, tenantGuard]
+      },
+      {
+        path: 'resource-permissions',
+        loadComponent: () => import('./pages/resource-permissions/resource-permissions.component').then(m => m.ResourcePermissionsComponent),
+        canActivate: [authGuard, tenantGuard]
       },
       { 
         path: 'audit-logs', 

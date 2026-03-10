@@ -90,7 +90,7 @@ export class UtilityService {
    * @param roleType - Role type string
    * @returns Severity string for PrimeNG components
    */
-  getRoleTypeSeverity(roleType: string | undefined): 'success' | 'info' | 'warning' | 'danger' | 'secondary' {
+  getRoleTypeSeverity(roleType: string | undefined): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
     if (!roleType) {
       return 'secondary';
     }
@@ -143,5 +143,45 @@ export class UtilityService {
    */
   trackByRoleId(index: number, role: any): string {
     return role.id || index.toString();
+  }
+
+  /**
+   * Get the current tenant ID from localStorage
+   */
+  private getTenantId(): string {
+    try {
+      const stored = localStorage.getItem('selectedTenant');
+      if (stored) {
+        const tenant = JSON.parse(stored);
+        return tenant?.id || '';
+      }
+    } catch (e) { }
+    return '';
+  }
+
+  /**
+   * Get Azure Portal URL for a user
+   */
+  getPortalUserUrl(userId: string): string {
+    const tenantId = this.getTenantId();
+    return `https://portal.azure.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/${userId}/tenantId/${tenantId}`;
+  }
+
+  /**
+   * Get Azure Portal URL for an Azure resource by its resource ID
+   */
+  getPortalResourceUrl(resourceId: string): string {
+    const tenantId = this.getTenantId();
+    if (!resourceId || resourceId === 'tenant') {
+      return `https://portal.azure.com/${tenantId}`;
+    }
+    return `https://portal.azure.com/#@${tenantId}/resource${resourceId}`;
+  }
+
+  /**
+   * Open a URL in a new browser tab
+   */
+  openInPortal(url: string): void {
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 }

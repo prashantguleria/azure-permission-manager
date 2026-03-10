@@ -1,13 +1,18 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  Component,
+  signal,
+  inject,
+  DestroyRef,
+  afterNextRender,
+  ChangeDetectionStrategy
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, takeUntil, finalize } from 'rxjs';
+import { finalize } from 'rxjs';
 import { AccountInfo } from '@azure/msal-browser';
 import { MenuItem } from 'primeng/api';
 
 // PrimeNG imports
-import { CardModule } from 'primeng/card';
-import { ButtonModule } from 'primeng/button';
 import { BreadcrumbModule } from 'primeng/breadcrumb';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -16,7 +21,6 @@ import { DialogModule } from 'primeng/dialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
-import { DividerModule } from 'primeng/divider';
 import { AvatarModule } from 'primeng/avatar';
 import { ToastModule } from 'primeng/toast';
 import { SkeletonModule } from 'primeng/skeleton';
@@ -30,11 +34,9 @@ import { User, RoleAssignment } from '../../models/user.model';
 @Component({
   selector: 'app-user-detail',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     RouterModule,
-    CardModule,
-    ButtonModule,
     BreadcrumbModule,
     TableModule,
     TagModule,
@@ -42,7 +44,6 @@ import { User, RoleAssignment } from '../../models/user.model';
     DialogModule,
     ConfirmDialogModule,
     TooltipModule,
-    DividerModule,
     AvatarModule,
     ToastModule,
     SkeletonModule
@@ -50,83 +51,81 @@ import { User, RoleAssignment } from '../../models/user.model';
   templateUrl: './user-detail.component.html',
   styleUrl: './user-detail.component.scss'
 })
-export class UserDetailComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
-  
-  // Data properties
-  user: User | null = null;
-  roleAssignments: RoleAssignment[] = [];
-  
-  // UI state
-  loading = false;
-  roleAssignmentsLoading = false;
-  removingRoleId: string | null = null;
-  
+export class UserDetailComponent {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
+  private readonly azureApiService = inject(AzureApiService);
+  private readonly messageService = inject(MessageService);
+  private readonly confirmationService = inject(ConfirmationService);
+  private readonly destroyRef = inject(DestroyRef);
+  readonly utilityService = inject(UtilityService);
+
+  // Data signals
+  readonly user = signal<User | null>(null);
+  readonly roleAssignments = signal<RoleAssignment[]>([]);
+
+  // UI state signals
+  readonly loading = signal(false);
+  readonly roleAssignmentsLoading = signal(false);
+  readonly removingRoleId = signal<string | null>(null);
+
   // Current user info
-  currentUser: any = null;
-  
+  readonly currentUser = signal<any>(null);
+
   // User ID from route
-  userId: string | null = null;
-  
+  readonly userId = signal<string | null>(null);
+
   // Breadcrumb items
-  breadcrumbItems: MenuItem[] = [];
-  homeItem: MenuItem = { icon: 'pi pi-home', routerLink: '/' };
+  readonly breadcrumbItems = signal<MenuItem[]>([]);
+  readonly homeItem: MenuItem = { icon: 'pi pi-home', routerLink: '/app/user-management' };
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService,
-    private azureApiService: AzureApiService,
-    private messageService: MessageService,
-    private confirmationService: ConfirmationService,
-    public utilityService: UtilityService
-  ) {}
-
-  ngOnInit(): void {
-    this.initializeComponent();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+  constructor() {
+    afterNextRender(() => {
+      this.initializeComponent();
+    });
   }
 
   private initializeComponent(): void {
     // Get current user info
-    this.authService.currentUser$.pipe(takeUntil(this.destroy$)).subscribe((user: AccountInfo | null) => {
-      this.currentUser = user;
-    });
+    this.authService.currentUser$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((user: AccountInfo | null) => {
+        this.currentUser.set(user);
+      });
 
     // Get user ID from route
-    this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.userId = params['id'];
-      if (this.userId) {
-        this.initializeBreadcrumb();
-        this.loadUserDetails();
-        this.loadRoleAssignments();
-      }
-    });
+    this.route.params
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
+        this.userId.set(params['id']);
+        if (this.userId()) {
+          this.initializeBreadcrumb();
+          this.loadUserDetails();
+          this.loadRoleAssignments();
+        }
+      });
   }
 
   private initializeBreadcrumb(): void {
-    this.breadcrumbItems = [
-      { label: 'Users', routerLink: '/users' },
+    this.breadcrumbItems.set([
+      { label: 'Users', routerLink: '/app/user-management' },
       { label: 'User Details' }
-    ];
+    ]);
   }
 
   private loadUserDetails(): void {
-    if (!this.userId) return;
-    
-    this.loading = true;
-    this.azureApiService.getUserById(this.userId)
+    if (!this.userId()) return;
+
+    this.loading.set(true);
+    this.azureApiService.getUserById(this.userId()!)
       .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => this.loading = false)
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.loading.set(false))
       )
       .subscribe({
         next: (user) => {
-          this.user = user;
+          this.user.set(user);
         },
         error: (error) => {
           console.error('Error loading user details:', error);
@@ -140,17 +139,17 @@ export class UserDetailComponent implements OnInit, OnDestroy {
   }
 
   private loadRoleAssignments(): void {
-    if (!this.userId) return;
-    
-    this.roleAssignmentsLoading = true;
-    this.azureApiService.getUserRoleAssignments(this.userId)
+    if (!this.userId()) return;
+
+    this.roleAssignmentsLoading.set(true);
+    this.azureApiService.getUserRoleAssignments(this.userId()!)
       .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => this.roleAssignmentsLoading = false)
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.roleAssignmentsLoading.set(false))
       )
       .subscribe({
         next: (assignments) => {
-          this.roleAssignments = assignments;
+          this.roleAssignments.set(assignments);
         },
         error: (error) => {
           console.error('Error loading role assignments:', error);
@@ -176,13 +175,13 @@ export class UserDetailComponent implements OnInit, OnDestroy {
   }
 
   onRemoveRole(assignment: RoleAssignment): void {
-    if (!this.userId || !assignment.id) return;
-    
-    this.removingRoleId = assignment.id;
+    if (!this.userId() || !assignment.id) return;
+
+    this.removingRoleId.set(assignment.id);
     this.azureApiService.removeUserRole({ assignmentId: assignment.id })
       .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => this.removingRoleId = null)
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.removingRoleId.set(null))
       )
       .subscribe({
         next: (result) => {

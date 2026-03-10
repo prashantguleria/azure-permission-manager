@@ -1,494 +1,655 @@
-<div class="user-permissions-container">
+<div class="page-container">
   <!-- Breadcrumb Navigation -->
-  <p-breadcrumb class="breadcrumb-nav" [model]="breadcrumbItems" [home]="homeItem">
-    <ng-template pTemplate="item" let-item>
-      <a (click)="navigateToUsers()" *ngIf="item.label === 'Users'">
-        <i class="pi pi-users"></i>
-        {{ item.label }}
-      </a>
-      <a (click)="navigateToUserDetails()" *ngIf="item.label === getUserDisplayName()">
-        {{ item.label }}
-      </a>
-      <span *ngIf="item.label === 'Permissions'">
-        <i class="pi pi-shield"></i>
-        {{ item.label }}
-      </span>
+  <p-breadcrumb
+    [model]="breadcrumbItems()"
+    [home]="{ icon: 'pi pi-home', routerLink: '/app/user-management' }"
+    class="breadcrumb-nav">
+    <ng-template #item let-item>
+      @if (item.label === 'Users') {
+        <a (click)="navigateToUsers()">
+          <i class="pi pi-users"></i>
+          {{ item.label }}
+        </a>
+      }
+      @if (item.label === getUserDisplayName()) {
+        <a (click)="navigateToUserDetails()">
+          {{ item.label }}
+        </a>
+      }
+      @if (item.label === 'Permissions') {
+        <span>
+          <i class="pi pi-shield"></i>
+          {{ item.label }}
+        </span>
+      }
     </ng-template>
   </p-breadcrumb>
 
   <!-- Header Section -->
-  <div class="header-section">
-    <div class="header-content">
-      <h2 class="page-title">
-        <i class="pi pi-shield"></i>
-        User Permissions - {{ getUserDisplayName() }}
-      </h2>
-      <div class="header-actions">
-        <p-button 
-          label="Refresh"
-          icon="pi pi-refresh" 
-          (click)="refreshPermissions()" 
-          [loading]="loading"
-          size="small"
-          severity="secondary">
-        </p-button>
-        <p-button 
-          label="Export CSV"
-          icon="pi pi-download" 
-          (click)="exportPermissions()" 
-          [disabled]="!permissions || loading"
-          size="small">
-        </p-button>
-      </div>
+  <div class="page-header">
+    <h2 class="page-title">
+      <i class="pi pi-shield"></i>
+      User Permissions - {{ getUserDisplayName() }}
+    </h2>
+    <div class="page-actions">
+      @if (userId()) {
+        <button
+          class="btn btn-secondary"
+          (click)="utilityService.openInPortal(utilityService.getPortalUserUrl(userId()))">
+          <i class="pi pi-external-link"></i>
+          Open in Portal
+        </button>
+      }
+      <button
+        class="btn btn-secondary"
+        (click)="refreshPermissions()"
+        [disabled]="loading()">
+        <i class="pi pi-refresh"></i>
+        Refresh
+      </button>
+      <button
+        class="btn btn-primary"
+        (click)="exportPermissions()"
+        [disabled]="!permissions() || loading()">
+        <i class="pi pi-download"></i>
+        Export CSV
+      </button>
     </div>
   </div>
 
   <!-- Summary Cards -->
-  <div class="summary-section" *ngIf="permissionSummary && !loading">
-    <div class="summary-cards">
-      <p-card class="summary-card">
-        <ng-template pTemplate="header">
-          <div class="statistic-header">
-            <i class="pi pi-users" style="color: #1890ff;"></i>
-            <span class="statistic-title">Directory Roles</span>
-          </div>
-        </ng-template>
-        <div class="statistic-value" style="color: #1890ff;">
-          {{ permissionSummary.totalDirectoryRoles }}
+  @if (permissionSummary() && !loading()) {
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--info">
+          <i class="pi pi-users"></i>
         </div>
-      </p-card>
-      
-      <p-card class="summary-card">
-        <ng-template pTemplate="header">
-          <div class="statistic-header">
-            <i class="pi pi-th-large" style="color: #52c41a;"></i>
-            <span class="statistic-title">Application Roles</span>
-          </div>
-        </ng-template>
-        <div class="statistic-value" style="color: #52c41a;">
-          {{ permissionSummary.totalAppRoles }}
+        <div class="stat-body">
+          <span class="stat-label">Directory Roles</span>
+          <span class="stat-value">{{ permissionSummary()!.totalDirectoryRoles }}</span>
         </div>
-      </p-card>
-      
-      <p-card class="summary-card">
-        <ng-template pTemplate="header">
-          <div class="statistic-header">
-            <i class="pi pi-cloud" style="color: #fa8c16;"></i>
-            <span class="statistic-title">RBAC Roles</span>
-          </div>
-        </ng-template>
-        <div class="statistic-value" style="color: #fa8c16;">
-          {{ permissionSummary.totalRbacRoles }}
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--success">
+          <i class="pi pi-th-large"></i>
         </div>
-      </p-card>
-      
-      <p-card class="summary-card">
-        <ng-template pTemplate="header">
-          <div class="statistic-header">
-            <i class="pi pi-database" style="color: #722ed1;"></i>
-            <span class="statistic-title">Subscriptions</span>
-          </div>
-        </ng-template>
-        <div class="statistic-value" style="color: #722ed1;">
-          {{ permissionSummary.totalSubscriptions }}
+        <div class="stat-body">
+          <span class="stat-label">Application Roles</span>
+          <span class="stat-value">{{ permissionSummary()!.totalAppRoles }}</span>
         </div>
-      </p-card>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--warning">
+          <i class="pi pi-cloud"></i>
+        </div>
+        <div class="stat-body">
+          <span class="stat-label">RBAC Roles</span>
+          <span class="stat-value">{{ permissionSummary()!.totalRbacRoles }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--purple">
+          <i class="pi pi-database"></i>
+        </div>
+        <div class="stat-body">
+          <span class="stat-label">Subscriptions</span>
+          <span class="stat-value">{{ permissionSummary()!.totalSubscriptions }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- High Privilege Alert -->
-    <p-message
-      *ngIf="permissionSummary.highPrivilegeRoles.length > 0"
-      severity="warn"
-      [text]="'High Privilege Roles Detected: This user has ' + permissionSummary.highPrivilegeRoles.length + ' high-privilege roles: ' + permissionSummary.highPrivilegeRoles.join(', ')"
-      class="privilege-alert">
-      <ng-template pTemplate="icon">
+    @if (permissionSummary()!.highPrivilegeRoles.length > 0) {
+      <div class="alert alert-warning">
         <i class="pi pi-exclamation-triangle"></i>
-      </ng-template>
-    </p-message>
-  </div>
+        <span>
+          High Privilege Roles Detected: This user has {{ permissionSummary()!.highPrivilegeRoles.length }} high-privilege roles: {{ permissionSummary()!.highPrivilegeRoles.join(', ') }}
+        </span>
+      </div>
+    }
+  }
 
   <!-- Filters Section -->
-  <div class="filters-card" *ngIf="!loading">
-    <div class="filters-content">
-      <div class="filter-row">
+  @if (!loading()) {
+    <div class="filters-card">
+      <form [formGroup]="filtersForm" class="filter-row">
         <div class="filter-item">
-          <label class="filter-label">Search:</label>
-          <p-inputGroup>
-            <input 
-              type="text" 
-              pInputText 
-              placeholder="Search roles, resources..." 
-              [(ngModel)]="searchQuery"
-              (keyup.enter)="onSearch()"/>
-            <p-button 
-              icon="pi pi-search" 
-              (click)="onSearch()">
-            </p-button>
+          <label class="filter-label">Search</label>
+          <p-inputGroup class="input-group-standard">
+            <input
+              type="text"
+              pInputText
+              formControlName="searchTerm"
+              placeholder="Search permissions..."
+              class="search-input">
+            <p-inputGroupAddon>
+              <i class="pi pi-search"></i>
+            </p-inputGroupAddon>
           </p-inputGroup>
         </div>
 
         <div class="filter-item">
-          <label class="filter-label">Permission Type:</label>
-          <p-select 
-            [(ngModel)]="selectedPermissionType" 
-            (onChange)="onPermissionTypeChange()"
-            placeholder="Select permission type"
+          <label class="filter-label">Permission Type</label>
+          <p-select
+            formControlName="selectedPermissionType"
+            placeholder="All Types"
+            [showClear]="true"
             [options]="permissionTypeOptions"
             optionLabel="label"
             optionValue="value"
             appendTo="body"
-            class="filter-select">
+            class="filter-select select-standard">
           </p-select>
         </div>
 
-        <div class="filter-item" *ngIf="subscriptions.length > 0">
-          <label class="filter-label">Subscription:</label>
-          <p-select 
-            [(ngModel)]="selectedSubscription" 
-            (onChange)="onSubscriptionChange()"
-            placeholder="All subscriptions"
+        <div class="filter-item">
+          <label class="filter-label">Subscription</label>
+          <p-select
+            formControlName="selectedSubscription"
+            placeholder="All Subscriptions"
             [showClear]="true"
-            [options]="subscriptions"
+            [options]="subscriptions()"
             optionLabel="name"
             optionValue="id"
             appendTo="body"
-            class="filter-select">
+            class="filter-select select-standard">
           </p-select>
         </div>
 
         <div class="filter-actions">
-          <p-button 
-            label="Clear"
-            icon="pi pi-times" 
-            (click)="clearFilters()" 
-            size="small"
-            severity="secondary">
-          </p-button>
+          <button
+            class="btn btn-secondary"
+            (click)="clearFilters()">
+            <i class="pi pi-times"></i>
+            Clear
+          </button>
         </div>
-      </div>
+      </form>
     </div>
-  </div>
+  }
 
   <!-- Loading State -->
-  <div class="loading-container" *ngIf="loading">
-    <p-progressSpinner 
-      styleClass="w-4rem h-4rem" 
-      strokeWidth="8" 
-      fill="var(--surface-ground)" 
-      animationDuration=".5s">
-    </p-progressSpinner>
-    <p class="loading-text">Loading permissions...</p>
-  </div>
+  @if (loading()) {
+    <div class="loading-container">
+      <p-progressSpinner
+        styleClass="w-4rem h-4rem"
+        strokeWidth="8"
+        fill="var(--color-bg)"
+        animationDuration=".5s">
+      </p-progressSpinner>
+      <p class="loading-text">Loading permissions...</p>
+    </div>
+  }
 
   <!-- Error State -->
-  <p-message
-    *ngIf="error && !loading"
-    severity="error"
-    [text]="error"
-    [closable]="true"
-    (onClose)="clearError()"
-    class="error-alert">
-    <ng-template pTemplate="icon">
+  @if (error() && !loading()) {
+    <div class="alert alert-danger">
       <i class="pi pi-exclamation-triangle"></i>
-    </ng-template>
-  </p-message>
+      <span>{{ error() }}</span>
+      <button class="alert-close" (click)="clearError()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+  }
 
   <!-- Bulk Actions Section -->
-  <div class="bulk-actions" *ngIf="filteredPermissions && filteredPermissions.length > 0 && !loading">
-    <div class="bulk-selection">
-      <div class="flex align-items-center gap-2">
-        <p-checkbox 
-          [(ngModel)]="selectAll" 
-          (onChange)="onSelectAllChange($event)"
-          [indeterminate]="isIndeterminate()">
-        </p-checkbox>
-        <label>Select All ({{ getSelectedCount() }} selected)</label>
+  @if (filteredPermissions().length > 0 && !loading()) {
+    <div class="bulk-actions">
+      <div class="bulk-selection">
+        <div class="bulk-selection-inner">
+          <p-checkbox
+            [ngModel]="selectAll()"
+            (onChange)="onSelectAllChange($event)"
+            [indeterminate]="isIndeterminate()">
+          </p-checkbox>
+          <label>Select All ({{ getSelectedCount() }} selected)</label>
+        </div>
+      </div>
+
+      <div class="bulk-buttons">
+        <button
+          class="btn btn-primary"
+          (click)="openAddPermissionModal()">
+          <i class="pi pi-plus"></i>
+          Add Permission
+        </button>
+
+        <p-confirmDialog></p-confirmDialog>
+        @if (getSelectedCount() > 0) {
+          <button
+            class="btn btn-danger"
+            (click)="confirmRemoveSelected()"
+            [disabled]="getSelectedCount() === 0">
+            <i class="pi pi-trash"></i>
+            Remove Selected ({{ getSelectedCount() }})
+          </button>
+        }
       </div>
     </div>
-    
-    <div class="bulk-buttons" *ngIf="getSelectedCount() > 0">
-      <p-button 
-        label="Add Permission"
-        icon="pi pi-plus" 
-        (click)="openAddPermissionModal()" 
-        size="small">
-      </p-button>
-      
-      <p-confirmDialog></p-confirmDialog>
-      <p-button 
-        label="Remove Selected ({{ getSelectedCount() }})"
-        icon="pi pi-trash" 
-        (click)="confirmRemoveSelected()" 
-        [disabled]="getSelectedCount() === 0"
-        size="small"
-        severity="danger">
-      </p-button>
+  }
+
+  <!-- Entra ID Permissions Section -->
+  @if (!loading() && !error()) {
+    <div class="section-header">
+      <h3 class="section-title">
+        <i class="pi pi-id-card"></i>
+        Entra ID Permissions
+      </h3>
+      <span class="section-count">{{ entraPermissions().length }} roles</span>
     </div>
-  </div>
 
-  <!-- Permissions Table -->
-  <p-card class="permissions-table-card" *ngIf="!loading && !error">
-    <p-table 
-      [value]="filteredPermissions"
-      [paginator]="true"
-      [rows]="pageSize"
-      [rowsPerPageOptions]="[10, 20, 50, 100]"
-      [showCurrentPageReport]="true"
-      [scrollable]="true"
-      scrollHeight="600px"
-      [loading]="loading"
-      styleClass="p-datatable-sm"
-      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries">
-      
-      <ng-template pTemplate="header">
-        <tr>
-          <th style="width: 50px">
-            <p-checkbox 
-              [(ngModel)]="selectAll" 
-              [indeterminate]="indeterminate"
-              (onChange)="onAllChecked($event)">
-            </p-checkbox>
-          </th>
-          <th pSortableColumn="resourceName">Resource <p-sortIcon field="resourceName"></p-sortIcon></th>
-          <th pSortableColumn="roleDefinitionName">Role <p-sortIcon field="roleDefinitionName"></p-sortIcon></th>
-          <th pSortableColumn="scope">Scope <p-sortIcon field="scope"></p-sortIcon></th>
-          <th pSortableColumn="principalType">Type <p-sortIcon field="principalType"></p-sortIcon></th>
-          <th pSortableColumn="inherited">Inherited <p-sortIcon field="inherited"></p-sortIcon></th>
-          <th style="width: 120px">Actions</th>
-        </tr>
-      </ng-template>
-      
-      <ng-template pTemplate="body" let-permission let-rowIndex="rowIndex">
-        <tr>
-          <td>
-            <p-checkbox 
-              [(ngModel)]="permission.selected"
-              (onChange)="onItemChecked(permission.id, $event)">
-            </p-checkbox>
-          </td>
-          <td>
-            <div class="resource-info">
-              <div class="resource-name">{{ permission.resourceName }}</div>
-              <div class="resource-type">{{ permission.resourceType }}</div>
-            </div>
-          </td>
-          <td>
-            <p-tag 
-              *ngIf="permission.roleDefinitionName && permission.roleDefinitionName.trim(); else noRoleTag"
-              [value]="permission.roleDefinitionName" 
-              [severity]="getRoleTagSeverity(permission.roleDefinitionName)">
-            </p-tag>
-            <ng-template #noRoleTag>
-              <span class="text-color-secondary text-sm">No role assigned</span>
-            </ng-template>
-          </td>
-          <td>
-            <div class="scope-info">
-              <div class="scope-level">{{ getScopeLevel(permission.scope) }}</div>
-              <div class="scope-path">{{ getScopePath(permission.scope) }}</div>
-            </div>
-          </td>
-          <td>
-            <p-tag 
-              *ngIf="permission.principalType && permission.principalType.trim(); else noTypeTag"
-              [value]="permission.principalType" 
-              [severity]="getTypeTagSeverity(permission.principalType)">
-            </p-tag>
-            <ng-template #noTypeTag>
-              <span class="text-color-secondary text-sm">Unknown type</span>
-            </ng-template>
-          </td>
-          <td>
-            <p-tag [value]="permission.inherited ? 'Yes' : 'No'" [severity]="permission.inherited ? 'warning' : 'success'"></p-tag>
-          </td>
-          <td>
-            <div class="table-actions">
-              <p-button 
-                icon="pi pi-eye" 
-                (click)="viewPermissionDetails(permission)"
-                [text]="true"
-                size="small"
-                pTooltip="View Details">
-              </p-button>
-              <p-button 
-                icon="pi pi-trash" 
-                (click)="confirmRemovePermission(permission)"
-                [text]="true"
-                size="small"
-                severity="danger"
-                pTooltip="Remove Permission">
-              </p-button>
-            </div>
-          </td>
-        </tr>
-      </ng-template>
-      
-      <ng-template pTemplate="emptymessage">
-        <tr>
-          <td colspan="7" class="text-center">
-            <div class="empty-state">
-              <i class="pi pi-info-circle" style="font-size: 2rem; color: var(--text-color-secondary)"></i>
-              <p>No permissions found</p>
-            </div>
-          </td>
-        </tr>
-      </ng-template>
-    </p-table>
-  </p-card>
+    @if (entraPermissions().length > 0) {
+      <div class="table-card">
+        <p-table
+          [value]="entraPermissions()"
+          [paginator]="entraPermissions().length > 10"
+          [rows]="10"
+          [rowsPerPageOptions]="[10, 20, 50]"
+          [showCurrentPageReport]="true"
+          styleClass="p-datatable-sm"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries">
 
-  <!-- Empty State -->
-  <div class="empty-state-container" *ngIf="!loading && !error && (!filteredPermissions || filteredPermissions.length === 0)">
+          <ng-template #header>
+            <tr>
+              <th style="width: 50px">
+                <p-checkbox
+                  [ngModel]="selectAll()"
+                  [indeterminate]="indeterminate()"
+                  (onChange)="onAllChecked($event)">
+                </p-checkbox>
+              </th>
+              <th pSortableColumn="roleName">Role <p-sortIcon field="roleName"></p-sortIcon></th>
+              <th pSortableColumn="resourceName">Resource <p-sortIcon field="resourceName"></p-sortIcon></th>
+              <th pSortableColumn="type">Category <p-sortIcon field="type"></p-sortIcon></th>
+              <th pSortableColumn="scope">Scope <p-sortIcon field="scope"></p-sortIcon></th>
+              <th style="width: 120px">Actions</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-permission>
+            <tr>
+              <td>
+                <p-checkbox
+                  [(ngModel)]="permission.selected"
+                  (onChange)="onItemChecked(permission.id, $event)">
+                </p-checkbox>
+              </td>
+              <td>
+                @if (permission.roleName && permission.roleName.trim() && permission.roleName !== 'No role assigned') {
+                  <p-tag
+                    [value]="permission.roleName"
+                    [severity]="getRoleTagSeverity(permission.roleName)">
+                  </p-tag>
+                } @else {
+                  <span class="text-muted text-sm">No role assigned</span>
+                }
+              </td>
+              <td>
+                <div class="resource-info">
+                  <div class="resource-name">{{ permission.resourceName }}</div>
+                  <div class="resource-type">{{ permission.resourceType }}</div>
+                </div>
+              </td>
+              <td>
+                <p-tag
+                  [value]="permission.type"
+                  [severity]="getTypeTagSeverity(permission.type)">
+                </p-tag>
+              </td>
+              <td>{{ permission.scopeLevel || 'Tenant' }}</td>
+              <td>
+                <div class="table-actions">
+                  <button
+                    class="btn btn-icon"
+                    (click)="viewPermissionDetails(permission)"
+                    pTooltip="View Details">
+                    <i class="pi pi-eye"></i>
+                  </button>
+                  <button
+                    class="btn btn-icon btn-icon--danger"
+                    (click)="confirmRemovePermission(permission)"
+                    pTooltip="Remove Permission">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="6" class="text-center">
+                <div class="empty-state-inline">
+                  <i class="pi pi-info-circle"></i>
+                  <span>No Entra ID roles found</span>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    } @else {
+      <div class="empty-section">
+        <i class="pi pi-info-circle"></i>
+        <span>No Entra ID roles assigned to this user</span>
+      </div>
+    }
+  }
+
+  <!-- Azure RBAC Permissions Section -->
+  @if (!loading() && !error()) {
+    <div class="section-header">
+      <h3 class="section-title">
+        <i class="pi pi-cloud"></i>
+        Azure RBAC Permissions
+      </h3>
+      <span class="section-count">{{ rbacPermissions().length }} assignments</span>
+    </div>
+
+    @if (rbacPermissions().length > 0) {
+      <div class="table-card">
+        <p-table
+          [value]="rbacPermissions()"
+          [paginator]="rbacPermissions().length > 10"
+          [rows]="10"
+          [rowsPerPageOptions]="[10, 20, 50, 100]"
+          [showCurrentPageReport]="true"
+          [scrollable]="true"
+          scrollHeight="500px"
+          styleClass="p-datatable-sm"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries">
+
+          <ng-template #header>
+            <tr>
+              <th style="width: 50px">
+                <p-checkbox
+                  [ngModel]="selectAll()"
+                  [indeterminate]="indeterminate()"
+                  (onChange)="onAllChecked($event)">
+                </p-checkbox>
+              </th>
+              <th pSortableColumn="roleName">Role <p-sortIcon field="roleName"></p-sortIcon></th>
+              <th pSortableColumn="resourceName">Resource <p-sortIcon field="resourceName"></p-sortIcon></th>
+              <th pSortableColumn="scope">Scope <p-sortIcon field="scope"></p-sortIcon></th>
+              <th pSortableColumn="inherited">Inherited <p-sortIcon field="inherited"></p-sortIcon></th>
+              <th style="width: 120px">Actions</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-permission>
+            <tr>
+              <td>
+                <p-checkbox
+                  [(ngModel)]="permission.selected"
+                  (onChange)="onItemChecked(permission.id, $event)">
+                </p-checkbox>
+              </td>
+              <td>
+                @if (permission.roleName && permission.roleName.trim() && permission.roleName !== 'No role assigned') {
+                  <p-tag
+                    [value]="permission.roleName"
+                    [severity]="getRoleTagSeverity(permission.roleName)">
+                  </p-tag>
+                } @else {
+                  <span class="text-muted text-sm">No role assigned</span>
+                }
+              </td>
+              <td>
+                <div class="resource-info">
+                  <div class="resource-name">{{ permission.resourceName }}</div>
+                  @if (permission.resourceGroup) {
+                    <div class="resource-type">{{ permission.resourceGroup }}</div>
+                  }
+                  <div class="resource-type">{{ permission.resourceType }}</div>
+                </div>
+              </td>
+              <td>
+                <div class="scope-info">
+                  <div class="scope-level">{{ permission.scopeLevel || getScopeLevel(permission.scope) }}</div>
+                  <div class="scope-path">{{ permission.scopePath || getScopePath(permission.scope) }}</div>
+                </div>
+              </td>
+              <td>
+                <p-tag [value]="permission.inherited ? 'Yes' : 'No'" [severity]="permission.inherited ? 'warn' : 'success'"></p-tag>
+              </td>
+              <td>
+                <div class="table-actions">
+                  <button
+                    class="btn btn-icon"
+                    (click)="viewPermissionDetails(permission)"
+                    pTooltip="View Details">
+                    <i class="pi pi-eye"></i>
+                  </button>
+                  @if (permission.scope && permission.scope !== 'tenant') {
+                    <button
+                      class="btn btn-icon"
+                      (click)="utilityService.openInPortal(utilityService.getPortalResourceUrl(permission.scope))"
+                      pTooltip="Open Resource in Portal">
+                      <i class="pi pi-external-link"></i>
+                    </button>
+                  }
+                  <button
+                    class="btn btn-icon btn-icon--danger"
+                    (click)="confirmRemovePermission(permission)"
+                    pTooltip="Remove Permission">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="6" class="text-center">
+                <div class="empty-state-inline">
+                  <i class="pi pi-info-circle"></i>
+                  <span>No RBAC role assignments found</span>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    } @else {
+      <div class="empty-section">
+        <i class="pi pi-info-circle"></i>
+        <span>No Azure RBAC role assignments found for this user</span>
+      </div>
+    }
+  }
+
+  <!-- Empty State (when both sections are empty) -->
+  @if (!loading() && !error() && filteredPermissions().length === 0) {
     <div class="empty-state">
-      <i class="pi pi-info-circle" style="font-size: 4rem; color: var(--text-color-secondary)"></i>
+      <i class="pi pi-info-circle"></i>
       <h3>No permissions found for this user</h3>
-      <p-button 
-        label="Add Permission"
-        icon="pi pi-plus" 
+      <button
+        class="btn btn-primary"
         (click)="openAddPermissionModal()">
-      </p-button>
+        <i class="pi pi-plus"></i>
+        Add Permission
+      </button>
     </div>
-  </div>
+  }
 
   <!-- Add Permission Modal -->
-  <p-dialog 
-    [(visible)]="showAddPermissionModal"
+  <p-dialog
     header="Add Permission"
+    [visible]="showAddPermissionModal()"
+    (visibleChange)="showAddPermissionModal.set($event)"
     [modal]="true"
     [closable]="true"
     [draggable]="false"
     [resizable]="false"
-    styleClass="add-permission-dialog"
+    styleClass="add-permission-modal"
     [style]="{width: '600px'}"
-    (onHide)="closeAddPermissionModal()">
-    
-    <ng-template pTemplate="content">
-      <div class="add-permission-form">
+  >
+    <div class="modal-content">
+      <form [formGroup]="addPermissionForm">
         <!-- Resource Search -->
-        <div class="form-section">
-          <h4>Search Azure Resource</h4>
-          <div class="p-inputgroup">
-            <input 
-              type="text" 
-              pInputText
-              placeholder="Search for storage accounts, resource groups, subscriptions..." 
-              [(ngModel)]="resourceSearchQuery"
-              (keyup.enter)="searchResources()"/>
-            <p-button 
-              icon="pi pi-search"
-              [loading]="resourceSearchLoading"
-              (click)="searchResources()">
-            </p-button>
+        <div class="resource-search-section">
+          <h4>Search for Resource</h4>
+          <div class="search-input-container">
+            <p-inputGroup>
+              <input
+                pInputText
+                type="text"
+                placeholder="Search Azure resources..."
+                formControlName="resourceSearchQuery"
+                (input)="searchResources()"
+                [disabled]="resourceSearchLoading()"
+              />
+              <p-inputGroupAddon>
+                @if (!resourceSearchLoading()) {
+                  <i class="pi pi-search"></i>
+                } @else {
+                  <i class="pi pi-spin pi-spinner"></i>
+                }
+              </p-inputGroupAddon>
+            </p-inputGroup>
           </div>
-          
+
           <!-- Search Results -->
-          <div *ngIf="searchedResources.length > 0" class="resource-search-results">
-            <div class="resource-list">
-              <div 
-                *ngFor="let resource of searchedResources" 
-                class="resource-option p-3 border-round cursor-pointer hover:surface-hover"
-                (click)="selectResource(resource)">
-                <div class="resource-name font-semibold">{{ resource.name }}</div>
-                <div class="resource-details flex align-items-center gap-2 mt-1">
-                  <p-tag [value]="resource.type" severity="info"></p-tag>
-                  <span *ngIf="resource.resourceGroup" class="resource-group text-sm text-color-secondary">
-                    {{ resource.resourceGroup }}
-                  </span>
-                </div>
+          @if (searchedResources().length > 0) {
+            <div class="resource-search-results">
+              <div class="resource-list">
+                @for (resource of searchedResources(); track resource.id) {
+                  <div
+                    class="resource-option"
+                    (click)="selectResourceItem(resource)">
+                    <div class="resource-option-name">{{ resource.name }}</div>
+                    <div class="resource-option-details">
+                      <p-tag [value]="resource.type" severity="info"></p-tag>
+                      @if (resource.resourceGroup) {
+                        <span class="resource-option-group">
+                          {{ resource.resourceGroup }}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
             </div>
-          </div>
+          }
         </div>
 
         <!-- Selected Resource -->
-        <div class="form-section" *ngIf="selectedResource">
-          <h4>Selected Resource</h4>
-          <p-card class="selected-resource-card">
-            <div class="selected-resource flex justify-content-between align-items-start">
-              <div class="resource-info">
-                <h5 class="m-0 mb-2">{{ selectedResource.name }}</h5>
-                <div class="resource-meta flex align-items-center gap-2">
-                  <p-tag [value]="selectedResource.type" severity="info"></p-tag>
-                  <span *ngIf="selectedResource.resourceGroup" class="text-sm text-color-secondary">
-                    Resource Group: {{ selectedResource.resourceGroup }}
-                  </span>
+        @if (selectedResource()) {
+          <div class="form-section">
+            <h4>Selected Resource</h4>
+            <div class="selected-resource-card">
+              <div class="selected-resource">
+                <div class="selected-resource-info">
+                  <h5>{{ selectedResource()!.name }}</h5>
+                  <div class="selected-resource-meta">
+                    <p-tag [value]="selectedResource()!.type" severity="info"></p-tag>
+                    @if (selectedResource()!.resourceGroup) {
+                      <span class="selected-resource-group">
+                        Resource Group: {{ selectedResource()!.resourceGroup }}
+                      </span>
+                    }
+                  </div>
                 </div>
+                <button
+                  class="btn btn-icon"
+                  (click)="clearSelectedResource()">
+                  <i class="pi pi-times"></i>
+                </button>
               </div>
-              <p-button 
-                icon="pi pi-times" 
-                [text]="true"
-                size="small"
-                (click)="selectedResource = null; availableRoles = []; selectedRole = ''">
-              </p-button>
             </div>
-          </p-card>
-        </div>
+          </div>
+        }
 
         <!-- Role Selection -->
-        <div class="form-section" *ngIf="selectedResource && availableRoles.length > 0">
-          <h4>Select Role</h4>
-          <p-select 
-            [(ngModel)]="selectedRole" 
-            [options]="availableRoles"
-            optionLabel="name"
-            optionValue="id"
-            placeholder="Choose a role to assign"
-            class="role-select w-full">
-            <ng-template pTemplate="selectedItem" let-selectedOption>
-              <div *ngIf="selectedOption">
-                <div class="role-name font-semibold">{{ selectedOption.name }}</div>
-              </div>
-            </ng-template>
-            <ng-template pTemplate="item" let-role>
-              <div class="role-option">
-                <div class="role-name font-semibold">{{ role.name }}</div>
-                <div class="role-description text-sm text-color-secondary" *ngIf="role.description">
-                  {{ role.description }}
+        @if (selectedResource() && availableRoles().length > 0) {
+          <div class="form-section">
+            <h4>Select Role</h4>
+            <p-select
+              formControlName="selectedRole"
+              [options]="availableRoles()"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Choose a role to assign"
+              [filter]="true"
+              filterBy="name"
+              filterPlaceholder="Search roles (e.g. Reader, Contributor)..."
+              appendTo="body"
+              class="role-select">
+              <ng-template #selectedItem let-selectedOption>
+                @if (selectedOption) {
+                  <div class="role-selected-display">
+                    <span class="role-name">{{ selectedOption.name }}</span>
+                    <p-tag
+                      [value]="selectedOption.type === 'builtin' ? 'Built-in' : 'Custom'"
+                      [severity]="selectedOption.type === 'builtin' ? 'info' : 'success'"
+                      [style]="{'font-size': '10px', 'padding': '1px 6px', 'line-height': '1.2'}">
+                    </p-tag>
+                  </div>
+                }
+              </ng-template>
+              <ng-template #item let-role>
+                <div class="role-option-compact">
+                  <div class="role-option-header">
+                    <span class="role-option-name">{{ role.name }}</span>
+                    <p-tag
+                      [value]="role.type === 'builtin' ? 'Built-in' : 'Custom'"
+                      [severity]="role.type === 'builtin' ? 'info' : 'success'"
+                      [style]="{'font-size': '10px', 'padding': '1px 6px', 'line-height': '1.2'}">
+                    </p-tag>
+                  </div>
+                  @if (role.description) {
+                    <div class="role-option-desc">{{ role.description }}</div>
+                  }
                 </div>
-                <p-tag 
-                  [value]="role.type === 'builtin' ? 'Built-in' : 'Custom'"
-                  [severity]="role.type === 'builtin' ? 'info' : 'success'"
-                  class="role-type-tag mt-1">
-                </p-tag>
-              </div>
-            </ng-template>
-          </p-select>
-        </div>
+              </ng-template>
+            </p-select>
+          </div>
+        }
+      </form>
 
-        <!-- Loading State -->
-        <div class="form-section" *ngIf="selectedResource && availableRoles.length === 0 && !addPermissionLoading">
-          <p-message 
-            severity="info"
-            text="Loading available roles..."
-            [closable]="false">
-          </p-message>
+      <!-- Loading State -->
+      @if (selectedResource() && availableRoles().length === 0 && !addPermissionLoading()) {
+        <div class="form-section">
+          <div class="alert alert-info">
+            <i class="pi pi-info-circle"></i>
+            <span>Loading available roles...</span>
+          </div>
         </div>
+      }
 
-        <!-- No Roles Available -->
-        <div class="form-section" *ngIf="selectedResource && availableRoles.length === 0 && !resourceSearchLoading">
-          <p-message 
-            severity="warn"
-            text="No roles available for this resource type"
-            detail="The selected resource type may not support role assignments or you may not have permission to view available roles."
-            [closable]="false">
-          </p-message>
+      <!-- No Roles Available -->
+      @if (selectedResource() && availableRoles().length === 0 && !resourceSearchLoading()) {
+        <div class="form-section">
+          <div class="alert alert-warning">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>No roles available for this resource type. The selected resource type may not support role assignments or you may not have permission to view available roles.</span>
+          </div>
         </div>
-      </div>
-    </ng-template>
-    
-    <ng-template pTemplate="footer">
-      <p-button 
-        label="Cancel" 
-        icon="pi pi-times" 
-        [text]="true"
+      }
+    </div>
+
+    <ng-template #footer>
+      <button
+        class="btn btn-secondary"
         (click)="closeAddPermissionModal()">
-      </p-button>
-      <p-button 
-        label="Add Permission" 
-        icon="pi pi-plus" 
-        [loading]="addPermissionLoading"
-        [disabled]="!selectedResource || !selectedRole"
+        <i class="pi pi-times"></i>
+        Cancel
+      </button>
+      <button
+        class="btn btn-primary"
+        [disabled]="!selectedResource() || !addPermissionForm.get('selectedRole')?.value || addPermissionLoading()"
         (click)="addPermission()">
-      </p-button>
+        @if (addPermissionLoading()) {
+          <i class="pi pi-spin pi-spinner"></i>
+        } @else {
+          <i class="pi pi-plus"></i>
+        }
+        Add Permission
+      </button>
     </ng-template>
   </p-dialog>
 </div>

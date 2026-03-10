@@ -57,14 +57,6 @@ export class LockManagementService {
       errorMessage = message;
     }
     
-    console.log('🔍 Lock Management: Checking if error is ScopeLocked:', {
-      error: error,
-      errorCode: errorCode,
-      errorMessage: errorMessage,
-      message: error?.message,
-      isScopeLocked: isScopeLocked
-    });
-    
     return isScopeLocked;
   }
 
@@ -146,26 +138,19 @@ export class LockManagementService {
    * Handle ScopeLocked error with user confirmation
    */
   async handleScopeLockedError(error: any, operation: () => Promise<any>): Promise<any> {
-    console.log('🚨 Lock Management: Handling ScopeLocked error:', error);
-    
     const resourceId = this.extractResourceIdFromError(error);
-    console.log('🔍 Lock Management: Extracted resource ID:', resourceId);
-    
+
     if (!resourceId) {
-      console.error('❌ Lock Management: Could not extract resource ID from error');
+      console.error('Could not extract resource ID from error');
       throw error;
     }
 
-    console.log('💬 Lock Management: Showing confirmation dialog for resource:', resourceId);
     const confirmed = await this.showLockRemovalConfirmation(resourceId);
-    console.log('✅ Lock Management: User confirmation result:', confirmed);
-    
+
     if (!confirmed) {
-      console.log('❌ Lock Management: User cancelled lock removal');
       throw new Error('Lock removal cancelled by user');
     }
 
-    console.log('🔄 Lock Management: Proceeding with lock management workflow');
     return this.executeWithLockManagement(resourceId, operation);
   }
 
@@ -178,7 +163,6 @@ export class LockManagementService {
     operation: () => Observable<any>,
     operationType: string = 'operation'
   ): Observable<any> {
-    console.log('🔧 Handling ScopeLocked error for resource:', resourceId);
     const resourceName = this.extractResourceNameFromId(resourceId);
     
     return new Observable(observer => {
@@ -204,7 +188,12 @@ export class LockManagementService {
             closable: false,
             modal: true
           });
-          
+
+          if (!dialogRef) {
+            observer.error(new Error('Failed to open lock confirmation dialog'));
+            return;
+          }
+
           // Handle dialog events
           dialogRef.onClose.subscribe((result: any) => {
             if (result === 'confirm') {
@@ -260,33 +249,22 @@ export class LockManagementService {
    * Execute operation with lock management workflow (Promise version)
    */
   private async executeWithLockManagement(resourceId: string, operation: () => Promise<any>): Promise<any> {
-    console.log('🔄 Lock Management: Starting executeWithLockManagement for:', resourceId);
-    
     try {
       // Step 1: Get existing locks
-      console.log('📋 Lock Management: Step 1 - Getting existing locks');
       const existingLocks = await firstValueFrom(this.getLocks(resourceId));
-      console.log('📋 Lock Management: Found locks:', existingLocks);
-      
+
       // Step 2: Remove locks that prevent deletion
-      console.log('🗑️ Lock Management: Step 2 - Removing locks');
       await firstValueFrom(this.removeLocks(existingLocks));
-      console.log('✅ Lock Management: Locks removed successfully');
-      
+
       // Step 3: Execute the main operation
-      console.log('⚡ Lock Management: Step 3 - Executing main operation');
       const result = await operation();
-      console.log('✅ Lock Management: Main operation completed successfully');
-      
+
       // Step 4: Recreate the locks
-      console.log('🔄 Lock Management: Step 4 - Recreating locks');
       await firstValueFrom(this.recreateLocks(resourceId, existingLocks));
-      console.log('✅ Lock Management: Locks recreated successfully');
-      
-      console.log('🎉 Lock Management: Workflow completed successfully');
+
       return result;
     } catch (error) {
-      console.error('❌ Lock Management: Error in workflow:', error);
+      console.error('Error in lock management workflow:', error);
       throw error;
     }
   }
@@ -356,7 +334,6 @@ export class LockManagementService {
                       severity: 'warn',
                       summary: 'Operation succeeded but some locks could not be recreated'
                     });
-                    console.warn('Failed to recreate locks:', lockError);
                     return of(result);
                   })
                 );
@@ -406,11 +383,8 @@ export class LockManagementService {
    * Get locks for a resource
    */
   private getLocks(resourceId: string): Observable<LockInfo[]> {
-    console.log('📋 Lock Management: Getting locks for resource:', resourceId);
-    
     return this.azureApiService.getStorageAccountLocks(resourceId).pipe(
       map(locks => {
-        console.log('📋 Lock Management: Raw locks from API:', locks);
         const mappedLocks = locks.map(lock => ({
           id: lock.id,
           name: lock.name,
@@ -420,7 +394,6 @@ export class LockManagementService {
         const filteredLocks = mappedLocks.filter(lock => 
           lock.level === 'Delete' || lock.level === 'CanNotDelete'
         );
-        console.log('📋 Lock Management: Filtered locks (Delete/CanNotDelete):', filteredLocks);
         return filteredLocks; // Return filtered locks, not all locks
       }),
       catchError(error => {
@@ -434,25 +407,16 @@ export class LockManagementService {
    * Remove multiple locks
    */
   private removeLocks(locks: LockInfo[]): Observable<any> {
-    console.log('🗑️ Lock Management: Removing locks:', locks);
-    
     if (locks.length === 0) {
-      console.log('📋 Lock Management: No locks to remove');
       return of(null);
     }
 
     const removeOperations = locks.map(lock => {
-      console.log('🗑️ Lock Management: Deleting lock with ID:', lock.id);
-      console.log('🗑️ Lock Management: Lock name:', lock.name);
-      console.log('🗑️ Lock Management: Lock level:', lock.level);
-      
       // Azure lock IDs are full resource paths like:
       // /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Storage/storageAccounts/{accountName}/providers/Microsoft.Authorization/locks/{lockName}
       // The deleteStorageAccountLock method expects this full path
       return this.azureApiService.deleteStorageAccountLock(lock.id).pipe(
-        tap(result => {
-          console.log('✅ Lock Management: Successfully deleted lock:', lock.id, result);
-          
+        tap(() => {
           // Log successful lock removal
           this.appAuditService.logAction(
             'lock_removed',
@@ -470,20 +434,12 @@ export class LockManagementService {
         }),
         map(result => result),
         catchError(error => {
-          console.error('❌ Lock Management: Failed to delete lock:', lock.id, error);
-          console.error('❌ Lock Management: Error details:', {
-            status: error.status,
-            statusText: error.statusText,
-            message: error.message,
-            url: error.url
-          });
-          console.warn(`Failed to remove lock ${lock.name}:`, error);
+          console.error(`Failed to remove lock ${lock.name}:`, error);
           return of(null);
         })
       );
     });
     
-    console.log('🗑️ Lock Management: Executing', removeOperations.length, 'delete requests');
     return forkJoin(removeOperations);
   }
 
@@ -514,8 +470,7 @@ export class LockManagementService {
             true
           );
         }),
-        catchError(error => {
-          console.warn(`Failed to recreate lock ${lock.name}:`, error);
+        catchError(() => {
           return of(null);
         })
       )
