@@ -1,1 +1,0 @@
-import{i as a,j as b,k as c,l as d,m as e}from"./chunk-KWLNLCEC.js";import"./chunk-X6YHEMIY.js";import"./chunk-Q7L6LLAK.js";export{b as createTenantSpecificConfig,c as getTenantSpecificConfig,e as initializeMsal,a as msalConfig,d as msalInstance};
