@@ -1,19 +1,13 @@
-name: Deploy to GitHub Pages
+name: CI Build
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-concurrency:
-  group: pages-deploy
-  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,10 +26,3 @@ jobs:
       - name: Build
         working-directory: azure-user-role-manager
         run: yarn build --configuration production --base-href /azure-permission-manager/
-
-      - name: Deploy to gh-pages (root)
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          branch: gh-pages
-          folder: azure-user-role-manager/dist/azure-user-role-manager/browser
-          clean-exclude: staging
