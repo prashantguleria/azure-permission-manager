@@ -683,8 +683,31 @@ app-root {
 @media (max-width: 768px) {
   .app-sidebar {
     transform: translateX(-100%);
+    width: var(--sidebar-width);
     z-index: 200;
-    &.open { transform: translateX(0); }
+    transition: transform var(--transition-slow);
+
+    &.open {
+      transform: translateX(0);
+    }
+
+    &.collapsed {
+      width: var(--sidebar-width);
+
+      .nav-label,
+      .brand-name,
+      .user-name,
+      .user-role {
+        display: unset;
+      }
+    }
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 199;
   }
 
   .app-main {

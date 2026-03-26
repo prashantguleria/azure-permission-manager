@@ -24,6 +24,7 @@ export class AppComponent {
 
   // Reactive state via signals
   readonly isCollapsed = signal(false);
+  readonly isMobileMenuOpen = signal(false);
   readonly currentUser = signal<AccountInfo | null>(null);
   readonly showMainLayout = signal(false);
   readonly currentPageTitle = signal('');
@@ -82,7 +83,15 @@ export class AppComponent {
   }
 
   toggleSidebar(): void {
-    this.isCollapsed.update(v => !v);
+    if (window.innerWidth <= 768) {
+      this.isMobileMenuOpen.update(v => !v);
+    } else {
+      this.isCollapsed.update(v => !v);
+    }
+  }
+
+  closeMobileMenu(): void {
+    this.isMobileMenuOpen.set(false);
   }
 
   logout(): void {

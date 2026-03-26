@@ -1,7 +1,12 @@
 @if (showMainLayout()) {
   <div class="app-layout" [class.sidebar-collapsed]="isCollapsed()">
+    <!-- Mobile Overlay -->
+    @if (isMobileMenuOpen()) {
+      <div class="sidebar-overlay" (click)="closeMobileMenu()"></div>
+    }
+
     <!-- Sidebar -->
-    <aside class="app-sidebar" [class.collapsed]="isCollapsed()">
+    <aside class="app-sidebar" [class.collapsed]="isCollapsed()" [class.open]="isMobileMenuOpen()">
       <!-- Brand -->
       <div class="sidebar-brand">
         <div class="brand-icon">
@@ -15,7 +20,8 @@
         @for (item of navItems; track item.route) {
           <a class="nav-item"
              [routerLink]="item.route"
-             routerLinkActive="active">
+             routerLinkActive="active"
+             (click)="closeMobileMenu()">
             <i [class]="item.icon"></i>
             <span class="nav-label">{{ item.label }}</span>
           </a>
