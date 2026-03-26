@@ -1,0 +1,86 @@
+name: PR Preview
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment:
+      name: pr-preview-${{ github.event.pull_request.number }}
+      url: ${{ steps.preview-url.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        working-directory: azure-user-role-manager
+        run: yarn install --immutable
+
+      - name: Build for preview
+        working-directory: azure-user-role-manager
+        run: yarn build --configuration production --base-href /azure-permission-manager/
+
+      - name: Deploy preview to GitHub Pages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-preview-${{ github.event.pull_request.number }}
+          path: azure-user-role-manager/dist/azure-user-role-manager/browser
+
+      - name: Set preview URL
+        id: preview-url
+        run: echo "url=https://${{ github.repository_owner }}.github.io/azure-permission-manager/" >> "$GITHUB_OUTPUT"
+
+      - name: Comment PR with preview info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `### ✅ Build successful
+
+            The build for this PR completed successfully. The build artifact is available for download from the [Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            > To test locally, download the artifact and serve it with any static file server.`;
+
+            // Check if we already commented
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Build successful')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
