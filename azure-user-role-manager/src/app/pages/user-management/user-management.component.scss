@@ -1,25 +1,7 @@
 // ═══════════════════════════════════════════
 // User Management — Component Styles
-// Uses shared design tokens from styles.scss
+// Shared styles from: _page-layout, _components, _tables
 // ═══════════════════════════════════════════
-
-// Page Header
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-}
 
 .user-count-badge {
   display: inline-flex;
@@ -62,111 +44,14 @@
   padding: 0 var(--space-5);
 }
 
-// Table Card
-.table-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  position: relative;
-}
-
-.table-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.table-card-title {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-// Loading Overlay
-.loading-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.7);
-  z-index: 10;
-  border-radius: var(--radius-lg);
-
-  .dark-mode & {
-    background: rgba(13, 17, 23, 0.7);
-  }
-}
-
-// PrimeNG Table Overrides
-.users-table {
-  ::ng-deep {
-    .p-datatable {
-      .p-datatable-thead > tr > th {
-        background: var(--color-bg);
-        border-color: var(--color-border);
-        font-weight: 600;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--color-text-secondary);
-        white-space: nowrap;
-        padding: var(--space-3) var(--space-4);
-      }
-
-      .p-datatable-tbody > tr {
-        transition: background var(--transition-fast);
-
-        &:hover {
-          background: var(--color-surface-hover);
-        }
-      }
-
-      .p-datatable-tbody > tr > td {
-        vertical-align: middle;
-        border-color: var(--color-border);
-        padding: var(--space-3) var(--space-4);
-      }
-    }
-  }
-}
-
 // Column widths
-.col-checkbox {
-  width: 48px;
-}
-
-.col-user {
-  min-width: 220px;
-}
-
-.col-email {
-  min-width: 180px;
-  max-width: 240px;
-}
-
-.col-username {
-  min-width: 180px;
-  max-width: 240px;
-}
-
-.col-status {
-  width: 100px;
-}
-
-.col-created {
-  width: 130px;
-}
-
-.col-actions {
-  width: 100px;
-  text-align: center;
-}
+.col-checkbox { width: 48px; }
+.col-user { min-width: 220px; }
+.col-email { min-width: 180px; max-width: 240px; }
+.col-username { min-width: 180px; max-width: 240px; }
+.col-status { width: 100px; }
+.col-created { width: 130px; }
+.col-actions { width: 100px; text-align: center; }
 
 // User Cell (avatar + info)
 .user-cell {
@@ -231,39 +116,7 @@
   color: var(--color-text-secondary);
 }
 
-// Action Buttons
-.table-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-}
-
-.action-btn {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-tertiary);
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition-fast);
-
-  &:hover {
-    background: var(--color-surface-hover);
-    color: var(--color-primary);
-  }
-
-  i {
-    font-size: 15px;
-  }
-}
-
-// Empty State (override global if needed)
+// Empty State (component-specific override)
 .empty-state {
   padding: var(--space-12) var(--space-8);
 
@@ -271,19 +124,6 @@
     font-size: var(--font-size-lg);
     font-weight: 500;
     color: var(--color-text-secondary);
-  }
-}
-
-// Pagination Footer
-.table-pagination-footer {
-  border-top: 1px solid var(--color-border);
-
-  ::ng-deep {
-    .p-paginator {
-      background: transparent;
-      border: none;
-      padding: var(--space-2) var(--space-4);
-    }
   }
 }
 
@@ -300,22 +140,9 @@
   .search-btn {
     align-self: flex-start;
   }
-
-  .table-card-header {
-    padding: var(--space-3) var(--space-4);
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
-  }
 }
 
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-3);
-  }
-
   .col-email,
   .col-username {
     display: none;
@@ -333,10 +160,6 @@
 }
 
 @media (max-width: 576px) {
-  .page-container {
-    padding: var(--space-4);
-  }
-
   .avatar-circle {
     width: 30px;
     height: 30px;
@@ -352,28 +175,6 @@
     .p-datatable-thead > tr > th:nth-child(6),
     .p-datatable-tbody > tr > td:nth-child(6) {
       display: none;
-    }
-  }
-}
-
-// Custom scrollbar for table overflow
-.table-card {
-  &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--color-bg);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 3px;
-
-    &:hover {
-      background: var(--color-text-tertiary);
     }
   }
 }

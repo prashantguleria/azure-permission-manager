@@ -1,7 +1,9 @@
-import { Component, signal, computed, inject, DestroyRef, effect } from '@angular/core';
+import { Component, signal, computed, inject, DestroyRef, effect, HostListener } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterOutlet, Router, NavigationEnd, RouterModule, RouterLinkActive } from '@angular/router';
 import { MenuItem } from 'primeng/api';
+import { DrawerModule } from 'primeng/drawer';
 import { AuthService } from './services/auth.service';
 import { filter, retry, catchError, of, timer } from 'rxjs';
 import { AccountInfo } from '@azure/msal-browser';
@@ -11,7 +13,7 @@ import { ThemeService } from './services/theme.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterModule, RouterLinkActive],
+  imports: [RouterOutlet, RouterModule, RouterLinkActive, DrawerModule, NgTemplateOutlet],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
@@ -24,7 +26,8 @@ export class AppComponent {
 
   // Reactive state via signals
   readonly isCollapsed = signal(false);
-  readonly isMobileMenuOpen = signal(false);
+  readonly isMobile = signal(window.innerWidth <= 768);
+  readonly drawerVisible = signal(false);
   readonly currentUser = signal<AccountInfo | null>(null);
   readonly showMainLayout = signal(false);
   readonly currentPageTitle = signal('');
@@ -82,16 +85,24 @@ export class AppComponent {
       });
   }
 
+  @HostListener('window:resize')
+  onResize(): void {
+    this.isMobile.set(window.innerWidth <= 768);
+    if (!this.isMobile()) {
+      this.drawerVisible.set(false);
+    }
+  }
+
   toggleSidebar(): void {
-    if (window.innerWidth <= 768) {
-      this.isMobileMenuOpen.update(v => !v);
+    if (this.isMobile()) {
+      this.drawerVisible.update(v => !v);
     } else {
       this.isCollapsed.update(v => !v);
     }
   }
 
-  closeMobileMenu(): void {
-    this.isMobileMenuOpen.set(false);
+  closeDrawer(): void {
+    this.drawerVisible.set(false);
   }
 
   logout(): void {

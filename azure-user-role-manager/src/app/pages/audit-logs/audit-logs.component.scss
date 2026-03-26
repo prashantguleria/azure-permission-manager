@@ -1,29 +1,10 @@
 // ═══════════════════════════════════════════
-// Audit Logs (App-level) — Component Styles
-// Uses shared design tokens from styles.scss
+// Audit Logs — Component Styles
+// Shared styles from: _page-layout, _components, _tables
 // ═══════════════════════════════════════════
 
-// Page Header
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-// Filters Card
+// Filters Card (component-specific overrides)
 .filters-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-
   .filters-card-header {
     padding: var(--space-4) var(--space-5);
     border-bottom: 1px solid var(--color-border);
@@ -63,65 +44,6 @@
       .filter-buttons {
         display: flex;
         gap: var(--space-2);
-      }
-    }
-  }
-}
-
-// Table Card
-.table-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  position: relative;
-}
-
-// Loading Overlay
-.loading-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.7);
-  z-index: 10;
-  border-radius: var(--radius-lg);
-
-  .dark-mode & {
-    background: rgba(13, 17, 23, 0.7);
-  }
-}
-
-// PrimeNG Table Overrides
-.audit-table {
-  ::ng-deep {
-    .p-datatable {
-      .p-datatable-thead > tr > th {
-        background: var(--color-bg);
-        border-color: var(--color-border);
-        font-weight: 600;
-        font-size: var(--font-size-xs);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--color-text-secondary);
-        white-space: nowrap;
-        padding: var(--space-3) var(--space-3);
-      }
-
-      .p-datatable-tbody > tr {
-        transition: background var(--transition-fast);
-
-        &:hover {
-          background: var(--color-surface-hover);
-        }
-      }
-
-      .p-datatable-tbody > tr > td {
-        vertical-align: top;
-        border-color: var(--color-border);
-        padding: var(--space-3) var(--space-3);
       }
     }
   }
@@ -200,34 +122,6 @@
   }
 }
 
-// Empty State
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-12) var(--space-5);
-  text-align: center;
-
-  > i {
-    font-size: 2.5rem;
-    color: var(--color-text-tertiary);
-  }
-
-  .empty-title {
-    font-size: var(--font-size-lg);
-    font-weight: 500;
-    color: var(--color-text-secondary);
-    margin: 0;
-  }
-
-  .empty-description {
-    font-size: var(--font-size-base);
-    color: var(--color-text-tertiary);
-    margin: 0;
-  }
-}
-
 // Responsive
 @media (max-width: 992px) {
   .filters-card .filters-grid {
@@ -238,13 +132,5 @@
 @media (max-width: 768px) {
   .filters-card .filters-grid {
     grid-template-columns: 1fr;
-  }
-
-  .audit-table ::ng-deep {
-    .p-datatable-thead > tr > th,
-    .p-datatable-tbody > tr > td {
-      padding: var(--space-2);
-      font-size: var(--font-size-xs);
-    }
   }
 }
