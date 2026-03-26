@@ -1,47 +1,25 @@
 @if (showMainLayout()) {
   <div class="app-layout" [class.sidebar-collapsed]="isCollapsed()">
-    <!-- Mobile Overlay -->
-    @if (isMobileMenuOpen()) {
-      <div class="sidebar-overlay" (click)="closeMobileMenu()"></div>
+    <!-- Desktop Sidebar -->
+    @if (!isMobile()) {
+      <aside class="app-sidebar" [class.collapsed]="isCollapsed()">
+        <ng-container *ngTemplateOutlet="sidebarContent"></ng-container>
+      </aside>
     }
 
-    <!-- Sidebar -->
-    <aside class="app-sidebar" [class.collapsed]="isCollapsed()" [class.open]="isMobileMenuOpen()">
-      <!-- Brand -->
-      <div class="sidebar-brand">
-        <div class="brand-icon">
-          <i class="pi pi-shield"></i>
-        </div>
-        <span class="brand-name">Azure RM</span>
-      </div>
-
-      <!-- Navigation -->
-      <nav class="sidebar-nav">
-        @for (item of navItems; track item.route) {
-          <a class="nav-item"
-             [routerLink]="item.route"
-             routerLinkActive="active"
-             (click)="closeMobileMenu()">
-            <i [class]="item.icon"></i>
-            <span class="nav-label">{{ item.label }}</span>
-          </a>
-        }
-      </nav>
-
-      <!-- User Footer -->
-      <div class="sidebar-footer">
-        @if (currentUser()) {
-          <div class="user-avatar">{{ userInitials() }}</div>
-          <div class="user-info">
-            <span class="user-name">{{ userName() }}</span>
-            <span class="user-role">Administrator</span>
-          </div>
-        }
-        <button class="theme-toggle" (click)="toggleTheme()" [attr.title]="isDarkMode() ? 'Switch to light mode' : 'Switch to dark mode'">
-          <i [class]="isDarkMode() ? 'pi pi-sun' : 'pi pi-moon'"></i>
-        </button>
-      </div>
-    </aside>
+    <!-- Mobile Drawer -->
+    @if (isMobile()) {
+      <p-drawer
+        [(visible)]="drawerVisible"
+        position="left"
+        [modal]="true"
+        [dismissible]="true"
+        [closeOnEscape]="true"
+        [showCloseIcon]="false"
+        styleClass="mobile-sidebar-drawer">
+        <ng-container *ngTemplateOutlet="sidebarContent"></ng-container>
+      </p-drawer>
+    }
 
     <!-- Main Area -->
     <div class="app-main">
@@ -49,7 +27,7 @@
       <header class="app-topbar">
         <div class="topbar-left">
           <button class="btn-icon collapse-toggle" (click)="toggleSidebar()">
-            <i class="pi" [class.pi-bars]="isCollapsed()" [class.pi-arrow-left]="!isCollapsed()"></i>
+            <i class="pi" [class.pi-bars]="isMobile() || isCollapsed()" [class.pi-arrow-left]="!isMobile() && !isCollapsed()"></i>
           </button>
 
           @if (breadcrumbs().length > 0) {
@@ -87,3 +65,41 @@
 } @else {
   <router-outlet />
 }
+
+<!-- Shared sidebar content template -->
+<ng-template #sidebarContent>
+  <!-- Brand -->
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <i class="pi pi-shield"></i>
+    </div>
+    <span class="brand-name">Azure RM</span>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="sidebar-nav">
+    @for (item of navItems; track item.route) {
+      <a class="nav-item"
+         [routerLink]="item.route"
+         routerLinkActive="active"
+         (click)="closeDrawer()">
+        <i [class]="item.icon"></i>
+        <span class="nav-label">{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+
+  <!-- User Footer -->
+  <div class="sidebar-footer">
+    @if (currentUser()) {
+      <div class="user-avatar">{{ userInitials() }}</div>
+      <div class="user-info">
+        <span class="user-name">{{ userName() }}</span>
+        <span class="user-role">Administrator</span>
+      </div>
+    }
+    <button class="theme-toggle" (click)="toggleTheme()" [attr.title]="isDarkMode() ? 'Switch to light mode' : 'Switch to dark mode'">
+      <i [class]="isDarkMode() ? 'pi pi-sun' : 'pi pi-moon'"></i>
+    </button>
+  </div>
+</ng-template>

@@ -1,0 +1,55 @@
+@import 'breakpoints';
+
+// ═══════════════════════════════════════════
+// Mobile utilities & responsive helpers
+// ═══════════════════════════════════════════
+
+// Display utilities
+.mobile-only {
+  display: none !important;
+  @include mobile { display: initial !important; }
+}
+
+.desktop-only {
+  @include mobile { display: none !important; }
+}
+
+// Layout utilities
+.mobile-stack {
+  @include mobile {
+    flex-direction: column !important;
+  }
+}
+
+.mobile-full-width {
+  @include mobile {
+    width: 100% !important;
+  }
+}
+
+// Touch-friendly spacing
+@include mobile {
+  // Ensure tap targets are at least 44px
+  .btn-icon,
+  .action-btn,
+  .p-row-toggler {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  // Reduce page container padding on mobile
+  .page-container {
+    padding: var(--space-4) !important;
+  }
+
+  // Stack stat cards
+  .stat-cards {
+    flex-direction: column;
+  }
+}
+
+@include small-mobile {
+  .page-container {
+    padding: var(--space-3) !important;
+  }
+}
