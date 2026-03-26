@@ -682,12 +682,19 @@ app-root {
 
 // PrimeNG Drawer overrides for mobile sidebar
 .mobile-sidebar-drawer {
+  &.p-drawer {
+    height: 100vh;
+    height: 100dvh;
+    width: min(280px, 85vw);
+  }
+
   .p-drawer-content {
     display: flex;
     flex-direction: column;
     height: 100%;
     padding: 0;
     background: var(--color-surface);
+    overflow: hidden;
   }
 
   .sidebar-brand {
@@ -705,8 +712,17 @@ app-root {
 }
 
 @media (max-width: 768px) {
+  // Hide desktop sidebar on mobile — drawer replaces it
+  .app-sidebar {
+    display: none !important;
+  }
+
   .app-main {
     margin-left: 0 !important;
+  }
+
+  .app-topbar {
+    padding: 0 var(--space-4);
   }
 
   .stat-cards {

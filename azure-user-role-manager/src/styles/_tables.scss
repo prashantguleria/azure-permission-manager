@@ -122,6 +122,11 @@
 
 // Mobile table overrides
 @include mobile {
+  .table-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   ::ng-deep .app-table,
   ::ng-deep .users-table,
   ::ng-deep .audit-table {
