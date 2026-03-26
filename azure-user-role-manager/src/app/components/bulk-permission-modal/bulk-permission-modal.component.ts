@@ -1,4 +1,4 @@
-import { Component, input, output, ChangeDetectionStrategy, inject, signal, computed, DestroyRef } from '@angular/core';
+import { Component, input, output, ChangeDetectionStrategy, inject, signal, computed, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
@@ -8,6 +8,7 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageService } from 'primeng/api';
 import { AzureApiService } from '../../services/azure-api.service';
+import { PermissionsService } from '../../services/permissions.service';
 import { User, UserSearchResult } from '../../models/user.model';
 import { Subject, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
@@ -105,11 +106,14 @@ export interface BulkPermissionRequest {
               <p-multiSelect
                 inputId="roleDefinitionIds"
                 formControlName="roleDefinitionIds"
-                [options]="availableRoles"
+                [options]="availableRoles()"
                 optionLabel="label"
                 optionValue="value"
-                placeholder="Select roles to assign..."
+                placeholder="Search and select roles..."
+                [filter]="true"
+                filterBy="label"
                 [showClear]="true"
+                [loading]="loadingRoles()"
                 appendTo="body"
                 styleClass="w-full">
               </p-multiSelect>
@@ -261,10 +265,13 @@ export class BulkPermissionModalComponent {
   private readonly fb = inject(FormBuilder);
   private readonly messageService = inject(MessageService);
   private readonly azureApiService = inject(AzureApiService);
+  private readonly permissionsService = inject(PermissionsService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly searchedUsers = signal<User[]>([]);
   readonly searchingUsers = signal(false);
+  readonly availableRoles = signal<{value: string; label: string}[]>([]);
+  readonly loadingRoles = signal(false);
   /** Merged list: search results + previously selected users (so selected chips keep their labels) */
   readonly allPrincipalOptions = computed(() => {
     const searched = this.searchedUsers();
@@ -278,90 +285,6 @@ export class BulkPermissionModalComponent {
   private readonly userSearchSubject = new Subject<string>();
 
   permissionForm: FormGroup;
-  availableRoles = [
-    // General Azure roles
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
-      label: 'Owner'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c',
-      label: 'Contributor'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7',
-      label: 'Reader'
-    },
-    // Storage Account roles
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/17d1049b-9a84-46fb-8f53-869881c3d3ab',
-      label: 'Storage Account Contributor'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/81a9662b-bebf-436f-a333-f67b29880f12',
-      label: 'Storage Account Key Operator Service Role'
-    },
-    // Blob Storage roles
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/b7e6dc6d-f1e8-4753-8033-0f276bb0955b',
-      label: 'Storage Blob Data Owner'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe',
-      label: 'Storage Blob Data Contributor'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/2a2b9908-6ea1-4ae2-8e65-a410df84e7d1',
-      label: 'Storage Blob Data Reader'
-    },
-    // Queue Storage roles
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/974c5e8b-45b9-4653-ba55-5f855dd0fb88',
-      label: 'Storage Queue Data Contributor'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/19e7f393-937e-4f77-808e-94535e297925',
-      label: 'Storage Queue Data Reader'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/c6a89b2d-59bc-44d0-9f4c-60707430ef2e',
-      label: 'Storage Queue Data Message Sender'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/8a0f0c08-91a1-4084-bc3d-661d67233fed',
-      label: 'Storage Queue Data Message Processor'
-    },
-    // Table Storage roles
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3',
-      label: 'Storage Table Data Contributor'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/76199698-9eea-4c19-bc75-cec21354c6b6',
-      label: 'Storage Table Data Reader'
-    },
-    // File Share roles
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb',
-      label: 'Storage File Data SMB Share Contributor'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/aba4ae5f-2193-4029-9191-0cb91df5e314',
-      label: 'Storage File Data SMB Share Reader'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/a7264617-510b-434b-a828-9731dc254ea4',
-      label: 'Storage File Data SMB Share Elevated Contributor'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/69566ab7-960f-475b-8e7c-b3118f30c6bd',
-      label: 'Storage File Data Privileged Contributor'
-    },
-    {
-      value: '/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions/b8ead5d4-5043-42d9-9e2a-e3e8600f9cde',
-      label: 'Storage File Data Privileged Reader'
-    }
-  ];
 
   constructor() {
     this.permissionForm = this.fb.group({
@@ -370,8 +293,12 @@ export class BulkPermissionModalComponent {
       principalType: ['User', [Validators.required]]
     });
 
-    // Update role definitions with subscription ID
-    this.updateRoleDefinitions();
+    // Load role definitions when modal becomes visible
+    effect(() => {
+      if (this.visible()) {
+        this.loadRoleDefinitions();
+      }
+    });
 
     // Setup principal search with debouncing
     this.userSearchSubject.pipe(
@@ -471,23 +398,40 @@ export class BulkPermissionModalComponent {
     }
   }
 
-  private updateRoleDefinitions(): void {
-    // Update role definition IDs with actual subscription ID
-    if (this.selectedAccounts().length > 0) {
-      const subscriptionId = this.selectedAccounts()[0].subscriptionId;
-      this.availableRoles = this.availableRoles.map(role => ({
-        ...role,
-        value: role.value.replace('{{subscriptionId}}', subscriptionId)
-      }));
-    }
+  private loadRoleDefinitions(): void {
+    const subId = this.subscriptionId();
+    if (!subId) return;
+    if (this.availableRoles().length > 0) return; // already loaded
+
+    this.loadingRoles.set(true);
+    const scope = `/subscriptions/${subId}`;
+    this.permissionsService.getRoleDefinitionsForScope(scope)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (roles) => {
+          this.availableRoles.set(roles.map((r: any) => ({
+            value: r.id,
+            label: r.name
+          })));
+          this.loadingRoles.set(false);
+        },
+        error: () => {
+          this.loadingRoles.set(false);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load role definitions'
+          });
+        }
+      });
   }
 
   onModalVisibilityChange(vis: boolean): void {
     this.visibleChange.emit(vis);
 
     if (vis) {
-      // Update role definitions when modal opens
-      this.updateRoleDefinitions();
+      // Load role definitions dynamically from Azure
+      this.loadRoleDefinitions();
       // Clear previous search results
       this.searchedUsers.set([]);
     } else {
