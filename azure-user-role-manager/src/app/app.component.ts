@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, DestroyRef, effect, HostListener } from '@angular/core';
+import { Component, signal, computed, inject, DestroyRef, effect } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterOutlet, Router, NavigationEnd, RouterModule, RouterLinkActive } from '@angular/router';
@@ -26,7 +26,8 @@ export class AppComponent {
 
   // Reactive state via signals
   readonly isCollapsed = signal(false);
-  readonly isMobile = signal(window.innerWidth <= 768);
+  private readonly mobileQuery = window.matchMedia('(max-width: 768px)');
+  readonly isMobile = signal(this.mobileQuery.matches);
   readonly drawerVisible = signal(false);
   readonly currentUser = signal<AccountInfo | null>(null);
   readonly showMainLayout = signal(false);
@@ -54,6 +55,14 @@ export class AppComponent {
   ];
 
   constructor() {
+    // Listen to viewport changes for mobile detection
+    this.mobileQuery.addEventListener('change', (e) => {
+      this.isMobile.set(e.matches);
+      if (!e.matches) {
+        this.drawerVisible.set(false);
+      }
+    });
+
     // Listen to router events to update breadcrumbs and page title
     this.router.events
       .pipe(
@@ -83,14 +92,6 @@ export class AppComponent {
           // Authentication recovery in progress
         }
       });
-  }
-
-  @HostListener('window:resize')
-  onResize(): void {
-    this.isMobile.set(window.innerWidth <= 768);
-    if (!this.isMobile()) {
-      this.drawerVisible.set(false);
-    }
   }
 
   toggleSidebar(): void {

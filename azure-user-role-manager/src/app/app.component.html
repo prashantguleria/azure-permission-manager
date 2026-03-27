@@ -1,25 +1,21 @@
 @if (showMainLayout()) {
   <div class="app-layout" [class.sidebar-collapsed]="isCollapsed()">
-    <!-- Desktop Sidebar -->
-    @if (!isMobile()) {
-      <aside class="app-sidebar" [class.collapsed]="isCollapsed()">
-        <ng-container *ngTemplateOutlet="sidebarContent"></ng-container>
-      </aside>
-    }
+    <!-- Desktop Sidebar (hidden via CSS on mobile) -->
+    <aside class="app-sidebar" [class.collapsed]="isCollapsed()">
+      <ng-container *ngTemplateOutlet="sidebarContent"></ng-container>
+    </aside>
 
-    <!-- Mobile Drawer -->
-    @if (isMobile()) {
-      <p-drawer
-        [(visible)]="drawerVisible"
-        position="left"
-        [modal]="true"
-        [dismissible]="true"
-        [closeOnEscape]="true"
-        [showCloseIcon]="false"
-        styleClass="mobile-sidebar-drawer">
-        <ng-container *ngTemplateOutlet="sidebarContent"></ng-container>
-      </p-drawer>
-    }
+    <!-- Mobile Drawer (only visible when drawerVisible is true) -->
+    <p-drawer
+      [(visible)]="drawerVisible"
+      position="left"
+      [modal]="true"
+      [dismissible]="true"
+      [closeOnEscape]="true"
+      [showCloseIcon]="false"
+      styleClass="mobile-sidebar-drawer">
+      <ng-container *ngTemplateOutlet="sidebarContent"></ng-container>
+    </p-drawer>
 
     <!-- Main Area -->
     <div class="app-main">
